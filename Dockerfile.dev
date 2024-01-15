@@ -1,0 +1,20 @@
+FROM rust:bookworm
+
+ARG UID
+ARG GID
+
+RUN apt-get update && apt-get install -y libssl-dev && rm -rf /var/lib/apt/lists/*
+
+# RUN cargo install --locked trunk # This might take a long time. Install a prebuilt package as a workaround
+ARG TRUNK_VERSION=v0.17.1
+RUN wget -qO- https://github.com/thedodd/trunk/releases/download/${TRUNK_VERSION}/trunk-x86_64-unknown-linux-gnu.tar.gz | tar -xzf- -C /usr/local/bin/
+
+ENV USERNAME=rust
+RUN groupadd -g "${GID}" "${USERNAME}"
+RUN useradd -rm -d /home/"${USERNAME}" -s /bin/bash -g "${GID}" -G sudo -u "${UID}" "${USERNAME}"
+
+USER "${USERNAME}"
+
+USER $USERNAME
+
+RUN rustup target add wasm32-unknown-unknown

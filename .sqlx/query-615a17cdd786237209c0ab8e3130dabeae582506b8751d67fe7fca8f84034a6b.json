@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT data as \"data!:sqlx::types::Json<VehicleData>\" FROM car_data WHERE timestamp BETWEEN $1 AND $2 ORDER BY timestamp ASC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "data!:sqlx::types::Json<VehicleData>",
+        "type_info": "Jsonb"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "615a17cdd786237209c0ab8e3130dabeae582506b8751d67fe7fca8f84034a6b"
+}

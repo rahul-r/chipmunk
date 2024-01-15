@@ -1,0 +1,44 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        UPDATE charging_processes\n        SET\n            start_date = $1,\n            end_date = $2,\n            charge_energy_added = $3,\n            start_ideal_range_km = $4,\n            end_ideal_range_km = $5,\n            start_battery_level = $6,\n            end_battery_level = $7,\n            duration_min = $8,\n            outside_temp_avg = $9,\n            position_id = $10,\n            address_id = $11,\n            start_rated_range_km = $12,\n            end_rated_range_km = $13,\n            geofence_id = $14,\n            charge_energy_used = $15,\n            cost = $16,\n            charging_status = $17\n        WHERE id = $18\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Timestamp",
+        "Timestamp",
+        "Float4",
+        "Float4",
+        "Float4",
+        "Int2",
+        "Int2",
+        "Int2",
+        "Float4",
+        "Int4",
+        "Int4",
+        "Float4",
+        "Float4",
+        "Int4",
+        "Float4",
+        "Float4",
+        {
+          "Custom": {
+            "name": "charge_stat",
+            "kind": {
+              "Enum": [
+                "start",
+                "stop",
+                "charging",
+                "done",
+                "idle"
+              ]
+            }
+          }
+        },
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "6c7a4dc5698aaee1a7b4fc017be55f2a3f10d7df62f6042a347c4cf6a5980091"
+}

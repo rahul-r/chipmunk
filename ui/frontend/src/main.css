@@ -1,0 +1,59 @@
+.startButton {
+  display: inline-block;
+  height: 50px;
+  width: 50px;
+  margin: 10px;
+  border-radius: 200px;
+  border: 3px solid #27ae60;
+  background: #2ecc71;
+  text-align: center;
+  text-decoration: none;
+  color: #27ae60;
+  transition: all 0.2s;
+}
+
+.startButtonLabel {
+  line-height: 50px;
+  font-size: 22px;
+  font-weight: bold;
+  font-style: normal;
+  transition: all 0.1s;
+}
+
+.startButton:hover {
+  box-shadow: 0px 0 0 0 #1f1f1f, 0px 0 0 10px #27ae60;
+}
+.startButton:active {
+  box-shadow: 0px 0 0 11px #FFF, 0px 0 0 10px #27ae60;
+}
+
+.stopButton {
+  display: inline-block;
+  height: 50px;
+  width: 50px;
+  margin: 10px;
+  border-radius: 200px;
+  border: 3px solid red;
+  background: red;
+  text-align: center;
+  text-decoration: none;
+  color: red;
+  transition: all 0.2s;
+}
+
+.stopButtonLabel {
+  color: white;
+  line-height: 50px;
+  font-size: 22px;
+  font-weight: bold;
+  font-style: normal;
+  transition: all 0.1s;
+}
+
+.stopButton:hover {
+  box-shadow: 0px 0 0 0 #1f1f1f, 0px 0 0 10px #ff7171;
+}
+.stopButton:active {
+  box-shadow: 0px 0 0 11px #FFF, 0px 0 0 10px red;
+}
+

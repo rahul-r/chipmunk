@@ -1,0 +1,20 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT data as \"data!:sqlx::types::Json<VehicleData>\" FROM car_data ORDER BY timestamp DESC LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "data!:sqlx::types::Json<VehicleData>",
+        "type_info": "Jsonb"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "48c48d076c6160ff3ee913a1cdbdf38272efb149f3ab254e4a2faa95750b6996"
+}

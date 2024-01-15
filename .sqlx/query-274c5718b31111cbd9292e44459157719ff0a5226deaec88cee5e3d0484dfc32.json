@@ -1,0 +1,148 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT * FROM charges WHERE charging_process_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "date",
+        "type_info": "Timestamp"
+      },
+      {
+        "ordinal": 2,
+        "name": "battery_heater_on",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 3,
+        "name": "battery_level",
+        "type_info": "Int2"
+      },
+      {
+        "ordinal": 4,
+        "name": "charge_energy_added",
+        "type_info": "Float4"
+      },
+      {
+        "ordinal": 5,
+        "name": "charger_actual_current",
+        "type_info": "Int2"
+      },
+      {
+        "ordinal": 6,
+        "name": "charger_phases",
+        "type_info": "Int2"
+      },
+      {
+        "ordinal": 7,
+        "name": "charger_pilot_current",
+        "type_info": "Int2"
+      },
+      {
+        "ordinal": 8,
+        "name": "charger_power",
+        "type_info": "Int2"
+      },
+      {
+        "ordinal": 9,
+        "name": "charger_voltage",
+        "type_info": "Int2"
+      },
+      {
+        "ordinal": 10,
+        "name": "fast_charger_present",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 11,
+        "name": "conn_charge_cable",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 12,
+        "name": "fast_charger_brand",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 13,
+        "name": "fast_charger_type",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 14,
+        "name": "ideal_battery_range_km",
+        "type_info": "Float4"
+      },
+      {
+        "ordinal": 15,
+        "name": "not_enough_power_to_heat",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 16,
+        "name": "outside_temp",
+        "type_info": "Float4"
+      },
+      {
+        "ordinal": 17,
+        "name": "charging_process_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 18,
+        "name": "battery_heater",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 19,
+        "name": "battery_heater_no_power",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 20,
+        "name": "rated_battery_range_km",
+        "type_info": "Float4"
+      },
+      {
+        "ordinal": 21,
+        "name": "usable_battery_level",
+        "type_info": "Int2"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "274c5718b31111cbd9292e44459157719ff0a5226deaec88cee5e3d0484dfc32"
+}

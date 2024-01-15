@@ -1,0 +1,74 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT * FROM tokens",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "refresh_token",
+        "type_info": "Bytea"
+      },
+      {
+        "ordinal": 2,
+        "name": "refresh_token_iv",
+        "type_info": "Bytea"
+      },
+      {
+        "ordinal": 3,
+        "name": "access_token",
+        "type_info": "Bytea"
+      },
+      {
+        "ordinal": 4,
+        "name": "access_token_iv",
+        "type_info": "Bytea"
+      },
+      {
+        "ordinal": 5,
+        "name": "access_token_expires_at",
+        "type_info": "Timestamp"
+      },
+      {
+        "ordinal": 6,
+        "name": "id_token",
+        "type_info": "Bytea"
+      },
+      {
+        "ordinal": 7,
+        "name": "id_token_iv",
+        "type_info": "Bytea"
+      },
+      {
+        "ordinal": 8,
+        "name": "token_type",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 9,
+        "name": "updated_at",
+        "type_info": "Timestamp"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      true,
+      true,
+      true,
+      true,
+      false,
+      true,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "0428113450f9459e4a3fe2fe4380e9458fdefee0e30f5d2f821da30b89ea07d3"
+}

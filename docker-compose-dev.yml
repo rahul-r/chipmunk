@@ -1,0 +1,124 @@
+version: '3.1'
+
+services:
+  db:
+    image: postgres:13
+    container_name: postgres
+    hostname: postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./chipmunk_docker/postgres:/var/lib/postgresql/data:rw
+    environment:
+      POSTGRES_USER: chipmunk
+      POSTGRES_PASSWORD: chipmunk
+      POSTGRES_DB: chipmunk
+
+  db_car_data:
+    image: postgres:13
+    container_name: db_car_data
+    hostname: db_car_data
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: tesla
+      POSTGRES_PASSWORD: "tesla"
+      POSTGRES_DB: tesla
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin
+    hostname: pgadmin
+    restart: unless-stopped
+    depends_on:
+      - db
+      - db_car_data
+    ports:
+      - "8080:80"
+    volumes:
+      # NOTE: Set the pgadmin directory owner to uid 5050
+      - ./chipmunk_docker/pgadmin/config:/var/lib/pgadmin:Z
+    environment:
+      PGADMIN_DEFAULT_EMAIL: mail@example.com
+      PGADMIN_DEFAULT_PASSWORD: chipmunk
+      PGADMIN_CONFIG_ENHANCED_COOKIE_PROTECTION: "True"
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: 'False'
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+      PGADMIN_CONFIG_CONSOLE_LOG_LEVEL: 10
+      CHIPMUNK_DB: db
+      CHIPMUNK_DB_USER: chipmunk
+      CHIPMUNK_DB_PASS: chipmunk
+      CAR_DATA_DB: db_car_data
+      CAR_DATA_DB_USER: tesla
+      CAR_DATA_DB_PASS: tesla
+      SE_OPTS: "log /dev/null"
+    logging:
+      driver: "none"
+    user: 'root'
+    # Connect to the database without manually entering username and password
+    # SOURCE: https://stackoverflow.com/questions/66578506/where-is-the-pgpass-file-in-pgadmin4-docker-container-when-this-file-is-mounted/69258794#69258794
+    entrypoint: >
+      /bin/sh -c '
+      echo "$${CHIPMUNK_DB}:5432:*:$${CHIPMUNK_DB_USER}:$${CHIPMUNK_DB_PASS}" > /tmp/pgpass;
+      echo "$${CAR_DATA_DB}:5432:*:$${CAR_DATA_DB_USER}:$${CAR_DATA_DB_PASS}" >> /tmp/pgpass;
+      chmod 0600 /tmp/pgpass;
+      echo "{\"Servers\": { \
+            \"1\": {\
+              \"Name\":\"Chipmunk\",\"Group\":\"Servers\",\"Host\":\"$${CHIPMUNK_DB}\",\"Port\":5432,\"MaintenanceDB\":\"postgres\",\"Username\":\"$${CHIPMUNK_DB_USER}\",\"PassFile\":\"/tmp/pgpass\",\"SSLMode\":\"allow\"\
+            },\
+            \"2\": { \
+                \"Name\":\"Car\",\"Group\":\"Servers\",\"Host\":\"$${CAR_DATA_DB}\",\"Port\":5432,\"MaintenanceDB\":\"postgres\",\"Username\":\"$${CAR_DATA_DB_USER}\",\"PassFile\":\"/tmp/pgpass\",\"SSLMode\":\"allow\"\
+            }\
+            }}" > /pgadmin4/servers.json;
+      /entrypoint.sh
+      '
+  grafana:
+    build: ./grafana
+    container_name: grafana
+    hostname: grafana
+    restart: unless-stopped
+    ports:
+      - "3073:3000"
+    depends_on:
+      - db
+    volumes:
+      # NOTE: Set the grafana directory owner to 472:0
+      - ./chipmunk_docker/grafana:/var/lib/grafana:Z
+    environment:
+      TZ: America/Los_Angeles
+      # GF_PATHS_CONFIG: /etc/grafana/grafana.ini
+      DATABASE_USER: grafana
+      DATABASE_PASS: grafana
+      DATABASE_NAME: chipmunk
+      DATABASE_HOST: db
+      CHIPMUNK_HOST: chipmunk-dev
+      CHIPMUNK_PORT: ${HTTP_PORT}
+      GF_PANELS_DISABLE_SANITIZE_HTML: true
+
+  chipmunk-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+      args:
+        - UID=$HOST_UID
+        - GID=$HOST_GID
+    container_name: chipmunk-dev
+    hostname: chipmunk-dev
+    depends_on:
+      - db
+      - db_car_data
+      - grafana
+      - pgadmin
+    volumes:
+      - .:/chipmunk:rw
+    working_dir: /chipmunk
+    ports:
+      - "${HTTP_PORT}:${HTTP_PORT}" # This comes from the .env file
+    stdin_open: true
+    tty: true
+    environment:
+      CARGO_TARGET_DIR: target_docker # This tells cargo to use the specified directory as build directory
+      TOKEN_ENCRYPTION_KEY: ${TOKEN_ENCRYPTION_KEY} # This comes from the .env file
+      # Postgres URL format: postgresql://[user[:password]@][netloc][:port][/dbname][?param1=value1&...]
+      DATABASE_URL: "postgres://chipmunk:${DATABASE_PASSWORD}@db:5432/chipmunk"
+      TEST_DATABASE_URL: "postgres://chipmunk:${DATABASE_PASSWORD}@db:5432/chipmunk"

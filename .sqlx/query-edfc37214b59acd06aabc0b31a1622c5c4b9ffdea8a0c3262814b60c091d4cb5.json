@@ -1,0 +1,25 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO updates\n        (\n            start_date,\n            end_date,\n            version,\n            car_id\n        )\n        VALUES ($1, $2, $3, $4)\n        RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamp",
+        "Timestamp",
+        "Varchar",
+        "Int2"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "edfc37214b59acd06aabc0b31a1622c5c4b9ffdea8a0c3262814b60c091d4cb5"
+}

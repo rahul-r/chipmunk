@@ -1,0 +1,28 @@
+apiVersion: 1
+
+datasources:
+- name: Chipmunk
+  type: postgres
+  url: $DATABASE_HOST:$DATABASE_PORT
+  user: $DATABASE_USER
+  database: $DATABASE_NAME
+  password: ""
+  access: proxy
+  basicAuth: false
+  withCredentials: false
+  isDefault: true
+  secureJsonData:
+    password: $DATABASE_PASS
+  jsonData:
+    postgresVersion: 1000
+    sslmode: disable
+  version: 1
+  editable: true
+- name: WebSocket
+  type: golioth-websocket-datasource
+  access: proxy
+  jsonData:
+    host: ws://$CHIPMUNK_HOST:$CHIPMUNK_PORT/websocket
+  isDefault: false
+  version: 1
+  editable: true

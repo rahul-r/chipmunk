@@ -1,0 +1,38 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO charging_processes\n        (\n            start_date,\n            end_date,\n            charge_energy_added,\n            start_ideal_range_km,\n            end_ideal_range_km,\n            start_battery_level,\n            end_battery_level,\n            duration_min,\n            outside_temp_avg,\n            car_id,\n            position_id,\n            address_id,\n            start_rated_range_km,\n            end_rated_range_km,\n            geofence_id,\n            charge_energy_used,\n            cost\n        )\n        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)\n        RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamp",
+        "Timestamp",
+        "Float4",
+        "Float4",
+        "Float4",
+        "Int2",
+        "Int2",
+        "Int2",
+        "Float4",
+        "Int2",
+        "Int4",
+        "Int4",
+        "Float4",
+        "Float4",
+        "Int4",
+        "Float4",
+        "Float4"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "5be0c50721bd221d3604449484d0263b5ee21964cecb5f80b09dc06e6f37d81f"
+}

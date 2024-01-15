@@ -1,0 +1,6 @@
+[serve]
+port = 8888
+
+[[proxy]]
+backend = "ws://localhost:3072/websocket"
+ws = true

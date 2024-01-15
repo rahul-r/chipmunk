@@ -1,0 +1,56 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                SELECT\n                    id,\n                    state AS \"state!: StateStatus\",\n                    start_date,\n                    end_date,\n                    car_id\n                FROM states\n                ORDER BY start_date DESC LIMIT 1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "state!: StateStatus",
+        "type_info": {
+          "Custom": {
+            "name": "states_status",
+            "kind": {
+              "Enum": [
+                "online",
+                "offline",
+                "asleep",
+                "unknown"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "start_date",
+        "type_info": "Timestamp"
+      },
+      {
+        "ordinal": 3,
+        "name": "end_date",
+        "type_info": "Timestamp"
+      },
+      {
+        "ordinal": 4,
+        "name": "car_id",
+        "type_info": "Int2"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "8086d1373e065ead109d875fa7f12bb4503f7c615161e0d3406dd3907f2297d7"
+}

@@ -1,0 +1,112 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT * FROM cars where id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int2"
+      },
+      {
+        "ordinal": 1,
+        "name": "eid",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 2,
+        "name": "vid",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 3,
+        "name": "model",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "efficiency",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 5,
+        "name": "inserted_at",
+        "type_info": "Timestamp"
+      },
+      {
+        "ordinal": 6,
+        "name": "updated_at",
+        "type_info": "Timestamp"
+      },
+      {
+        "ordinal": 7,
+        "name": "vin",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 8,
+        "name": "name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 9,
+        "name": "trim_badging",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 10,
+        "name": "settings_id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 11,
+        "name": "exterior_color",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 12,
+        "name": "spoiler_type",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 13,
+        "name": "wheel_type",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 14,
+        "name": "display_priority",
+        "type_info": "Int2"
+      },
+      {
+        "ordinal": 15,
+        "name": "marketing_name",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int2"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      false,
+      true,
+      true,
+      true,
+      false,
+      true,
+      true,
+      true,
+      false,
+      true
+    ]
+  },
+  "hash": "0e26268d84c2765c0d1c8f50182f31786ae98075fcae4112c6113452910975d3"
+}

@@ -1,0 +1,18 @@
+use sqlx::PgPool;
+
+pub mod tables;
+pub mod token;
+
+pub async fn initialize(url: &str) -> anyhow::Result<PgPool> {
+    let pool = PgPool::connect(url).await?;
+
+    tables::initialize(&pool).await?;
+
+    Ok(pool)
+}
+
+pub async fn initilize_car_data(url: &str) -> anyhow::Result<PgPool> {
+    let pool = PgPool::connect(url).await?;
+
+    Ok(pool)
+}

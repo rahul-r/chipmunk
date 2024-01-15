@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO tokens\n        (\n            refresh_token,\n            refresh_token_iv,\n            access_token,\n            access_token_iv,\n            access_token_expires_at,\n            id_token,\n            id_token_iv,\n            token_type,\n            updated_at\n        )\n        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)\n            ON CONFLICT (id) DO UPDATE\n                SET\n                    refresh_token = excluded.refresh_token,\n                    refresh_token_iv = excluded.refresh_token_iv,\n                    access_token = excluded.access_token,\n                    access_token_iv = excluded.access_token_iv,\n                    access_token_expires_at = excluded.access_token_expires_at,\n                    id_token = excluded.id_token,\n                    id_token_iv = excluded.id_token_iv,\n                    token_type = excluded.token_type,\n                    updated_at = excluded.updated_at\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Bytea",
+        "Bytea",
+        "Bytea",
+        "Bytea",
+        "Timestamp",
+        "Bytea",
+        "Bytea",
+        "Text",
+        "Timestamp"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "4a263fdf0b4cb185e027f4baa235b7f45350acdc4fec60026f1686c83f7c6946"
+}

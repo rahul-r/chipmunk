@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO car_settings\n        (\n            suspend_min,\n            suspend_after_idle_min,\n            req_not_unlocked,\n            free_supercharging,\n            use_streaming_api\n        )\n        VALUES ($1, $2, $3, $4, $5)\n            ON CONFLICT (id) DO UPDATE\n                SET\n                    suspend_min = excluded.suspend_min,\n                    suspend_after_idle_min = excluded.suspend_after_idle_min,\n                    req_not_unlocked = excluded.req_not_unlocked,\n                    free_supercharging = excluded.free_supercharging,\n                    use_streaming_api = excluded.use_streaming_api\n        RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int4",
+        "Bool",
+        "Bool",
+        "Bool"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "8da554c8f502060533fb637e0ec87e0c3e1d0c765f3ae805f0e15cbfae2dc701"
+}

@@ -1,0 +1,70 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO settings\n        (\n            inserted_at,\n            updated_at,\n            unit_of_length,\n            unit_of_temperature,\n            preferred_range,\n            base_url,\n            grafana_url,\n            language,\n            unit_of_pressure\n        )\n        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)\n            ON CONFLICT (id) DO UPDATE\n                SET\n                    inserted_at = excluded.inserted_at,\n                    updated_at = excluded.updated_at,\n                    unit_of_length = excluded.unit_of_length,\n                    unit_of_temperature = excluded.unit_of_temperature,\n                    preferred_range = excluded.preferred_range,\n                    base_url = excluded.base_url,\n                    grafana_url = excluded.grafana_url,\n                    language = excluded.language,\n                    unit_of_pressure = excluded.unit_of_pressure\n            RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamp",
+        "Timestamp",
+        {
+          "Custom": {
+            "name": "unit_of_length",
+            "kind": {
+              "Enum": [
+                "km",
+                "mi"
+              ]
+            }
+          }
+        },
+        {
+          "Custom": {
+            "name": "unit_of_temperature",
+            "kind": {
+              "Enum": [
+                "C",
+                "F"
+              ]
+            }
+          }
+        },
+        {
+          "Custom": {
+            "name": "range",
+            "kind": {
+              "Enum": [
+                "ideal",
+                "rated"
+              ]
+            }
+          }
+        },
+        "Varchar",
+        "Varchar",
+        "Text",
+        {
+          "Custom": {
+            "name": "unit_of_pressure",
+            "kind": {
+              "Enum": [
+                "bar",
+                "psi"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "e12e7c317489f42abf7221fb1bf892be347883f308995db10f1294080901bf3e"
+}
