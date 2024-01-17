@@ -5,6 +5,7 @@
 - Look for TODO comments in the code and complete the task
 - Auto increment version
 - If car name is changed, the change doesn't get updated in the database. Periodically check car's configuration and update the database if there are any changes.
+- remove unnecessary files from the repository
 
 ## Later
 
