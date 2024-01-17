@@ -27,3 +27,8 @@
 - Fix the panic when the http oprt 3072 is being used by another process
 - Update car table in database every day
 - If vehicle is offline, wait for it to wake up instead of polling for data
+- Grafana
+    - Create Gana plug-in to interface with chipmunk
+    - Display chipmunk web interface in Grafana
+- read charging details from Tesla and add to database 
+- read charging details from ChargePoint 
