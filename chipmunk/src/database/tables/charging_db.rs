@@ -205,11 +205,11 @@ pub async fn get_charges_for_charging_process(
     pool: &PgPool,
     charging_process_id: i32,
 ) -> sqlx::Result<Vec<Charges>> {
-    Ok(sqlx::query_as!(
+    sqlx::query_as!(
         Charges,
         r#"SELECT * FROM charges WHERE charging_process_id = $1"#,
         charging_process_id
     )
     .fetch_all(pool)
-    .await?)
+    .await
 }

@@ -219,10 +219,10 @@ impl Car {
         }
 
         if let Some(car) = cars.last() {
-            return Ok(car.clone());
+            Ok(car.clone())
         } else {
             log::error!("No car found with id `{}`", id);
-            return Err(sqlx::Error::RowNotFound);
+            Err(sqlx::Error::RowNotFound)
         }
     }
 }
@@ -336,7 +336,7 @@ pub async fn db_get_or_insert_car(
     if car_id == -1 {
         // Car not found in the databse, insert it
         let car_settings_id = CarSettings::default().db_insert(pool).await?;
-        let car = Car::from(&vehicle_data, car_settings_id)?;
+        let car = Car::from(vehicle_data, car_settings_id)?;
         car_id = car.db_insert(pool).await? as i16;
         let updated_cars = Car::db_get(pool).await?;
         return Ok((updated_cars, car_id));

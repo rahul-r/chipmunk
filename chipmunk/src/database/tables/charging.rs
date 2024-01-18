@@ -260,7 +260,7 @@ async fn determine_phases(charges: &Vec<Charges>) -> Option<f32> {
         return None;
     }
 
-    let avg_power = total_power as f32 / count as f32;
+    let avg_power = total_power / count as f32;
     let avg_phases = total_phases as f32 / count as f32;
     let avg_voltage = total_voltage as f32 / count as f32;
 

@@ -1,5 +1,6 @@
 #![feature(async_closure)]
 #![feature(let_chains)]
+#![feature(stmt_expr_attributes)]
 
 use std::{io::Write, thread, time};
 
@@ -55,7 +56,7 @@ async fn main() -> anyhow::Result<()> {
 
     let env = environment::load().unwrap_or_else(print_err_and_exit!());
 
-    log::info!("Initializing database {}", env.database_url);
+    log::info!("Initializing database");
     let pool = database::initialize(&env.database_url)
         .await
         .unwrap_or_else(print_err_and_exit!());
@@ -89,7 +90,7 @@ async fn main() -> anyhow::Result<()> {
                 loop {
                     server
                         .lock()
-                        .unwrap()
+                        .await
                         .broadcast(get_default_wsmsg(counter))
                         .await;
                     counter += 1;
@@ -146,13 +147,9 @@ async fn log(pool: &PgPool, env: &Environment) -> anyhow::Result<()> {
     let status_reporter = thread::spawn(move || {
         futures::executor::block_on(async {
             loop {
-                match server_clone.lock() {
-                    Ok(srv) => {
-                        let msg = srv.get_status_str();
-                        srv.broadcast(msg).await;
-                    }
-                    Err(e) => log::error!("Error getting server lock: {e}"),
-                }
+                let srv = server_clone.lock().await;
+                let msg = srv.get_status_str();
+                srv.broadcast(msg).await;
                 thread::sleep(time::Duration::from_secs(1));
             }
         });

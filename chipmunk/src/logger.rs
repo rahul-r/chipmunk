@@ -1,4 +1,4 @@
-use std::sync::{mpsc, Arc, Mutex};
+use std::sync::{mpsc, Arc};
 use tokio::runtime::Runtime;
 
 use anyhow::Context;
@@ -11,6 +11,7 @@ use tesla_api::{
     TeslaClient, TeslaError,
 };
 use tokio::sync::mpsc::UnboundedReceiver;
+use tokio::sync::Mutex;
 
 use crate::database::{
     self,
@@ -26,7 +27,7 @@ use crate::database::{
 pub async fn start(
     pool: &sqlx::PgPool,
     server: Arc<Mutex<TeslaServer>>,
-    encryption_key: &String,
+    encryption_key: &str,
     mut rx: UnboundedReceiver<bool>,
 ) -> anyhow::Result<()> {
     let mut message_shown = false;
@@ -42,7 +43,7 @@ pub async fn start(
             continue;
         };
 
-        let tokens = database::token::get(pool, &encryption_key).await?;
+        let tokens = database::token::get(pool, encryption_key).await?;
 
         let tesla_client = get_tesla_client(&tokens.access_token)?;
 
@@ -79,7 +80,7 @@ async fn logging_process(
         .context("Invalid vehicle ID")?;
 
     let mut num_data_points = 0;
-    let settings = Settings::db_get(&pool).await?;
+    let settings = Settings::db_get(pool).await?;
 
     let access_token = tokens.access_token.clone();
 
@@ -122,10 +123,7 @@ async fn logging_process(
                     match start_logger_signal_rx.try_recv() {
                         Ok(v) => {
                             logging_status = v;
-                            match server_clone.lock() {
-                                Ok(mut srv) => srv.set_logging_status(logging_status),
-                                Err(e) => log::error!("{e}"),
-                            }
+                            server_clone.lock().await.set_logging_status(logging_status);
                         }
                         Err(std::sync::mpsc::TryRecvError::Empty) => (),
                         Err(std::sync::mpsc::TryRecvError::Disconnected) => {
@@ -139,10 +137,7 @@ async fn logging_process(
                         match start_logger_signal_rx.recv() {
                             Ok(v) => {
                                 logging_status = v;
-                                match server_clone.lock() {
-                                    Ok(mut srv) => srv.set_logging_status(logging_status),
-                                    Err(e) => log::error!("{e}"),
-                                }
+                                server_clone.lock().await.set_logging_status(logging_status);
                             }
                             Err(e) => {
                                 log::error!("Logger disconnected: {e}");
@@ -190,10 +185,7 @@ async fn logging_process(
 
                     num_data_points += 1;
 
-                    match server_clone.lock() {
-                        Ok(mut srv) => srv.status.current_points = num_data_points,
-                        Err(e) => log::error!("{e}"),
-                    }
+                    server_clone.lock().await.status.current_points = num_data_points;
 
                     tokio::time::sleep(std::time::Duration::from_millis(
                         settings.logging_period_ms as u64,

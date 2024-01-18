@@ -1,4 +1,5 @@
 #![feature(async_closure)]
+#![feature(stmt_expr_attributes)]
 
 pub mod crypto;
 pub mod database;

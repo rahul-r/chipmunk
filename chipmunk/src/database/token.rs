@@ -170,7 +170,7 @@ async fn test_key_retrieval() {
     let url = &env::var("TEST_DATABASE_URL")
         .expect("Cannot get test database URL from environment variable, Please set env `TEST_DATABASE_URL`");
     let pool = initialize(url).await.expect("Error initializing databse");
-    let encryption_key = "secret password";
+    let encryption_key = "secret password acbdefghijklmnop";
     get(&pool, encryption_key)
         .await
         .expect("Error getting tokens from database");
@@ -182,7 +182,7 @@ async fn test_key_insertion() {
     let url = &env::var("TEST_DATABASE_URL")
         .expect("Cannot get test database URL from environment variable, Please set env `TEST_DATABASE_URL`");
     let pool = initialize(url).await.expect("Error initializing databse");
-    let encryption_key = "secret password";
+    let encryption_key = "secret password acbdefghijklmnop";
     let tokens = AuthResponse {
         access_token: "access_token".into(),
         refresh_token: "refresh_token".into(),

@@ -67,7 +67,7 @@ fn ws() -> Html {
     let first_load = use_state(|| true);
     let is_logging = use_state(|| true);
 
-    let ws = use_state(|| Ws::start());
+    let ws = use_state(Ws::start);
 
     let ws_context = use_state(|| WsContext {
         msg: WsMessage::default(),

@@ -7,9 +7,6 @@ HOST_GID=$(id -g)
 export HOST_UID
 export HOST_GID
 
-# Comment this line to use real tesla servers
-export SIMULATE=yes  # yes or no
-
 mkdir -p chipmunk_docker/postgres
 mkdir -p chipmunk_docker/pgadmin
 mkdir -p chipmunk_docker/grafana

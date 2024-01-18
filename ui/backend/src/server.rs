@@ -3,7 +3,7 @@ use std::{
     net::{IpAddr, Ipv4Addr, SocketAddr},
     sync::{
         atomic::{AtomicUsize, Ordering},
-        Arc, Mutex,
+        Arc,
     },
 };
 
@@ -14,6 +14,7 @@ use tokio_stream::wrappers::UnboundedReceiverStream;
 use uuid::Uuid;
 use warp::ws::{Message, WebSocket};
 use warp::Filter;
+use tokio::sync::Mutex;
 
 use ui_common::{Json, LoggingStatus, MessageType, Topic, WsMessage, WsMessageToken};
 

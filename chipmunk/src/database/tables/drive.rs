@@ -172,10 +172,8 @@ pub fn drive_status(
     current_shift: Option<ShiftState>,
     current_status: &DriveStatus,
 ) -> DriveStatus {
-    if current_status == &DriveStatus::Driving {
-        if drive_restarted(previous_position, current_position) {
-            return DriveStatus::Restart;
-        }
+    if current_status == &DriveStatus::Driving && drive_restarted(previous_position, current_position) {
+        return DriveStatus::Restart;
     }
 
     // If the shift state is Parked on None, the car is not driving, else tell the logger to start a new drive
@@ -206,11 +204,11 @@ pub fn drive_status(
         return DriveStatus::Start;
     }
 
-    return if is_parked {
+    if is_parked {
         DriveStatus::NotDriving
     } else {
         DriveStatus::Driving
-    };
+    }
 }
 
 pub async fn start(pool: &sqlx::PgPool, start_position: &Position, car_id: i16) -> Drive {
@@ -220,7 +218,7 @@ pub async fn start(pool: &sqlx::PgPool, start_position: &Position, car_id: i16) 
     let start_geofence_id = None; // TODO: Add this
 
     let mut new_drive =
-        Drive::start(&start_position, car_id, start_address_id, start_geofence_id);
+        Drive::start(start_position, car_id, start_address_id, start_geofence_id);
 
     match new_drive.db_insert(pool).await {
         Ok(id) => {
@@ -242,17 +240,16 @@ pub async fn stop(pool: &sqlx::PgPool, drive: Drive, stop_position: &Position) -
 
     let end_geofence_id = None; // TODO: Add this
 
-    let end_drive = drive.stop(&stop_position, end_addr_id, end_geofence_id);
+    let end_drive = drive.stop(stop_position, end_addr_id, end_geofence_id);
     if let Err(e) = end_drive.db_update(pool).await {
         log::error!("Error marking drive (id: {}) as stopped: {e}", drive.id);
-    } else {
     }
 
     end_drive.reset()
 }
 
 pub async fn update(pool: &sqlx::PgPool, drive: Drive, current_position: &Position) -> Drive {
-    let updated_drive = drive.update(&current_position);
+    let updated_drive = drive.update(current_position);
     if let Err(e) = updated_drive.db_update(pool).await {
         log::error!("Error updating drive (id: {}): {e}", drive.id);
     }
@@ -361,7 +358,7 @@ pub async fn handle_drive(
 }
 
 #[tokio::test]
-#[cfg_attr(rustfmt, rustfmt_skip)]
+#[rustfmt::skip]
 pub async fn test_handle_drive() {
     dotenvy::dotenv().ok();
     let env = crate::environment::load().unwrap();
@@ -383,7 +380,7 @@ pub async fn test_handle_drive() {
             drive,
             1,
         ).await;
-        return drive.status;
+        drive.status
     };
 
     assert_eq!(test_shift_state(pool.clone(), DriveStatus::NotDriving, Some(ShiftState::P)).await, DriveStatus::NotDriving);

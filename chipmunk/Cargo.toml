@@ -24,6 +24,7 @@ futures = "0.3.28"
 
 [dev-dependencies]
 gpx = "0.10.0"
+mockito = "1.2.0"
 
 [lib]
 name = "chipmunk"

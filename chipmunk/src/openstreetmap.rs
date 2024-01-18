@@ -6,6 +6,8 @@ use serde::{Deserialize, Serialize};
 
 /// This is an example of how to use the `osm_client` and `reverse_geocode` functions.
 /// ```
+/// use chipmunk::openstreetmap::{osm_client, reverse_geocode};
+///
 /// #[tokio::main]
 /// async fn main() -> anyhow::Result<()> {
 ///     let lat = 0.13806939125061035;
@@ -83,7 +85,7 @@ impl OsmAddress {
     /// Format house numbers like "1;2;3" to "1 - 3"
     fn format_house_numbers(numbers: String) -> String {
         let collection = numbers.split(';').collect::<Vec<&str>>();
-        if collection.iter().count() > 1 {
+        if collection.len() > 1 {
             format!(
                 "{} - {}",
                 collection.first().unwrap_or(&"*"),
@@ -105,7 +107,7 @@ impl OsmAddress {
             None
         };
 
-        numbers.map(|n| Self::format_house_numbers(n))
+        numbers.map(Self::format_house_numbers)
     }
 
     pub fn get_road(&self) -> Option<String> {
@@ -318,8 +320,10 @@ pub fn osm_client() -> anyhow::Result<Client> {
 }
 
 pub async fn reverse_geocode(client: &Client, lat: &f32, lon: &f32) -> anyhow::Result<OsmResponse> {
+    let base_url = std::env::var("MOCK_OSM_BASE_URL").unwrap_or_else(|_| BASE_URL.into());
+
     let res = client
-        .get(format!("{BASE_URL}/reverse"))
+        .get(format!("{base_url}/reverse"))
         .query(&[
             ("lat", lat.to_string()),
             ("lon", lon.to_string()),
@@ -354,8 +358,8 @@ pub async fn geocode(address: String) -> Option<OsmResponse> {
 
 #[tokio::test]
 async fn test_reverse_geocode() {
-    let lat = 64.7529099405634;
-    let lon = -147.35390714170856;
+    let lat = 64.752_91;
+    let lon = -147.353_91;
 
     let client = osm_client().unwrap();
     let res = reverse_geocode(&client, &lat, &lon).await.unwrap();

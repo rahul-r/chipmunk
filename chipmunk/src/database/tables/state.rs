@@ -131,7 +131,7 @@ impl State {
     pub fn from(data: &VehicleData, car_id: i16) -> anyhow::Result<Self> {
         Ok(State {
             id: 0,
-            state: StateStatus::get(&data),
+            state: StateStatus::get(data),
             start_date: data.timestamp_utc().context("timestamp is None")?,
             end_date: None,
             car_id,

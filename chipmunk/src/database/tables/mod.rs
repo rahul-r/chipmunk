@@ -51,15 +51,15 @@ pub struct Tables {
 
 impl Tables {
     pub fn time(&self) -> Option<NaiveDateTime> {
-        #[cfg_attr(rustfmt, rustfmt_skip)]
+        #[rustfmt::skip]
         self.position.as_ref().and_then(|p| p.date)
-            .or_else(|| self.drive.as_ref().and_then(|d| Some(d.start_date)))
-            .or_else(|| self.charging_process.as_ref().and_then(|cp| Some(cp.start_date)))
-            .or_else(|| self.state.as_ref().and_then(|s| Some(s.start_date)))
-            .or_else(|| self.sw_update.as_ref().and_then(|sw| Some(sw.start_date)))
-            .or_else(|| self.address.as_ref().and_then(|a| Some(a.inserted_at)))
-            .or_else(|| self.settings.as_ref().and_then(|s| Some(s.inserted_at)))
-            .or_else(|| self.car.as_ref().and_then(|c| Some(c.inserted_at)))
+            .or_else(|| self.drive.as_ref().map(|d| d.start_date))
+            .or_else(|| self.charging_process.as_ref().map(|cp| cp.start_date))
+            .or_else(|| self.state.as_ref().map(|s| s.start_date))
+            .or_else(|| self.sw_update.as_ref().map(|sw| sw.start_date))
+            .or_else(|| self.address.as_ref().map(|a| a.inserted_at))
+            .or_else(|| self.settings.as_ref().map(|s| s.inserted_at))
+            .or_else(|| self.car.as_ref().map(|c| c.inserted_at))
     }
 }
 
@@ -403,7 +403,7 @@ fn create_charging_process(
     // Create a new charging process
     let prev_charge = prev_tables.charges.clone();
     let curr_charge = Charges::from(data, 0)?;
-    Ok(ChargingProcess::from_charges(
+    ChargingProcess::from_charges(
         prev_charge.as_ref(),
         &curr_charge,
         prev_tables.state.as_ref().context("State is None")?.car_id,
@@ -415,7 +415,7 @@ fn create_charging_process(
             .context("Position ID is none")?,
         None,
         None,
-    )?)
+    )
 }
 
 pub async fn create_tables_new(
@@ -476,11 +476,11 @@ pub async fn create_tables_new(
                     // Continue only if the battery level us up by at least 2% (>1)
                     if charge > 1 {
                         // Create a new charging process
-                        if let Ok(charging_process) = create_charging_process(&prev_tables, &data)
+                        if let Ok(charging_process) = create_charging_process(prev_tables, data)
                             .map_err(|e| log::error!("Error creating charging process: {e}"))
                         {
                             table_list.push(Tables {
-                                address: address.clone(),
+                                address,
                                 charging_process: Some(charging_process),
                                 position: Some(prev_position.clone()),
                                 ..Default::default()
@@ -623,15 +623,13 @@ pub async fn db_insert(pool: &sqlx::PgPool, tables: Tables) -> anyhow::Result<Ta
 
     // Insert position and update the ID field
     if let Some(ref mut p) = tables.position {
-        p.db_insert(&pool)
-            .await
-            .and_then(|id| Ok(p.id = Some(id as i32)))?; // Update id field of current_position with the id returned from the database
+        p.db_insert(pool).await.map(|id| p.id = Some(id as i32))?; // Update id field of current_position with the id returned from the database
     }
 
     // Insert address and update the ID field
     let address_id = if let Some(ref address) = tables.address {
         address
-            .db_insert(&pool)
+            .db_insert(pool)
             .await
             .map_err(|e| log::error!("Error inserting address into database: {e}"))
             .map(|id| id as i32)
@@ -658,7 +656,7 @@ pub async fn db_insert(pool: &sqlx::PgPool, tables: Tables) -> anyhow::Result<Ta
                 drive.start_position_id = tables.position.as_ref().and_then(|p| p.id);
             }
             let res = drive
-                .db_insert(&pool)
+                .db_insert(pool)
                 .await
                 .map_err(|e| log::error!("Error inserting drive into database: {e}"))
                 .map(|id| drive.id = id);
@@ -666,7 +664,7 @@ pub async fn db_insert(pool: &sqlx::PgPool, tables: Tables) -> anyhow::Result<Ta
             if res.is_ok() {
                 // Update drive_id of the position entry
                 if let Some(ref p) = tables.position {
-                    if let Err(e) = p.db_update_drive_id(&pool, drive.id).await {
+                    if let Err(e) = p.db_update_drive_id(pool, drive.id).await {
                         log::error!("Error updating position with drive_id: {e}");
                     }
                 }
@@ -674,7 +672,7 @@ pub async fn db_insert(pool: &sqlx::PgPool, tables: Tables) -> anyhow::Result<Ta
         } else {
             // update the current drive
             drive.end_position_id = tables.position.as_ref().and_then(|p| p.id);
-            if let Err(e) = drive.db_update(&pool).await {
+            if let Err(e) = drive.db_update(pool).await {
                 log::error!("Error updating drive (id: {}): {e}", drive.id);
             }
         }
@@ -687,11 +685,11 @@ pub async fn db_insert(pool: &sqlx::PgPool, tables: Tables) -> anyhow::Result<Ta
 // Read the list of cars from the database, we will check which car the vehicle_data response from the API belongs to
 // It is more efficient to store the list of cars in memory and check against it instead of querying the database for each vehicle_data response
 pub async fn get_vin_id_map(pool: &sqlx::PgPool) -> HashMap<String, i16> {
-    #[cfg_attr(rustfmt, rustfmt_skip)]
-    let vin_id_map = if let Ok(cars) = Car::db_get(&pool).await {
+    #[rustfmt::skip]
+    let vin_id_map = if let Ok(cars) = Car::db_get(pool).await {
         cars
             .iter()
-            .filter_map(|c| if c.id > 0 && c.vin.is_some() { Some(c) } else { None }) // Remove entries with invalid id or None vins
+            .filter(|c| c.id > 0 && c.vin.is_some()) // Remove entries with invalid id or None vins
             .map(|c| (c.vin.clone().expect("VIN is None, this should never happen"), c.id)) // Get vin and id from Car struct
             .collect()
     } else {
@@ -721,20 +719,19 @@ pub async fn logging_process(
             "Vehicle with VIN {} not found in the database, inserting a new entry into database",
             vin
         );
-        let car_settings_id = match CarSettings::default().db_insert(&pool).await {
+        let car_settings_id = match CarSettings::default().db_insert(pool).await {
             Ok(id) => id,
             Err(e) => {
                 log::error!("Error inserting car settings into database: {e}");
                 return (vin_id_map, tables);
             }
         };
-        let Ok(car) = Car::from(&data, car_settings_id).map_err(|e| log::error!("Error creating car: {e}")) else {
+        let Ok(car) = Car::from(data, car_settings_id).map_err(|e| log::error!("Error creating car: {e}")) else {
             return (vin_id_map, tables);
         };
-        let Ok(id) = car.db_insert(&pool)
+        let Ok(id) = car.db_insert(pool)
             .await
-            .map_err(|e| log::error!("{e}"))
-            .and_then(|id| Ok(id as i16))
+            .map_err(|e| log::error!("{e}")).map(|id| id as i16)
         else {
             return (vin_id_map, tables);
         };
@@ -742,12 +739,12 @@ pub async fn logging_process(
         id
     };
 
-    if let Ok(table_list) = create_tables_new(&data, &tables, car_id)
+    if let Ok(table_list) = create_tables_new(data, &tables, car_id)
         .await
         .map_err(|e| log::error!("Error adding to database: {e}"))
     {
         for t in table_list {
-            match db_insert(&pool, t).await {
+            match db_insert(pool, t).await {
                 Ok(updated_tables) => tables = updated_tables,
                 Err(e) => log::error!("Error inserting tables into database: {e}"),
             }

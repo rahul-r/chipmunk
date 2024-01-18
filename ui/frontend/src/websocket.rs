@@ -1,4 +1,5 @@
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 use async_channel::{unbounded, Receiver, Sender};
 use futures::{
@@ -63,13 +64,8 @@ impl Ws {
                     }
                 };
 
-                match write.lock() {
-                    Ok(mut w) => {
-                        if let Err(e) = w.send(Message::Text(msg_str)).await {
-                            log::error!("Error sending WebSocket message `{:?}`: {e}", msg);
-                        }
-                    }
-                    Err(e) => log::error!("Cannot get mutex lock: {e}"),
+                if let Err(e) = write.lock().await.send(Message::Text(msg_str)).await {
+                    log::error!("Error sending WebSocket message `{:?}`: {e}", msg);
                 }
             }
             log::info!("WebSocket sender exited");
@@ -83,7 +79,7 @@ impl Ws {
         let read = read;
 
         spawn_local(async move {
-            while let Some(msg) = read.lock().unwrap().next().await {
+            while let Some(msg) = read.lock().await.next().await {
                 let handle_msg = async || -> anyhow::Result<()> {
                     match msg? {
                         Message::Text(t) => ws_tx.send(WsMessage::from_string(&*t)?).await?,
