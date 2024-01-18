@@ -9,8 +9,7 @@ pub async fn initialize(url: &str) -> anyhow::Result<PgPool> {
     log::info!("Running database migrations");
     sqlx::migrate!("./migrations")
         .run(&pool)
-        .await
-        .unwrap_or_else(print_err_and_exit!());
+        .await?;
 
     tables::initialize(&pool).await?;
 
