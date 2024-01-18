@@ -63,12 +63,6 @@ async fn main() -> anyhow::Result<()> {
 
     let cli = Cli::parse();
 
-    log::info!("Running database migrations");
-    sqlx::migrate!("./migrations")
-        .run(&pool)
-        .await
-        .unwrap_or_else(print_err_and_exit!());
-
     // If token is provided, store it in the database
     if let Some(refresh_token) = cli.token {
         match tesla_api::auth::refresh_access_token(refresh_token.as_str()).await {
