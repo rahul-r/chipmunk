@@ -1,8 +1,8 @@
-use std::sync::{mpsc, Arc};
+use std::{sync::{mpsc, Arc}, thread, time::Duration};
 use tokio::runtime::Runtime;
 
 use anyhow::Context;
-use backend::server::TeslaServer;
+use backend::server::{TeslaServer, MpscTopic};
 use tesla_api::{
     auth::AuthResponse,
     get_tesla_client, get_vehicle_data, get_vehicles,
@@ -13,7 +13,7 @@ use tesla_api::{
 use tokio::sync::mpsc::UnboundedReceiver;
 use tokio::sync::Mutex;
 
-use crate::database::{
+use crate::{database::{
     self,
     tables::{
         car::{db_get_or_insert_car, Car},
@@ -22,9 +22,71 @@ use crate::database::{
         settings::Settings,
         state::State,
     },
-};
+}, environment::Environment};
 
-pub async fn start(
+
+pub async fn log(pool: &sqlx::PgPool, env: &Environment) -> anyhow::Result<()> {
+    let (server_tx, mut server_rx) = tokio::sync::mpsc::unbounded_channel();
+    let server = TeslaServer::start(env.http_port, server_tx);
+
+    let (logger_tx, logger_rx) = tokio::sync::mpsc::unbounded_channel();
+
+    // Make copies so that we can move these into the future without causing borrow errors
+    let encryption_key = env.encryption_key.clone();
+    let pool1 = pool.clone();
+    let pool2 = pool.clone();
+
+    let cmd_handler = tokio::task::spawn(async move {
+        while let Some(topic) = server_rx.recv().await {
+            match topic {
+                MpscTopic::Logging(value) => {
+                    if let Err(e) = logger_tx.send(value) {
+                        log::error!("{e}");
+                    }
+                }
+                MpscTopic::RefreshToken(refresh_token) => {
+                    let tokens =
+                        match tesla_api::auth::refresh_access_token(refresh_token.as_str()).await {
+                            Ok(t) => t,
+                            Err(e) => {
+                                log::error!("{e}");
+                                continue;
+                            }
+                        };
+                    if let Err(e) =
+                        database::token::insert(&pool1, tokens, encryption_key.as_str()).await
+                    {
+                        log::error!("{e}");
+                    }
+                }
+            }
+        }
+    });
+
+    let server_clone = server.clone();
+    let status_reporter = thread::spawn(move || {
+        futures::executor::block_on(async {
+            loop {
+                let srv = server_clone.lock().await;
+                let msg = srv.get_status_str();
+                srv.broadcast(msg).await;
+                thread::sleep(Duration::from_secs(1));
+            }
+        });
+    });
+
+    tokio::select! {
+        res = cmd_handler => res?,
+        res = start(&pool2, server, &env.encryption_key, logger_rx) => res?,
+    }
+
+    // Panic if any of the threads/tasks return error
+    status_reporter.join().unwrap();
+
+    Ok(())
+}
+
+async fn start(
     pool: &sqlx::PgPool,
     server: Arc<Mutex<TeslaServer>>,
     encryption_key: &str,
