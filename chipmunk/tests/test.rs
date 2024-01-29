@@ -1,69 +1,25 @@
 #![feature(stmt_expr_attributes)]
 
-mod test_data;
+pub mod common;
 
 use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
-
-use chipmunk::database;
-use chipmunk::database::tables::drive::Drive;
-use chipmunk::database::tables::drive::DriveStatus;
-use chipmunk::database::tables::state::State;
-use chipmunk::database::tables::state::StateStatus;
-use chipmunk::database::tables::Tables;
+use std::sync::{Mutex, Arc};
 use chrono::Duration;
-use chrono::NaiveDateTime;
-use tesla_api::utils::miles_to_km;
-use tesla_api::utils::mph_to_kmh;
-use tesla_api::utils::timestamp_to_naivedatetime;
+
+use chipmunk::{database, openstreetmap};
+use chipmunk::database::tables::{Tables, DBTable};
+use chipmunk::database::tables::drive::{Drive, DriveStatus};
+use chipmunk::database::tables::state::{State, StateStatus};
+use tesla_api::utils::{miles_to_km, mph_to_kmh, timestamp_to_naivedatetime};
 use tesla_api::vehicle_data::{DriveState, ShiftState, VehicleData};
 
-/// Asserts that two floats are approximately equal.
-#[macro_export]
-macro_rules! approx_eq {
-    ($x:expr, $y:expr) => {
-        if $x.zip($y).map(|(a, b)| a.abs() - b.abs()) > Some(0.001) {
-            panic!("assertion failed: `(left == right)`\n  left: `{:?}`,\n right: `{:?}`", $x, $y);
-        }
-    };
-}
+use common::test_data::{self, data_with_shift};
+use common::utils::{init_database, ts_no_nanos};
 
-fn ts_no_nanos(ts: NaiveDateTime) -> NaiveDateTime {
-    let timestamp = ts.timestamp_millis();
-    let secs = timestamp / 1000;
-    let nsecs = (timestamp % 1000 * 1_000_000) as u32;
-    NaiveDateTime::from_timestamp_opt(secs, nsecs).unwrap()
-}
-
-fn create_mock_osm_server() -> mockito::Mock {
-    // Request a new server from the pool
-    let mut server = mockito::Server::new();
-    let osm_response = std::fs::read_to_string("tests/osm_response.json").unwrap();
-    // Create a mock
-    let mock = server.mock("GET", "/reverse?lat=37.39495&lon=-122.14961&addressdetails=1&extratags=1&namedetails=1&zoom=19&format=jsonv2")
-        .with_status(201)
-        .with_header("content-type", "application/json")
-        .with_body(osm_response)
-        .create();
-    let mock_url = server.url();
-    std::env::set_var("MOCK_OSM_BASE_URL", mock_url);
-    mock
-}
-
-pub async fn init_tests() -> (sqlx::Pool<sqlx::Postgres>, mockito::Mock){
-    dotenvy::dotenv().ok();
-    let url = &std::env::var("TEST_DATABASE_URL")
-        .expect("Cannot get test database URL from environment variable, Please set env `TEST_DATABASE_URL`");
-    let pool = database::initialize(url).await.unwrap();
-    // delete all entries from database tables before running tests
-    sqlx::query!("TRUNCATE TABLE drives, positions, addresses RESTART IDENTITY CASCADE")
-        .execute(&pool)
-        .await
-        .unwrap();
-    let osm_mock = create_mock_osm_server();
-    (pool, osm_mock)
-}
+use crate::common::utils::create_mock_osm_server;
+use crate::common::utils::create_mock_tesla_server;
 
 #[rustfmt::skip]
 pub fn create_drive_from_gpx() -> (Vec<VehicleData>, usize, usize) {
@@ -101,7 +57,7 @@ pub fn create_drive_from_gpx() -> (Vec<VehicleData>, usize, usize) {
             ..data.clone()
         });
     }
-    
+
     // Next index of the first drive point
     let drive_start_index = data_points.len();
 
@@ -226,7 +182,8 @@ fn calculate_expected_drive(
 
 #[tokio::test]
 async fn check_vehicle_data() -> anyhow::Result<()> {
-    let (pool, _osm_mock) = init_tests().await;
+    let pool = init_database().await;
+    let _osm_mock = create_mock_osm_server();
 
     let (vehicle_data_list, drive_start_index, drive_end_index) = create_drive_from_gpx();
     let mut vin_id_map = database::tables::get_vin_id_map(&pool).await;
@@ -246,7 +203,7 @@ async fn check_vehicle_data() -> anyhow::Result<()> {
     
     #[rustfmt::skip]
     {
-        let last_row = Drive::db_load_last(&pool).await.unwrap();
+        let last_row = Drive::db_get_last(&pool).await.unwrap();
         assert_eq!(last_row.start_date, expected_drive.start_date);
         assert_eq!(last_row.end_date, expected_drive.end_date);
         approx_eq!(last_row.outside_temp_avg, expected_drive.outside_temp_avg);
@@ -274,21 +231,6 @@ async fn check_vehicle_data() -> anyhow::Result<()> {
     Ok(())
 }
 
-// Create a VehicleData with the provided shift state
-fn data_with_shift(timestamp: NaiveDateTime, shift: Option<ShiftState>) -> VehicleData {
-    let data = test_data::get_data(timestamp);
-    VehicleData {
-        drive_state: Some(DriveState {
-            latitude: Some(12.34),
-            longitude: Some(34.56),
-            shift_state: shift,
-            timestamp: Some(timestamp.timestamp_millis() as u64),
-            ..data.drive_state.clone().unwrap()
-        }),
-        ..data
-    }
-}
-
 #[tokio::test]
 async fn startup_with_state() {
     use ShiftState::*;
@@ -299,11 +241,11 @@ async fn startup_with_state() {
     let blank_tables = Tables::default();
 
     // Test startup with shift state null (expect parked state)
-    let t = database::tables::create_tables_new(&data_with_shift(ts, None), &blank_tables, car_id).await.unwrap();
+    let t = database::tables::create_tables(&data_with_shift(ts, None), &blank_tables, car_id).await.unwrap();
     assert_eq!(t.len(), 1);
     assert!(t[0].address.is_none());
     assert!(t[0].car.is_none());
-    assert!(t[0].charges.is_none());
+    assert_eq!(t[0].charges.as_ref().unwrap().id, 0);
     assert!(t[0].charging_process.is_none());
     assert!(t[0].drive.is_none());
     assert!(t[0].position.is_none());
@@ -312,11 +254,11 @@ async fn startup_with_state() {
     assert_eq!(*t[0].state.as_ref().unwrap(), State {car_id, id: 0, state: Parked, start_date: ts_no_nanos(ts), end_date: None });
 
     // Test startup with shift state P (expect parked state)
-    let t = database::tables::create_tables_new(&data_with_shift(ts, Some(P)), &blank_tables, car_id).await.unwrap();
+    let t = database::tables::create_tables(&data_with_shift(ts, Some(P)), &blank_tables, car_id).await.unwrap();
     assert_eq!(t.len(), 1);
     assert!(t[0].address.is_none());
     assert!(t[0].car.is_none());
-    assert!(t[0].charges.is_none());
+    assert_eq!(t[0].charges.as_ref().unwrap().id, 0);
     assert!(t[0].charging_process.is_none());
     assert!(t[0].drive.is_none());
     assert!(t[0].position.is_none());
@@ -325,11 +267,11 @@ async fn startup_with_state() {
     assert_eq!(*t[0].state.as_ref().unwrap(), State {car_id, id: 0, state: Parked, start_date: ts_no_nanos(ts), end_date: None });
 
     // Test startup with shift state D (expect driving state)
-    let t = database::tables::create_tables_new(&data_with_shift(ts, Some(D)), &blank_tables, car_id).await.unwrap();
+    let t = database::tables::create_tables(&data_with_shift(ts, Some(D)), &blank_tables, car_id).await.unwrap();
     assert_eq!(t.len(), 1);
     assert!(t[0].address.is_some());
     assert!(t[0].car.is_none());
-    assert!(t[0].charges.is_none());
+    assert_eq!(t[0].charges.as_ref().unwrap().id, 0);
     assert!(t[0].charging_process.is_none());
     assert!(t[0].drive.is_some());
     assert!(t[0].position.is_some());
@@ -338,11 +280,11 @@ async fn startup_with_state() {
     assert_eq!(*t[0].state.as_ref().unwrap(), State {car_id, id: 0, state: Driving, start_date: ts_no_nanos(ts), end_date: None });
 
     // Test startup with shift state R (expect driving state)
-    let t = database::tables::create_tables_new(&data_with_shift(ts, Some(R)), &blank_tables, car_id).await.unwrap();
+    let t = database::tables::create_tables(&data_with_shift(ts, Some(R)), &blank_tables, car_id).await.unwrap();
     assert_eq!(t.len(), 1);
     assert!(t[0].address.is_some());
     assert!(t[0].car.is_none());
-    assert!(t[0].charges.is_none());
+    assert_eq!(t[0].charges.as_ref().unwrap().id, 0);
     assert!(t[0].charging_process.is_none());
     assert!(t[0].drive.is_some());
     assert!(t[0].position.is_some());
@@ -351,11 +293,11 @@ async fn startup_with_state() {
     assert_eq!(*t[0].state.as_ref().unwrap(), State {car_id, id: 0, state: Driving, start_date: ts_no_nanos(ts), end_date: None });
 
     // Test startup with shift state N (expect driving state)
-    let t = database::tables::create_tables_new(&data_with_shift(ts, Some(N)), &blank_tables, car_id).await.unwrap();
+    let t = database::tables::create_tables(&data_with_shift(ts, Some(N)), &blank_tables, car_id).await.unwrap();
     assert_eq!(t.len(), 1);
     assert!(t[0].address.is_some());
     assert!(t[0].car.is_none());
-    assert!(t[0].charges.is_none());
+    assert_eq!(t[0].charges.as_ref().unwrap().id, 0);
     assert!(t[0].charging_process.is_none());
     assert!(t[0].drive.is_some());
     assert!(t[0].position.is_some());
@@ -375,17 +317,17 @@ async fn state_change_from_parked() {
     // Create initial parked state
     let mut ts = chrono::Utc::now().naive_utc();
     let parking_start_time = ts;
-    let t = database::tables::create_tables_new(&data_with_shift(ts, Some(P)), &Tables::default(), car_id).await.unwrap();
+    let t = database::tables::create_tables(&data_with_shift(ts, Some(P)), &Tables::default(), car_id).await.unwrap();
     assert_eq!(t.len(), 1);
     let parked_state = &t[0];
 
     // Test state changes from parked state to parked state
     ts += Duration::seconds(10);
-    let t = database::tables::create_tables_new(&data_with_shift(ts, Some(P)), parked_state, car_id).await.unwrap();
+    let t = database::tables::create_tables(&data_with_shift(ts, Some(P)), parked_state, car_id).await.unwrap();
     assert_eq!(t.len(), 1);
     assert!(t[0].address.is_none());
     assert!(t[0].car.is_none());
-    assert!(t[0].charges.is_none());
+    assert_eq!(t[0].charges.as_ref().unwrap().id, 0);
     assert!(t[0].charging_process.is_none());
     assert!(t[0].drive.is_none());
     assert!(t[0].position.is_none());
@@ -395,11 +337,11 @@ async fn state_change_from_parked() {
 
     // Test state changes from shift state P to null
     ts += Duration::seconds(10);
-    let t = database::tables::create_tables_new(&data_with_shift(ts, None), parked_state, car_id).await.unwrap();
+    let t = database::tables::create_tables(&data_with_shift(ts, None), parked_state, car_id).await.unwrap();
     assert_eq!(t.len(), 1);
     assert!(t[0].address.is_none());
     assert!(t[0].car.is_none());
-    assert!(t[0].charges.is_none());
+    assert_eq!(t[0].charges.as_ref().unwrap().id, 0);
     assert!(t[0].charging_process.is_none());
     assert!(t[0].drive.is_none());
     assert!(t[0].position.is_none());
@@ -409,12 +351,12 @@ async fn state_change_from_parked() {
 
     // Test state changes from parked state to driving state
     ts += Duration::seconds(10);
-    let t = database::tables::create_tables_new(&data_with_shift(ts, Some(D)), parked_state, car_id).await.unwrap();
+    let t = database::tables::create_tables(&data_with_shift(ts, Some(D)), parked_state, car_id).await.unwrap();
     assert_eq!(t.len(), 2);
     // End of Parked state
     assert!(t[0].address.is_none());
     assert!(t[0].car.is_none());
-    assert!(t[0].charges.is_none());
+    assert_eq!(t[0].charges.as_ref().unwrap().id, 0);
     assert!(t[0].charging_process.is_none());
     assert!(t[0].drive.is_none());
     assert!(t[0].position.is_none());
@@ -424,7 +366,7 @@ async fn state_change_from_parked() {
     // Start of Driving state
     assert!(t[1].address.is_some());
     assert!(t[1].car.is_none());
-    assert!(t[1].charges.is_none());
+    assert_eq!(t[0].charges.as_ref().unwrap().id, 0);
     assert!(t[1].charging_process.is_none());
     assert!(t[1].drive.is_some());
     assert!(t[1].position.is_some());
@@ -433,7 +375,7 @@ async fn state_change_from_parked() {
     assert_eq!(*t[1].state.as_ref().unwrap(), State {car_id, id: 0, state: Driving, start_date: ts_no_nanos(ts), end_date: None });
 
     // Test state changes from parked state to reverse state
-    let t = database::tables::create_tables_new(&data_with_shift(ts, Some(R)), parked_state, car_id).await.unwrap();
+    let t = database::tables::create_tables(&data_with_shift(ts, Some(R)), parked_state, car_id).await.unwrap();
     assert_eq!(t.len(), 2);
     // End of Parked state
     assert!(t[0].drive.is_none());
@@ -443,7 +385,7 @@ async fn state_change_from_parked() {
     assert_eq!(*t[1].state.as_ref().unwrap(), State {car_id, id: 0, state: Driving, start_date: ts_no_nanos(ts), end_date: None });
 
     // Test state changes from parked state to neutral state
-    let t = database::tables::create_tables_new(&data_with_shift(ts, Some(N)), parked_state, car_id).await.unwrap();
+    let t = database::tables::create_tables(&data_with_shift(ts, Some(N)), parked_state, car_id).await.unwrap();
     assert_eq!(t.len(), 2);
     assert!(t[0].drive.is_none());
     assert!(t[1].drive.is_some());
@@ -459,17 +401,17 @@ async fn test_drive_to_drive_states(from_shift: ShiftState, to_shift: ShiftState
     // Create initial driving state
     let start_time = chrono::Utc::now().naive_utc();
     let driving_start_time = start_time;
-    let t = database::tables::create_tables_new(&data_with_shift(start_time, Some(from_shift)), &Tables::default(), car_id).await.unwrap();
+    let t = database::tables::create_tables(&data_with_shift(start_time, Some(from_shift)), &Tables::default(), car_id).await.unwrap();
     assert_eq!(t.len(), 1);
     let prev_state = &t[0];
 
     let curr_data_time = start_time + Duration::seconds(10);
 
-    let t = database::tables::create_tables_new(&data_with_shift(curr_data_time, Some(to_shift)), prev_state, car_id).await.unwrap();
+    let t = database::tables::create_tables(&data_with_shift(curr_data_time, Some(to_shift)), prev_state, car_id).await.unwrap();
     assert_eq!(t.len(), 1);
     assert!(t[0].address.is_none());
     assert!(t[0].car.is_none());
-    assert!(t[0].charges.is_none());
+    assert_eq!(t[0].charges.as_ref().unwrap().id, 0);
     assert!(t[0].charging_process.is_none());
     assert!(t[0].drive.is_some());
     assert!(t[0].position.is_some());
@@ -539,20 +481,20 @@ async fn state_transitions_with_time_gap() {
 
     // Create driving datapoint
     let first_ts = chrono::Utc::now().naive_utc();
-    let first_data_point = database::tables::create_tables_new(&data_with_shift(first_ts, Some(D)), &Tables::default(), car_id).await.unwrap();
+    let first_data_point = database::tables::create_tables(&data_with_shift(first_ts, Some(D)), &Tables::default(), car_id).await.unwrap();
     assert_eq!(first_data_point.len(), 1);
     assert_eq!(*first_data_point[0].state.as_ref().unwrap(), State {car_id, id: 0, state: Driving, start_date: ts_no_nanos(first_ts), end_date: None });
 
     // Create another driving data point in 10 minutes
     let second_ts = first_ts + Duration::minutes(10);
-    let second_data_point = database::tables::create_tables_new(&data_with_shift(second_ts, Some(D)), &first_data_point[0], car_id).await.unwrap();
+    let second_data_point = database::tables::create_tables(&data_with_shift(second_ts, Some(D)), &first_data_point[0], car_id).await.unwrap();
     // Verify the states when driving data points are 10 minutes apart
     assert_eq!(second_data_point.len(), 1);
     assert_eq!(*second_data_point[0].state.as_ref().unwrap(), State {car_id, id: 0, state: Driving, start_date: ts_no_nanos(first_ts), end_date: Some(ts_no_nanos(second_ts)) });
 
     // Create another driving data point after 11 minutes
     let second_ts = first_ts + Duration::minutes(11);
-    let second_data_point = database::tables::create_tables_new(&data_with_shift(second_ts, Some(D)), &first_data_point[0], car_id).await.unwrap();
+    let second_data_point = database::tables::create_tables(&data_with_shift(second_ts, Some(D)), &first_data_point[0], car_id).await.unwrap();
     // Verify the states when driving data points are more than 10 minutes apart
     assert_eq!(second_data_point.len(), 2);
     assert_eq!(*second_data_point[0].state.as_ref().unwrap(), State {car_id, id: 0, state: Driving, start_date: ts_no_nanos(first_ts), end_date: Some(ts_no_nanos(first_ts)) });
@@ -560,19 +502,19 @@ async fn state_transitions_with_time_gap() {
 
     // Create another driving data point after 10 minutes (10 minutes and 1 second)
     let second_ts = first_ts  + Duration::minutes(10 * 60 + 1);
-    let second_data_point = database::tables::create_tables_new(&data_with_shift(second_ts, Some(D)), &first_data_point[0], car_id).await.unwrap();
+    let second_data_point = database::tables::create_tables(&data_with_shift(second_ts, Some(D)), &first_data_point[0], car_id).await.unwrap();
     // Verify the states when driving data points are more than 10 minutes apart
     assert_eq!(second_data_point.len(), 2);
     assert_eq!(*second_data_point[0].state.as_ref().unwrap(), State {car_id, id: 0, state: Driving, start_date: ts_no_nanos(first_ts), end_date: Some(ts_no_nanos(first_ts)) });
     assert_eq!(*second_data_point[1].state.as_ref().unwrap(), State {car_id, id: 0, state: Driving, start_date: ts_no_nanos(second_ts), end_date: None });
-    
+
     // Test state changes when a data point is received after 10 minutes of driving and the car hasn't moved
     let second_ts = first_ts + Duration::minutes(1);
-    let second_data_point = database::tables::create_tables_new(&data_with_shift(second_ts, Some(D)), &first_data_point[0], car_id).await.unwrap();
+    let second_data_point = database::tables::create_tables(&data_with_shift(second_ts, Some(D)), &first_data_point[0], car_id).await.unwrap();
     let third_ts = second_ts + Duration::minutes(1);
-    let third_data_point = database::tables::create_tables_new(&data_with_shift(third_ts, Some(D)), &second_data_point[0], car_id).await.unwrap();
+    let third_data_point = database::tables::create_tables(&data_with_shift(third_ts, Some(D)), &second_data_point[0], car_id).await.unwrap();
     let fourth_ts = third_ts + Duration::minutes(11);
-    let fourth_data_point = database::tables::create_tables_new(&data_with_shift(fourth_ts, Some(D)), &third_data_point[0], car_id).await.unwrap();
+    let fourth_data_point = database::tables::create_tables(&data_with_shift(fourth_ts, Some(D)), &third_data_point[0], car_id).await.unwrap();
     // Verify the states
     assert_eq!(second_data_point.len(), 1);
     assert_eq!(third_data_point.len(), 1);
@@ -583,4 +525,36 @@ async fn state_transitions_with_time_gap() {
     assert_eq!(*fourth_data_point[1].state.as_ref().unwrap(), State {car_id, id: 0, state: Driving, start_date: ts_no_nanos(fourth_ts), end_date: None });
 
     // TODO: Create tests to check charging states
+}
+
+// Test each request returns a response with different osm_id
+#[tokio::test]
+async fn test_osm_mock() {
+    let _osm_mock = create_mock_osm_server();
+    let client = openstreetmap::osm_client().unwrap();
+    let res1 = openstreetmap::reverse_geocode(&client, &1.0, &1.0).await.unwrap();
+    let res2 = openstreetmap::reverse_geocode(&client, &1.0, &1.0).await.unwrap();
+    assert_ne!(res1.osm_id, res2.osm_id);
+}
+
+// Test vehicle data can be changed after creating the mock server
+#[tokio::test]
+async fn test_tesla_mock() {
+    let data = test_data::get_data(chrono::Utc::now().naive_utc());
+    let data = Arc::new(Mutex::new(data));
+
+    let _tesla_mock = create_mock_tesla_server(data.clone(), Arc::new(Mutex::new(true))); // Assign the return value to a variable to keep the server alive
+
+    let client = tesla_api::get_tesla_client("").unwrap();
+
+    data.lock().unwrap().drive_state.as_mut().unwrap().timestamp = Some(1234);
+    let res1 = tesla_api::get_vehicle_data(&client, 1).await.unwrap();
+    let vd1 = VehicleData::from_response_json(&res1).unwrap();
+
+    data.lock().unwrap().drive_state.as_mut().unwrap().timestamp = Some(4321);
+    let res2 = tesla_api::get_vehicle_data(&client, 1).await.unwrap();
+    let vd2 = VehicleData::from_response_json(&res2).unwrap();
+
+    assert_eq!(vd1.drive_state.unwrap().timestamp, Some(1234));
+    assert_eq!(vd2.drive_state.unwrap().timestamp, Some(4321));
 }

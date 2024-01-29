@@ -1,5 +1,6 @@
 #![feature(async_closure)]
 #![feature(stmt_expr_attributes)]
+#![feature(async_fn_in_trait)]
 
 use std::io::Write;
 

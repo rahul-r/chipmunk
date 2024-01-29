@@ -1,12 +1,15 @@
 use chrono::{NaiveDateTime, Utc};
 use sqlx::PgPool;
 
-use super::types::{Range, UnitOfLength, UnitOfPressure, UnitOfTemperature};
+use super::{
+    types::{Range, UnitOfLength, UnitOfPressure, UnitOfTemperature},
+    DBTable,
+};
 
 #[derive(Debug, Clone)]
 pub struct Settings {
     #[allow(dead_code)]
-    id: i32,
+    id: i64,
     pub inserted_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
     pub unit_of_length: UnitOfLength,
@@ -39,8 +42,12 @@ impl Default for Settings {
     }
 }
 
-impl Settings {
-    pub async fn db_insert(&self, pool: &PgPool) -> sqlx::Result<i64> {
+impl DBTable for Settings {
+    fn table_name() -> &'static str {
+        "settings"
+    }
+
+    async fn db_insert(&self, pool: &PgPool) -> sqlx::Result<i64> {
         let id = sqlx::query!(
             r#"
         INSERT INTO settings
@@ -91,10 +98,32 @@ impl Settings {
         Ok(id)
     }
 
-    pub async fn db_get(pool: &PgPool) -> sqlx::Result<Self> {
-        sqlx::query_as_unchecked!(Self, r#"SELECT * FROM settings"#)
-            .fetch_one(pool)
-            .await
+    async fn db_get_last(pool: &PgPool) -> sqlx::Result<Self> {
+        sqlx::query_as!(
+            Self,
+            r#"
+            SELECT
+                id,
+                inserted_at,
+                updated_at,
+                unit_of_length AS "unit_of_length!: UnitOfLength",
+                unit_of_temperature AS "unit_of_temperature!: UnitOfTemperature",
+                preferred_range AS "preferred_range!: Range",
+                base_url,
+                grafana_url,
+                language,
+                unit_of_pressure AS "unit_of_pressure!: UnitOfPressure",
+                logging_period_ms,
+                log_at_startup
+            FROM settings
+            "#
+        )
+        .fetch_one(pool)
+        .await
+        .map_err(|e| {
+            log::error!("Error getting last settings: {}", e);
+            e
+        })
     }
 }
 

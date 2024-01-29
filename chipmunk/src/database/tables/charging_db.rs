@@ -1,10 +1,18 @@
 use sqlx::PgPool;
 
-use super::charging::{Charges, ChargingProcess, ChargeStat};
+use super::{
+    charging::{ChargeStat, Charges, ChargingProcess},
+    DBTable,
+};
 
-impl ChargingProcess {
-    pub async fn db_load_last(pool: &PgPool) -> sqlx::Result<Self> {
-        let cp = sqlx::query_as!(Self,
+impl DBTable for ChargingProcess {
+    fn table_name() -> &'static str {
+        "charging_processes"
+    }
+
+    async fn db_get_last(pool: &PgPool) -> sqlx::Result<Self> {
+        let cp = sqlx::query_as!(
+            Self,
             r#"
                 SELECT
                     id,
@@ -28,13 +36,14 @@ impl ChargingProcess {
                     charging_status AS "charging_status!: ChargeStat"
                 FROM charging_processes
                 ORDER BY start_date DESC LIMIT 1
-            "#)
-            .fetch_one(pool)
-            .await?;
+            "#
+        )
+        .fetch_one(pool)
+        .await?;
         Ok(cp)
     }
 
-    pub async fn db_insert(&self, pool: &PgPool) -> sqlx::Result<i32> {
+    async fn db_insert(&self, pool: &PgPool) -> sqlx::Result<i64> {
         let id = sqlx::query!(
             r#"
         INSERT INTO charging_processes
@@ -83,10 +92,10 @@ impl ChargingProcess {
         .await?
         .id;
 
-        Ok(id)
+        Ok(id as i64)
     }
 
-    pub async fn db_update(&self, pool: &PgPool) -> sqlx::Result<()> {
+    async fn db_update(&self, pool: &PgPool) -> sqlx::Result<()> {
         sqlx::query!(
             r#"
         UPDATE charging_processes
@@ -144,8 +153,28 @@ impl ChargingProcess {
 }
 
 impl Charges {
-    pub async fn db_insert(&self, pool: &PgPool) -> sqlx::Result<()> {
-        sqlx::query!(
+    /// Get the list of charges associated with a charging process
+    pub async fn for_charging_process(
+        pool: &PgPool,
+        charging_process_id: i32,
+    ) -> sqlx::Result<Vec<Self>> {
+        sqlx::query_as!(
+            Charges,
+            r#"SELECT * FROM charges WHERE charging_process_id = $1"#,
+            charging_process_id
+        )
+        .fetch_all(pool)
+        .await
+    }
+}
+
+impl DBTable for Charges {
+    fn table_name() -> &'static str {
+        "charges"
+    }
+
+    async fn db_insert(&self, pool: &PgPool) -> sqlx::Result<i64> {
+        let id = sqlx::query!(
             r#"
             INSERT INTO charges
             (
@@ -171,7 +200,8 @@ impl Charges {
                 rated_battery_range_km,
                 usable_battery_level
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)"#,
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+            RETURNING id"#,
             self.date,
             self.battery_heater_on,
             self.battery_level,
@@ -194,22 +224,16 @@ impl Charges {
             self.rated_battery_range_km,
             self.usable_battery_level
         )
-        .execute(pool)
-        .await?;
+        .fetch_one(pool)
+        .await?
+        .id;
 
-        Ok(())
+        Ok(id as i64)
     }
-}
 
-pub async fn get_charges_for_charging_process(
-    pool: &PgPool,
-    charging_process_id: i32,
-) -> sqlx::Result<Vec<Charges>> {
-    sqlx::query_as!(
-        Charges,
-        r#"SELECT * FROM charges WHERE charging_process_id = $1"#,
-        charging_process_id
-    )
-    .fetch_all(pool)
-    .await
+    async fn db_get_all(pool: &PgPool) -> sqlx::Result<Vec<Self>> {
+        sqlx::query_as!(Self, r#"SELECT * FROM charges ORDER BY id ASC"#)
+            .fetch_all(pool)
+            .await
+    }
 }

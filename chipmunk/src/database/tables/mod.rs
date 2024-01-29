@@ -1,8 +1,6 @@
-use std::{cmp::Ordering, collections::HashMap};
+use std::collections::HashMap;
 
-use anyhow::Context;
 use chrono::{Duration, NaiveDateTime, Utc};
-use futures::{future::BoxFuture, FutureExt};
 use sqlx::PgPool;
 use tesla_api::vehicle_data::VehicleData;
 
@@ -14,12 +12,12 @@ use crate::{
 use self::{
     address::Address,
     car::Car,
-    charging::{handle_charging, Charges, ChargingProcess},
-    drive::{handle_drive, Drive, DriveStatus},
+    charging::{Charges, ChargingProcess},
+    drive::{Drive, DriveStatus},
     position::Position,
     settings::Settings,
-    state::{handle_state_change, State},
-    swupdate::{software_updated, SoftwareUpdate},
+    state::State,
+    swupdate::SoftwareUpdate,
 };
 
 pub mod address;
@@ -63,147 +61,50 @@ impl Tables {
     }
 }
 
-#[derive(Debug)]
-enum RetType {
-    SwUpdate(i32),
-    Drive(Drive),
-    Charging(ChargingProcess),
-    State(State),
-}
-
-#[macro_export]
-macro_rules! convert_result {
-    ($err_msg:expr) => {
-        |result| async {
-            match result {
-                Ok(r) => Ok(RetType::Id(r)),
-                Err(e) => {
-                    if $err_msg == true {
-                        log::error!("{e}");
-                    }
-                    Err(anyhow::anyhow!(e))
-                }
-            }
-        }
-    };
-}
-
 pub async fn initialize(pool: &PgPool) -> anyhow::Result<()> {
     settings::initialize(pool).await?;
     Ok(())
 }
 
-/**
- * Check if timestamp in current data is newer than previous_data timestamp
- * Return Ok(true) if current_data timestamp is newer than previous_data timestamp
-*/
-fn data_time(prev_data: &Option<VehicleData>, curr_data: &VehicleData) -> anyhow::Result<Ordering> {
-    let current_timestamp = &curr_data
-        .drive_state
-        .as_ref()
-        .context("drive_state is None")?
-        .timestamp
-        .context("timestamp is None")?;
-    if let Some(ref prev) = prev_data {
-        let previous_timestamp = &prev
-            .drive_state
-            .as_ref()
-            .context("drive_state is None")?
-            .timestamp
-            .context("timestamp is None")?;
+pub trait DBTable {
+    // equired methods
+    fn table_name() -> &'static str;
+    async fn db_insert(&self, pool: &PgPool) -> sqlx::Result<i64>;
 
-        return Ok(current_timestamp.cmp(previous_timestamp));
+    // Optional methods
+    async fn db_update(&self, _pool: &PgPool) -> sqlx::Result<()> {
+        #[rustfmt::skip]
+        panic!("{}", format!("`db_update` is not implemented for `{}` table!", Self::table_name()))
     }
-
-    // previous_data = None means the first data point. Return "Ordering::Greater" to indicate
-    // this is a good data point
-    Ok(Ordering::Greater)
-}
-
-/**
- * Convert database form vehicle_data JSON to grafana compatible tables
-*/
-pub async fn convert_database(
-    pool: &PgPool,
-    car_data_pool: &PgPool,
-    num_rows_to_fetch: i64,
-) -> anyhow::Result<()> {
-    log::info!("Converting database");
-
-    // TODO: load these from the database at startup
-    let mut charging_process = ChargingProcess::default();
-    let mut drive = Drive::default();
-    let mut previous_data: Option<VehicleData> = None;
-
-    // Read the list of cars from the database, we will check which car the vehicle_data response from the API belongs to
-    // It is more efficient to store the list of cars in memory and check against it instead of querying the database for each vehicle_data response
-    let mut cars = Car::db_get(pool).await?;
-
-    let num_rows = vehicle_data::num_car_data_rows(car_data_pool).await?;
-    let batch_size = if num_rows_to_fetch < 10_000 {
-        num_rows_to_fetch
-    } else {
-        10_000
-    };
-    let mut row_offset = num_rows - num_rows_to_fetch;
-    let mut state = State::default();
-
-    // TODO: Remove the commented code. It is used to test charging process
-    // To perform testing, uncomment the following line and comment the following while loop
-    // let vehicle_data_list =
-    //     vehicle_data::get_car_data_between(car_data_pool, 1700841600000, 1700850000000).await?;
-    while (row_offset - batch_size) < num_rows {
-        let vehicle_data_list =
-            vehicle_data::get_car_data(car_data_pool, batch_size, row_offset).await?;
-        for current_data in vehicle_data_list {
-            match data_time(&previous_data, &current_data)? {
-                Ordering::Less => {
-                    // Current data point is before the previous point. Log an error and go back
-                    // without processing the data
-                    log::warn!("Current timestamp is older than previous timestamp");
-                    previous_data = Some(current_data.clone());
-                    continue;
-                }
-                Ordering::Equal => continue, // Timestamps of current and previous data are same. Go back without processing the data
-                Ordering::Greater => (),     // Good data, continue processing
-            }
-
-            match car::db_get_or_insert_car(pool, cars.clone(), &current_data).await {
-                Ok((updated_cars, car_id)) => {
-                    cars = updated_cars;
-                    state.car_id = car_id;
-                }
-                Err(e) => {
-                    log::error!("{e}");
-                    continue;
-                }
-            };
-
-            match create_tables(
-                pool,
-                &current_data,
-                previous_data,
-                drive.clone(),
-                charging_process.clone(),
-                state.clone(),
-            )
-            .await
-            {
-                Ok((new_drive, new_charging, new_state)) => {
-                    drive = new_drive;
-                    charging_process = new_charging;
-                    state = new_state;
-                }
-                Err(e) => log::error!("Error adding to database: {e}"),
-            }
-
-            previous_data = Some(current_data.clone());
-        }
-
-        row_offset += batch_size;
+    async fn db_update_last(&self, _pool: &PgPool) -> sqlx::Result<()>
+    where
+        Self: Sized,
+    {
+        #[rustfmt::skip]
+        panic!("{}", format!("`db_update_last` is not implemented for `{}` table!", Self::table_name()))
     }
-
-    Ok(())
+    async fn db_get_last(_pool: &PgPool) -> sqlx::Result<Self>
+    where
+        Self: Sized,
+    {
+        #[rustfmt::skip]
+        panic!("{}", format!("`db_get_last` is not implemented for `{}` table!", Self::table_name()))
+    }
+    async fn db_get_all(_pool: &PgPool) -> sqlx::Result<Vec<Self>>
+    where
+        Self: Sized,
+    {
+        #[rustfmt::skip]
+        panic!("{}", format!("`db_get_all` is not implemented for `{}` table!", Self::table_name()))
+    }
+    async fn db_num_rows(pool: &PgPool) -> sqlx::Result<i64> {
+        let resp = sqlx::query(
+            format!(r#"SELECT COUNT(*) as count FROM {}"#, Self::table_name()).as_str(),
+        )
+        .fetch_one(pool)
+        .await?;
+        Ok(sqlx::Row::get::<i64, _>(&resp, "count"))
+    }
 }
 
 // async fn calculate_efficiency(pool: &PgPool) -> anyhow::Result<f32> {
@@ -248,177 +149,6 @@ pub async fn convert_database(
 // }
 
 pub async fn create_tables(
-    pool: &PgPool,
-    curr_data: &VehicleData,
-    prev_data: Option<VehicleData>,
-    mut drive: Drive,
-    mut charging_process: ChargingProcess,
-    mut state: State,
-) -> anyhow::Result<(Drive, ChargingProcess, State)> {
-    // let settings = Settings::default();
-    // let geofence = Geofence {
-    //     name: "Home".into(),
-    //     latitude: 36.2,
-    //     longitude: 72.4,
-    //     radius: 143,
-    //     ..Geofence::default()
-    // };
-    let mut position = Position::from(curr_data, state.car_id, None).ok();
-    let charges = Charges::from(curr_data, 0).ok();
-    let mut sw_update = SoftwareUpdate {
-        id: 0,
-        start_date: Utc::now().naive_utc(),
-        end_date: None,
-        version: curr_data
-            .vehicle_state
-            .as_ref()
-            .expect("should never happen")
-            .car_version
-            .as_ref()
-            .expect("should never happen")
-            .clone(),
-        car_id: state.car_id,
-    };
-
-    let mut tasks: Vec<BoxFuture<anyhow::Result<RetType>>> = vec![
-    //     Box::pin(settings.db_insert(pool).then(convert_result!(false))),
-    //     Box::pin(database::insert_geofence(pool, &geofence).then(convert_result!(false))),
-    ];
-
-    let insert_state_task =
-        handle_state_change(pool, &prev_data, curr_data, &state).then(|result| async {
-            match result {
-                Ok(s) => Ok(RetType::State(s)),
-                Err(e) => {
-                    log::error!("{e}");
-                    anyhow::bail!(e);
-                }
-            }
-        });
-    tasks.push(Box::pin(insert_state_task));
-
-    if software_updated(prev_data.as_ref(), curr_data) {
-        // TODO: update the end_date row on the previous software version row with date of
-        // previous_data
-        sw_update.end_date = position.clone().and_then(|p| p.date);
-        if let Err(e) = swupdate::insert_end_date(pool, sw_update).await {
-            log::error!("Error updating end date of software version: {e}");
-        }
-
-        sw_update = SoftwareUpdate {
-            id: 0, // Start with id = 0; we will update the id after inserting to database
-            start_date: Utc::now().naive_utc(),
-            end_date: None,
-            version: curr_data
-                .vehicle_state
-                .as_ref()
-                .expect("should never happen")
-                .car_version
-                .as_ref()
-                .expect("should never happen")
-                .clone(),
-            car_id: state.car_id,
-        };
-
-        let insert_update_task = swupdate::insert(pool, &sw_update).then(|result| async {
-            match result {
-                Ok(r) => Ok(RetType::SwUpdate(r)),
-                Err(e) => {
-                    log::error!("{e}");
-                    anyhow::bail!(e);
-                }
-            }
-        });
-        tasks.push(Box::pin(insert_update_task));
-    }
-
-    if let Some(ref mut current_position) = position {
-        current_position.car_id = state.car_id;
-
-        let previous_position = match prev_data {
-            Some(ref d) => Position::from(d, state.car_id, None).ok(),
-            None => None,
-        };
-
-        let current_shift = curr_data.drive_state.clone().and_then(|ds| ds.shift_state);
-
-        let handle_drive_task = handle_drive(
-            pool,
-            previous_position,
-            current_position,
-            current_shift,
-            drive.clone(),
-            state.car_id,
-        )
-        .then(|result| async { Ok(RetType::Drive(result)) });
-
-        tasks.push(Box::pin(handle_drive_task));
-
-        let previous_charge = match prev_data {
-            Some(ref d) => Some(Charges::from(d, 0)?),
-            None => None,
-        };
-
-        if let Some(charges) = charges {
-            let handle_charging_task = handle_charging(
-                pool,
-                curr_data,
-                previous_charge,
-                charges,
-                charging_process.clone(),
-                current_position,
-                state.car_id,
-            )
-            .then(|result| async {
-                match result {
-                    Ok(r) => Ok(RetType::Charging(r)),
-                    Err(e) => {
-                        log::error!("{e}");
-                        Err(e)
-                    }
-                }
-            });
-            tasks.push(Box::pin(handle_charging_task));
-        }
-    }
-
-    let results = futures::future::join_all(tasks).await;
-
-    for result in results.into_iter().flatten() {
-        match result {
-            RetType::SwUpdate(id) => sw_update.id = id,
-            RetType::Drive(d) => drive = d,
-            RetType::Charging(c) => charging_process = c,
-            RetType::State(s) => state.id = s.id,
-        }
-    }
-
-    Ok((drive, charging_process, state))
-}
-
-fn create_charging_process(
-    prev_tables: &Tables,
-    data: &VehicleData,
-) -> anyhow::Result<ChargingProcess> {
-    // Create a new charging process
-    let prev_charge = prev_tables.charges.clone();
-    let curr_charge = Charges::from(data, 0)?;
-    ChargingProcess::from_charges(
-        prev_charge.as_ref(),
-        &curr_charge,
-        prev_tables.state.as_ref().context("State is None")?.car_id,
-        prev_tables
-            .position
-            .as_ref()
-            .context("Position is None")?
-            .id
-            .context("Position ID is none")?,
-        None,
-        None,
-    )
-}
-
-pub async fn create_tables_new(
     data: &VehicleData,
     prev_tables: &Tables,
     car_id: i16,
@@ -426,6 +156,8 @@ pub async fn create_tables_new(
     let current_state = State::from(data, car_id)?;
     let current_position = Position::from(data, car_id, None)?;
     let mut drive = prev_tables.drive.clone();
+    let mut charging_process = prev_tables.charging_process.clone();
+    let mut charges = Charges::from(data, 0).ok();
     let previous_state = prev_tables.state.clone();
 
     let mut table_list = vec![];
@@ -449,22 +181,13 @@ pub async fn create_tables_new(
                 // End the current drive
                 let state = State {
                     end_date: prev_tables.time(),
-                    ..previous_state.unwrap_or_default()
+                    ..previous_state.clone().unwrap_or_default()
                 };
                 table_list.push(Tables {
                     address: address.clone(),
                     drive: drive.map(|d| d.stop(&current_position, None, None)),
                     position: Some(current_position.clone()),
                     state: Some(state),
-                    ..Default::default()
-                });
-
-                // Start a new drive
-                table_list.push(Tables {
-                    address: address.clone(),
-                    drive: Some(Drive::start(&current_position, car_id, None, None)),
-                    position: None, // The position has already been logged with previous drive end, no need to log again, use the previously entered position ID to start this drive
-                    state: Some(current_state),
                     ..Default::default()
                 });
 
@@ -475,25 +198,70 @@ pub async fn create_tables_new(
                 if let Some(charge) = sub_option(curr_battery_level, prev_battery_level) {
                     // Continue only if the battery level us up by at least 2% (>1)
                     if charge > 1 {
+                        let current_charge = Charges::from(data, 0)?;
                         // Create a new charging process
-                        if let Ok(charging_process) = create_charging_process(prev_tables, data)
-                            .map_err(|e| log::error!("Error creating charging process: {e}"))
-                        {
+                        ChargingProcess::from_charges(
+                            prev_tables.charges.as_ref(),
+                            &current_charge,
+                            car_id,
+                            current_position.id.unwrap_or(0),
+                            address.as_ref().map(|a| a.id as i32),
+                            None,
+                        )
+                        .map_err(|e| log::error!("Error creating charging process: {e}"))
+                        .map(|cp| {
+                            // Tables for beginning of charging
                             table_list.push(Tables {
-                                address,
-                                charging_process: Some(charging_process),
+                                address: address.clone(),
+                                charging_process: Some(cp.clone()),
+                                charges: prev_tables.charges.clone(),
                                 position: Some(prev_position.clone()),
                                 ..Default::default()
                             });
-                        }
+                            // Tables for end of charging
+                            table_list.push(Tables {
+                                charging_process: Some(cp),
+                                charges: Some(current_charge),
+                                position: Some(current_position.clone()),
+                                state: Some(State {
+                                    state: state::StateStatus::Charging,
+                                    start_date: prev_tables.time().unwrap_or_default(),
+                                    end_date: current_position.date,
+                                    car_id,
+                                    ..Default::default()
+                                }),
+                                ..Default::default()
+                            })
+                        })
+                        .ok();
                     }
                 }
+
+                // Start a new drive
+                let new_drive = Drive {
+                    start_position_id: prev_position.id,
+                    ..Drive::start(&current_position, car_id, None, None)
+                };
+                let state = Some(State {
+                    state: state::StateStatus::Driving,
+                    start_date: current_position.date.unwrap_or_default(),
+                    car_id,
+                    ..Default::default()
+                });
+                table_list.push(Tables {
+                    address,
+                    drive: Some(new_drive),
+                    position: Some(current_position),
+                    state,
+                    ..Default::default()
+                });
             }
         }
         return Ok(table_list);
     }
 
     let (end_prev_state, start_new_state) = current_state.transition(&previous_state);
+
     // If no state changes, continue logging current state
     if end_prev_state.is_none() && start_new_state.is_none() {
         use state::StateStatus::*;
@@ -505,26 +273,36 @@ pub async fn create_tables_new(
         match current_state.state {
             Driving => {
                 drive = drive.map(|d| d.update(&current_position));
-                position = Some(current_position.clone());
+                position = Some(Position {
+                    drive_id: drive.as_ref().map(|d| d.id),
+                    ..current_position.clone()
+                });
             }
             Offline => todo!(),
             Asleep => todo!(),
             Unknown => todo!(),
             Parked => drive = None,
-            Charging => todo!(),
+            Charging => {
+                Charges::from(data, 0)
+                    .map_err(|e| log::error!("Error creating charges: {e}"))
+                    .map(|c| {
+                        charges = Some(c.clone());
+                        charging_process = charging_process.clone().map(|cp| cp.update(&c));
+                    })
+                    .ok();
+            }
         }
 
         table_list.push(Tables {
             drive: drive.clone(),
             address: None, // Don't log address with every drive status update to reduce strain on openstreetmap API
             car: None,
-            charges: None,
-            charging_process: None,
+            charges: charges.clone(),
+            charging_process: charging_process.clone(),
             position,
             settings: None,
             state,
             sw_update: None,
-            // ..prev_tables.clone()
         });
     }
 
@@ -544,7 +322,15 @@ pub async fn create_tables_new(
                     .map_err(|e| log::error!("Error getting address: {e}"))
                     .ok();
             }
-            Charging => todo!(),
+            Charging => {
+                Charges::from(data, 0)
+                    .map_err(|e| log::error!("Error creating charges: {e}"))
+                    .map(|c| {
+                        charges = Some(c.clone());
+                        charging_process = charging_process.clone().map(|cp| cp.update(&c));
+                    })
+                    .ok();
+            }
             Asleep => todo!(),
             Offline => todo!(),
             Unknown => todo!(),
@@ -554,8 +340,8 @@ pub async fn create_tables_new(
         table_list.push(Tables {
             address: address.clone(),
             car: None,
-            charges: None,
-            charging_process: None,
+            charges: charges.clone(),
+            charging_process: charging_process.clone(),
             drive: drive.clone(),
             position,
             settings: None,
@@ -585,7 +371,27 @@ pub async fn create_tables_new(
                     .map_err(|e| log::error!("Error getting address: {e}"))
                     .ok();
             }
-            Charging => todo!(),
+            Charging => {
+                let c = Charges::from(data, 0)
+                    .map_err(|e| log::error!("Error creating charges: {e}"))
+                    .ok();
+                if let Some(c) = c {
+                    let cp = ChargingProcess::start(
+                        &c,
+                        car_id,
+                        current_position.id.unwrap_or(0),
+                        None,
+                        None,
+                    );
+                    charging_process = Some(cp);
+                    charges = Some(c);
+                    address =
+                        Address::from_opt(current_position.latitude, current_position.longitude)
+                            .await
+                            .map_err(|e| log::error!("Error getting address: {e}"))
+                            .ok();
+                };
+            }
             Asleep => todo!(),
             Offline => todo!(),
             Unknown => todo!(),
@@ -596,10 +402,10 @@ pub async fn create_tables_new(
         }
 
         table_list.push(Tables {
-            address: address.clone(),
+            address,
             car: None,
-            charges: None,
-            charging_process: None,
+            charges,
+            charging_process,
             drive: drive.clone(),
             position,
             settings: None,
@@ -614,12 +420,14 @@ pub async fn create_tables_new(
 pub async fn db_insert(pool: &sqlx::PgPool, tables: Tables) -> anyhow::Result<Tables> {
     let mut tables = tables;
 
-    // // Insert state table
-    // if let Some(ref mut s) = tables.state {
-    //     s.db_insert(&pool)
-    //         .await
-    //         .and_then(|id| Ok(s.id = id))?;
-    // }
+    // Insert state table
+    if let Some(ref mut s) = tables.state {
+        if s.id == 0 {
+            s.db_insert(pool).await.map(|id| s.id = id as i32)?;
+        } else {
+            s.db_update(pool).await?;
+        }
+    }
 
     // Insert position and update the ID field
     if let Some(ref mut p) = tables.position {
@@ -659,7 +467,7 @@ pub async fn db_insert(pool: &sqlx::PgPool, tables: Tables) -> anyhow::Result<Ta
                 .db_insert(pool)
                 .await
                 .map_err(|e| log::error!("Error inserting drive into database: {e}"))
-                .map(|id| drive.id = id);
+                .map(|id| drive.id = id as i32);
 
             if res.is_ok() {
                 // Update drive_id of the position entry
@@ -678,6 +486,28 @@ pub async fn db_insert(pool: &sqlx::PgPool, tables: Tables) -> anyhow::Result<Ta
         }
     }
 
+    if let Some(ref mut charging_process) = tables.charging_process {
+        if charging_process.id == 0 {
+            charging_process.position_id = tables.position.as_ref().and_then(|p| p.id).unwrap_or(0);
+            charging_process.address_id = address_id;
+
+            charging_process
+                .db_insert(pool)
+                .await
+                .map(|id| charging_process.id = id as i32)?;
+        } else {
+            charging_process.db_update(pool).await?;
+        }
+
+        if let Some(ref mut charges) = tables.charges {
+            charges.charging_process_id = charging_process.id;
+            charges
+                .db_insert(pool)
+                .await
+                .map(|id| charges.id = id as i32)?;
+        }
+    }
+
     Ok(tables)
 }
 
@@ -686,7 +516,7 @@ pub async fn db_insert(pool: &sqlx::PgPool, tables: Tables) -> anyhow::Result<Ta
 // It is more efficient to store the list of cars in memory and check against it instead of querying the database for each vehicle_data response
 pub async fn get_vin_id_map(pool: &sqlx::PgPool) -> HashMap<String, i16> {
     #[rustfmt::skip]
-    let vin_id_map = if let Ok(cars) = Car::db_get(pool).await {
+    let vin_id_map = if let Ok(cars) = Car::db_get_all(pool).await {
         cars
             .iter()
             .filter(|c| c.id > 0 && c.vin.is_some()) // Remove entries with invalid id or None vins
@@ -729,6 +559,7 @@ pub async fn logging_process(
         let Ok(car) = Car::from(data, car_settings_id).map_err(|e| log::error!("Error creating car: {e}")) else {
             return (vin_id_map, tables);
         };
+        // TODO: move to the main db_insert function
         let Ok(id) = car.db_insert(pool)
             .await
             .map_err(|e| log::error!("{e}")).map(|id| id as i16)
@@ -739,7 +570,7 @@ pub async fn logging_process(
         id
     };
 
-    if let Ok(table_list) = create_tables_new(data, &tables, car_id)
+    if let Ok(table_list) = create_tables(data, &tables, car_id)
         .await
         .map_err(|e| log::error!("Error adding to database: {e}"))
     {

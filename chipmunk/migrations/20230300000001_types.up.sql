@@ -30,7 +30,7 @@ CREATE TYPE public.range AS ENUM
     ('ideal', 'rated');
 
 CREATE TYPE public.states_status AS ENUM
-    ('online', 'offline', 'asleep', 'unknown');
+    ('offline', 'asleep', 'unknown', 'parked', 'driving', 'charging');
 
 CREATE TYPE public.charge_stat AS ENUM
     ('start', 'stop', 'charging', 'done', 'idle');

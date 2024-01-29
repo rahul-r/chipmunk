@@ -3,14 +3,15 @@ use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 use tesla_api::{
     utils::{miles_to_km, timestamp_to_naivedatetime},
-    vehicle_data::{VehicleData, ChargingState},
+    vehicle_data::{ChargingState, VehicleData},
 };
 
-use crate::utils::time_diff_minutes_i64;
-
-use super::{
-    address::insert_address, charging_db::get_charges_for_charging_process, position::Position,
+use crate::{
+    database::tables::{address::Address, DBTable},
+    utils::time_diff_minutes_i64,
 };
+
+use super::position::Position;
 
 #[derive(Debug, Default, Clone)]
 pub struct ChargingProcess {
@@ -78,7 +79,7 @@ impl ChargingProcess {
         Ok(charging_process)
     }
 
-    pub fn new(
+    pub fn start(
         charge_start: &Charges,
         car_id: i16,
         position_id: i32,
@@ -87,7 +88,7 @@ impl ChargingProcess {
     ) -> Self {
         ChargingProcess {
             start_date: charge_start.date.unwrap_or_default(),
-            charge_energy_added: Some(0.0),
+            charge_energy_added: charge_start.charge_energy_added,
             start_ideal_range_km: charge_start.ideal_battery_range_km,
             start_battery_level: charge_start.battery_level,
             duration_min: Some(0),
@@ -117,6 +118,7 @@ impl ChargingProcess {
             end_ideal_range_km: charges.ideal_battery_range_km,
             end_battery_level: charges.battery_level,
             end_rated_range_km: charges.rated_battery_range_km,
+            charging_status: ChargeStat::Charging,
             ..self.clone()
         }
     }
@@ -201,24 +203,27 @@ pub enum ChargeStat {
     Unknown,
 }
 
-pub async fn calculate_energy_used(pool: &sqlx::PgPool, charging_process_id: i32) -> Option<f32> {
-    let charges = match get_charges_for_charging_process(pool, charging_process_id).await {
+pub async fn db_calculate_energy_used(pool: &sqlx::PgPool, charging_process_id: i32) -> Option<f32> {
+    let charges = match Charges::for_charging_process(pool, charging_process_id).await {
         Ok(c) => c,
         Err(e) => {
             log::error!("Error getting charges for charging_process: {e}");
             return None;
         }
     };
+    calculate_energy_used(&charges)
+}
 
-    let phases = determine_phases(&charges).await;
+pub fn calculate_energy_used(charges: &Vec<Charges>) -> Option<f32> {
+    let phases = determine_phases(&charges);
     let mut total_energy_used = 0.0;
     let mut previous_date: Option<NaiveDateTime> = None;
 
     for charge in charges {
         let energy_used = match charge.charger_phases {
             Some(_) => {
-                (charge.charger_actual_current.unwrap_or(0)
-                    * charge.charger_voltage.unwrap_or(0)) as f32
+                (charge.charger_actual_current.unwrap_or(0) * charge.charger_voltage.unwrap_or(0))
+                    as f32
                     * phases.unwrap_or(0f32)
                     / 1000.0
             }
@@ -226,15 +231,16 @@ pub async fn calculate_energy_used(pool: &sqlx::PgPool, charging_process_id: i32
         };
         println!("energy_used = {:?}", charge.charger_power);
 
-        let time_diff = crate::utils::time_diff(charge.date, previous_date).unwrap_or(chrono::Duration::zero());
-        total_energy_used += energy_used * (time_diff.num_seconds() as f32 ) / 3600.0;
+        let time_diff =
+            crate::utils::time_diff(charge.date, previous_date).unwrap_or(chrono::Duration::zero());
+        total_energy_used += energy_used * (time_diff.num_seconds() as f32) / 3600.0;
         previous_date = charge.date;
     }
 
     Some(total_energy_used)
 }
 
-async fn determine_phases(charges: &Vec<Charges>) -> Option<f32> {
+fn determine_phases(charges: &Vec<Charges>) -> Option<f32> {
     let mut total_power: f32 = 0.0;
     let mut total_phases: i32 = 0;
     let mut total_voltage: i32 = 0;
@@ -333,8 +339,13 @@ pub async fn handle_charging(
             ..current_position.clone()
         };
         let position_id = current_position.db_insert(pool).await? as i32;
-        let address_id =
-            insert_address(pool, current_position.latitude, current_position.longitude).await;
+        let address_id = Address::from_opt(current_position.latitude, current_position.longitude)
+            .await?
+            .db_insert(pool)
+            .await
+            .map_err(|e| log::error!("{e}"))
+            .map(|id| id as i32)
+            .ok();
         let geofence_id = None; // TODO: add this
         let charging_process = ChargingProcess::from_charges(
             previous_charge.as_ref(),
@@ -353,8 +364,13 @@ pub async fn handle_charging(
     let start = async move |start_position: Position,
                             start_charge: Charges|
                 -> anyhow::Result<ChargingProcess> {
-        let start_address_id =
-            insert_address(pool, start_position.latitude, start_position.longitude).await;
+        let start_address_id = Address::from_opt(start_position.latitude, start_position.longitude)
+            .await?
+            .db_insert(pool)
+            .await
+            .map_err(|e| log::error!("{e}"))
+            .map(|id| id as i32)
+            .ok();
         let start_position_id = match start_position.db_insert(pool).await {
             Ok(id) => Some(id as i32),
             Err(e) => {
@@ -364,7 +380,7 @@ pub async fn handle_charging(
         };
         let geofence_id = None; // TODO: Add this
 
-        let mut cp = ChargingProcess::new(
+        let mut cp = ChargingProcess::start(
             &start_charge,
             car_id,
             start_position_id.unwrap_or(0), // TODO: position id 0 is invalid. Add a row in
@@ -374,7 +390,7 @@ pub async fn handle_charging(
         );
 
         match cp.db_insert(pool).await {
-            Ok(id) => cp.id = id,
+            Ok(id) => cp.id = id as i32,
             Err(e) => log::error!("Error inserting charging_process to database: {e}"),
         }
 
@@ -396,10 +412,12 @@ pub async fn handle_charging(
         let previous_charging_status = charging_process.charging_status.clone();
 
         match charging_state {
-            ChargingState::Stopped | ChargingState::Complete | ChargingState::Disconnected => match previous_charging_status {
-                ChargeStat::Stop | ChargeStat::Done => ChargeStat::Done, // If the charging process is already stopped, mark it as done
-                _ => ChargeStat::Stop, // If the charging process is not already stopped, tell logger the process to stop
-            },
+            ChargingState::Stopped | ChargingState::Complete | ChargingState::Disconnected => {
+                match previous_charging_status {
+                    ChargeStat::Stop | ChargeStat::Done => ChargeStat::Done, // If the charging process is already stopped, mark it as done
+                    _ => ChargeStat::Stop, // If the charging process is not already stopped, tell logger the process to stop
+                }
+            }
             ChargingState::Starting | ChargingState::Charging => match previous_charging_status {
                 ChargeStat::Start | ChargeStat::Charging => ChargeStat::Charging, // Charging process is already in progress, continue it
                 ChargeStat::Stop | ChargeStat::Done | ChargeStat::Unknown => ChargeStat::Start, // If the charging process is not already started, tell logger the process to start logging
@@ -437,7 +455,7 @@ pub async fn handle_charging(
         ChargeStat::Stop => {
             let cp = ChargingProcess {
                 charging_status: ChargeStat::Done,
-                charge_energy_used: calculate_energy_used(pool, charging_process.id).await,
+                charge_energy_used: db_calculate_energy_used(pool, charging_process.id).await,
                 ..charging_process.update(&current_charge)
             };
 

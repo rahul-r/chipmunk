@@ -7,6 +7,8 @@ use tesla_api::vehicle_data::VehicleData;
 
 use crate::utils::capitalize_string_option;
 
+use super::DBTable;
+
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct Car {
     pub id: i16,
@@ -65,6 +67,7 @@ impl Car {
         };
         Ok(car)
     }
+
     fn get_model_code(model_name: &Option<String>) -> Option<String> {
         let Some(name) = model_name else {
             log::warn!("model_name is `None`");
@@ -139,7 +142,34 @@ impl Car {
         }
     }
 
-    pub async fn db_insert(&self, pool: &PgPool) -> sqlx::Result<i64> {
+    /// Get the car from the database by looking at the ID.
+    pub async fn db_get_car_by_id(pool: &PgPool, id: i16) -> sqlx::Result<Self> {
+        let cars = sqlx::query_as!(Self, r#"SELECT * FROM cars where id = $1"#, id)
+            .fetch_all(pool)
+            .await?;
+
+        if cars.len() > 1 {
+            log::error!(
+                "More than one car found with id `{}`, using the last car from the list of cars",
+                id
+            );
+        }
+
+        if let Some(car) = cars.last() {
+            Ok(car.clone())
+        } else {
+            log::error!("No car found with id `{}`", id);
+            Err(sqlx::Error::RowNotFound)
+        }
+    }
+}
+
+impl DBTable for Car {
+    fn table_name() -> &'static str {
+        "cars"
+    }
+
+    async fn db_insert(&self, pool: &PgPool) -> sqlx::Result<i64> {
         let id = sqlx::query!(
             r#"
         INSERT INTO cars
@@ -202,28 +232,20 @@ impl Car {
     }
 
     /// Get the list of cars from the database.
-    pub async fn db_get(pool: &PgPool) -> sqlx::Result<Vec<Self>> {
-        sqlx::query_as!(Self, r#"SELECT * FROM cars"#)
+    async fn db_get_all(pool: &PgPool) -> sqlx::Result<Vec<Self>> {
+        sqlx::query_as!(Self, r#"SELECT * FROM cars ORDER BY id ASC"#)
             .fetch_all(pool)
             .await
     }
 
-    /// Get the car from the database by looking at the ID.
-    pub async fn db_get_car_by_id(pool: &PgPool, id: i16) -> sqlx::Result<Self> {
-        let cars = sqlx::query_as!(Self, r#"SELECT * FROM cars where id = $1"#, id)
-            .fetch_all(pool)
-            .await?;
-
-        if cars.len() > 1 {
-            log::error!("More than one car found with id `{}`, using the last car from the list of cars", id);
-        }
-
-        if let Some(car) = cars.last() {
-            Ok(car.clone())
-        } else {
-            log::error!("No car found with id `{}`", id);
-            Err(sqlx::Error::RowNotFound)
-        }
+    async fn db_get_last(pool: &PgPool) -> sqlx::Result<Self> {
+        sqlx::query_as!(Self, r#"SELECT * FROM cars ORDER BY id DESC LIMIT 1"#)
+        .fetch_one(pool)
+        .await
+        .map_err(|e| {
+            log::error!("Error getting last row from table `{}`: {}", Self::table_name(), e);
+            e
+        })
     }
 }
 
@@ -250,8 +272,12 @@ impl Default for CarSettings {
     }
 }
 
-impl CarSettings {
-    pub async fn db_insert(&self, pool: &PgPool) -> sqlx::Result<i64> {
+impl DBTable for CarSettings {
+    fn table_name() -> &'static str {
+        "car_settings"
+    }
+
+    async fn db_insert(&self, pool: &PgPool) -> sqlx::Result<i64> {
         let id = sqlx::query!(
             r#"
         INSERT INTO car_settings
@@ -284,13 +310,15 @@ impl CarSettings {
         Ok(id)
     }
 
-    // pub async fn db_get(pool: &PgPool) -> sqlx::Result<Vec<Self>> {
-    //     Ok(
-    //         sqlx::query_as!(CarSettings, r#"SELECT * FROM car_settings"#)
-    //             .fetch_all(pool)
-    //             .await?,
-    //     )
-    // }
+    async fn db_get_last(pool: &PgPool) -> sqlx::Result<Self> {
+        sqlx::query_as!(Self, r#"SELECT * FROM car_settings ORDER BY id DESC LIMIT 1"#)
+        .fetch_one(pool)
+        .await
+        .map_err(|e| {
+            log::error!("Error getting last row from table `{}`: {}", Self::table_name(), e);
+            e
+        })
+    }
 
     // pub async fn db_get_for_car(pool: &PgPool, settings_id: i64) -> sqlx::Result<Vec<Self>> {
     //     Ok(sqlx::query_as!(
@@ -338,7 +366,7 @@ pub async fn db_get_or_insert_car(
         let car_settings_id = CarSettings::default().db_insert(pool).await?;
         let car = Car::from(vehicle_data, car_settings_id)?;
         car_id = car.db_insert(pool).await? as i16;
-        let updated_cars = Car::db_get(pool).await?;
+        let updated_cars = Car::db_get_all(pool).await?;
         return Ok((updated_cars, car_id));
     }
 

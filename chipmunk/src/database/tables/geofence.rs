@@ -1,6 +1,7 @@
 use chrono::{NaiveDateTime, Utc};
+use sqlx::PgPool;
 
-use super::types::BillingType;
+use super::{types::BillingType, DBTable};
 
 #[derive(Debug)]
 pub struct Geofence {
@@ -31,41 +32,45 @@ impl Default for Geofence {
     }
 }
 
-// impl Geofence {
-//     pub async fn db_insert(&self, pool: &PgPool) -> sqlx::Result<i64> {
-//         let id = sqlx::query!(
-//             r#"
-//         INSERT INTO geofences
-//         (
-//             name,
-//             latitude,
-//             longitude,
-//             radius,
-//             inserted_at,
-//             updated_at,
-//             cost_per_unit,
-//             session_fee,
-//             billing_type
-//         )
-//         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-//         RETURNING id"#,
-//             self.name,
-//             self.latitude,
-//             self.longitude,
-//             self.radius,
-//             self.inserted_at,
-//             self.updated_at,
-//             self.cost_per_unit,
-//             self.session_fee,
-//             self.billing_type as BillingType,
-//         )
-//         .fetch_one(pool)
-//         .await?
-//         .id;
+impl DBTable for Geofence {
+    fn table_name() -> &'static str {
+        "geofences"
+    }
 
-//         Ok(id as i64)
-//     }
-// }
+    async fn db_insert(&self, pool: &PgPool) -> sqlx::Result<i64> {
+        let id = sqlx::query!(
+            r#"
+        INSERT INTO geofences
+        (
+            name,
+            latitude,
+            longitude,
+            radius,
+            inserted_at,
+            updated_at,
+            cost_per_unit,
+            session_fee,
+            billing_type
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        RETURNING id"#,
+            self.name,
+            self.latitude,
+            self.longitude,
+            self.radius,
+            self.inserted_at,
+            self.updated_at,
+            self.cost_per_unit,
+            self.session_fee,
+            self.billing_type as BillingType,
+        )
+        .fetch_one(pool)
+        .await?
+        .id;
+
+        Ok(id as i64)
+    }
+}
 
 // pub async fn apply_geofence(pool: &PgPool, lat: f32, lon: f32, radius: f32) -> anyhow::Result<()> {
 //     let except_id = -1; // TODO: find value of this from teslamate source code

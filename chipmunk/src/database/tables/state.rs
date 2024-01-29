@@ -8,6 +8,8 @@ use crate::{
     utils::time_diff,
 };
 
+use super::DBTable;
+
 #[derive(sqlx::Type, Debug, Default, Clone, Copy, Eq, PartialEq, Hash)]
 #[sqlx(type_name = "states_status", rename_all = "snake_case")]
 pub enum StateStatus {
@@ -24,7 +26,7 @@ pub enum StateStatus {
 }
 
 impl StateStatus {
-    fn get(data: &VehicleData) -> Self {
+    fn from(data: &VehicleData) -> Self {
         let Some(state) = data.state.clone() else {
             log::warn!("Value of vehicle state is None");
             return Self::Unknown;
@@ -72,22 +74,6 @@ impl StateStatus {
     }
 }
 
-#[derive(Debug, Eq, PartialEq, Clone, Hash)]
-pub enum StateChange {
-    DriveBegin,
-    DriveEnd,
-    ChargingBegin,
-    ChargingEnd,
-    AsleepBegin,
-    AsleepEnd,
-    UnknownBegin,
-    UnknownEnd,
-    OfflineBegin,
-    OfflineEnd,
-    ParkingBegin,
-    ParkingEnd,
-}
-
 #[derive(Debug, PartialEq, Clone)]
 pub struct State {
     pub id: i32,
@@ -110,7 +96,46 @@ impl Default for State {
 }
 
 impl State {
-    pub async fn db_load_last(pool: &PgPool) -> sqlx::Result<Self> {
+    pub fn from(data: &VehicleData, car_id: i16) -> anyhow::Result<Self> {
+        Ok(State {
+            id: 0,
+            state: StateStatus::from(data),
+            start_date: data.timestamp_utc().context("timestamp is None")?,
+            end_date: None,
+            car_id,
+        })
+    }
+
+    /// Check if the state has changed from the previous state
+    /// Returns (None, None) if the state has not changed
+    /// Returns (Some(previous_state), Some(current_state)) if the state has changed
+
+
+    pub fn transition(
+        &self,
+        previous_state: &Option<State>,
+    ) -> (Option<StateStatus>, Option<StateStatus>) {
+        // If there is no previous state, return start of the current state
+        let Some(previous_state) = previous_state else {
+        return (None, Some(self.state));
+    };
+
+        if self.state == previous_state.state {
+            // If the state has not changed, return no state changes
+            (None, None)
+        } else {
+            // If the state has changed, return end of the previous state and start of the new state
+            (Some(previous_state.state), Some(self.state))
+        }
+    }
+}
+
+impl DBTable for State {
+    fn table_name() -> &'static str {
+        "states"
+    }
+
+    async fn db_get_last(pool: &PgPool) -> sqlx::Result<Self> {
         sqlx::query_as!(
             Self,
             r#"
@@ -128,35 +153,25 @@ impl State {
         .await
     }
 
-    pub fn from(data: &VehicleData, car_id: i16) -> anyhow::Result<Self> {
-        Ok(State {
-            id: 0,
-            state: StateStatus::get(data),
-            start_date: data.timestamp_utc().context("timestamp is None")?,
-            end_date: None,
-            car_id,
-        })
+    async fn db_get_all(pool: &PgPool) -> sqlx::Result<Vec<Self>> {
+        sqlx::query_as!(
+            Self,
+            r#"
+                SELECT
+                    id,
+                    state AS "state!: StateStatus",
+                    start_date,
+                    end_date,
+                    car_id
+                FROM states
+                ORDER BY id ASC
+            "#
+        )
+        .fetch_all(pool)
+        .await
     }
 
-    /// Check if the state has changed from the previous state
-    /// If the state has changed, return ([StateChange])
-    /// If there are multiple state changes, return a vector of [StateChange]
-    pub fn transition(&self, previous_state: &Option<State>) -> (Option<StateStatus>, Option<StateStatus>) {
-        // If there is no previous state, return start of the current state
-        let Some(previous_state) = previous_state else {
-            return (None, Some(self.state));
-        };
-
-        if self.state == previous_state.state {
-            // If the state has not changed, return no state changes
-            (None, None)
-        } else {
-            // If the state has changed, return end of the previous state and start of the new state
-            (Some(previous_state.state), Some(self.state))
-        }
-    }
-
-    pub async fn db_insert(&self, pool: &PgPool) -> sqlx::Result<i32> {
+    async fn db_insert(&self, pool: &PgPool) -> sqlx::Result<i64> {
         let id = sqlx::query!(
             r#"
         INSERT INTO states
@@ -177,10 +192,10 @@ impl State {
         .await?
         .id;
 
-        Ok(id)
+        Ok(id as i64)
     }
 
-    pub async fn db_update(&self, pool: &PgPool) -> sqlx::Result<()> {
+    async fn db_update(&self, pool: &PgPool) -> sqlx::Result<()> {
         sqlx::query!(
             r#"UPDATE states SET end_date = $1 WHERE id = $2"#,
             self.end_date,
@@ -268,11 +283,11 @@ pub async fn handle_state_change(
         )?;
         state.state = StateStatus::Asleep;
         state.end_date = curr_data.timestamp_utc();
-        state.id = state.db_insert(pool).await?;
+        state.id = state.db_insert(pool).await? as i32;
 
         // Since we have woken up, start a new state
         state = State::from(curr_data, state.car_id)?;
-        state.id = state.db_insert(pool).await?;
+        state.id = state.db_insert(pool).await? as i32;
 
         return Ok(state);
     }
@@ -288,7 +303,7 @@ pub async fn handle_state_change(
 
         // Start a new state instance and insert it into the database
         state = State::from(curr_data, state.car_id)?;
-        state.id = state.db_insert(pool).await?;
+        state.id = state.db_insert(pool).await? as i32;
     }
 
     Ok(state)

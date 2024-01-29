@@ -1,10 +1,15 @@
-use super::drive::Drive;
-use crate::database::tables::{drive::DriveStatus, Position};
+use super::{drive::Drive, DBTable};
+use crate::database::tables::drive::DriveStatus;
 use sqlx::PgPool;
 
-impl Drive {
-    pub async fn db_load_last(pool: &PgPool) -> sqlx::Result<Self> {
-        let cp = sqlx::query_as!(Self,
+impl DBTable for Drive {
+    fn table_name() -> &'static str {
+        "drives"
+    }
+
+    async fn db_get_last(pool: &PgPool) -> sqlx::Result<Self> {
+        let cp = sqlx::query_as!(
+            Self,
             r#"
                 SELECT
                     id,
@@ -33,13 +38,14 @@ impl Drive {
                     status AS "status!: DriveStatus"
                 FROM drives
                 ORDER BY start_date DESC LIMIT 1
-            "#)
-            .fetch_one(pool)
-            .await?;
+            "#
+        )
+        .fetch_one(pool)
+        .await?;
         Ok(cp)
     }
 
-    pub async fn db_insert(&self, pool: &PgPool) -> sqlx::Result<i32> {
+    async fn db_insert(&self, pool: &PgPool) -> sqlx::Result<i64> {
         let id = sqlx::query!(
             r#"
         INSERT INTO drives
@@ -99,10 +105,10 @@ impl Drive {
         .await?
         .id;
 
-        Ok(id)
+        Ok(id as i64)
     }
 
-    pub async fn db_update(&self, pool: &PgPool) -> sqlx::Result<()> {
+    async fn db_update(&self, pool: &PgPool) -> sqlx::Result<()> {
         sqlx::query!(
             r#"
         UPDATE drives
@@ -159,66 +165,65 @@ impl Drive {
         .await?;
         Ok(())
     }
-}
 
-#[allow(dead_code)]
-pub async fn db_update_last(pool: &PgPool, position: &Position, drive_status: DriveStatus) -> sqlx::Result<()> {
-    // Get id of the latest drive
-    let current_drive = sqlx::query!(
-        r#"
-        SELECT id,
-            outside_temp_avg,
-            speed_max,
-            power_max,
-            power_min,
-            inside_temp_avg
-        FROM drives
-        ORDER BY id DESC LIMIT 1
-        "#
-    )
-    .fetch_one(pool)
-    .await?;
-    let id = current_drive.id;
+    // async fn db_update_last(&self, pool: &PgPool) -> sqlx::Result<()> {
+    //     // Get id of the latest drive
+    //     let current_drive = sqlx::query!(
+    //         r#"
+    //     SELECT id,
+    //         outside_temp_avg,
+    //         speed_max,
+    //         power_max,
+    //         power_min,
+    //         inside_temp_avg
+    //     FROM drives
+    //     ORDER BY id DESC LIMIT 1
+    //     "#
+    //     )
+    //     .fetch_one(pool)
+    //     .await?;
+    //     let id = current_drive.id;
 
-    // Update the latest drive
-    sqlx::query!(
-        r#"
-        UPDATE drives
-        SET
-            end_date = $1,
-            outside_temp_avg = (outside_temp_avg + $2) / 2,
-            speed_max = GREATEST(speed_max, $3),
-            power_max = GREATEST(power_max, $4),
-            power_min = LEAST(power_min, $5),
-            end_ideal_range_km = $6,
-            end_km = $7,
-            distance = COALESCE($8 - start_km, distance),
-            duration_min = COALESCE(EXTRACT(EPOCH FROM ($9 - start_date)), duration_min),
-            inside_temp_avg = (inside_temp_avg + $10) / 2,
-            end_rated_range_km = $11,
-            end_position_id = $12,
-            status = $13
-        WHERE id = $14
-        "#,
-        position.date,
-        position.outside_temp,
-        position.speed,
-        position.power,
-        position.power,
-        position.ideal_battery_range_km,
-        position.odometer,
-        position.odometer,
-        position.date,
-        position.inside_temp,
-        position.rated_battery_range_km,
-        position.id,
-        //drive.end_address_id,
-        //drive.end_geofence_id,
-        drive_status as DriveStatus,
-        id,
-    )
-    .execute(pool)
-    .await?;
+    //     // Update the latest drive
+    //     sqlx::query!(
+    //         r#"
+    //     UPDATE drives
+    //     SET
+    //         end_date = $1,
+    //         outside_temp_avg = (outside_temp_avg + $2) / 2,
+    //         speed_max = GREATEST(speed_max, $3),
+    //         power_max = GREATEST(power_max, $4),
+    //         power_min = LEAST(power_min, $5),
+    //         end_ideal_range_km = $6,
+    //         end_km = $7,
+    //         distance = COALESCE($8 - start_km, distance),
+    //         duration_min = COALESCE(EXTRACT(EPOCH FROM ($9 - start_date)), duration_min),
+    //         inside_temp_avg = (inside_temp_avg + $10) / 2,
+    //         end_rated_range_km = $11,
+    //         end_position_id = $12,
+    //         status = $13
+    //     WHERE id = $14
+    //     "#,
+    //         position.date,
+    //         position.outside_temp,
+    //         position.speed,
+    //         position.power,
+    //         position.power,
+    //         position.ideal_battery_range_km,
+    //         position.odometer,
+    //         position.odometer,
+    //         position.date,
+    //         position.inside_temp,
+    //         position.rated_battery_range_km,
+    //         position.id,
+    //         //drive.end_address_id,
+    //         //drive.end_geofence_id,
+    //         drive_status as DriveStatus,
+    //         id,
+    //     )
+    //     .execute(pool)
+    //     .await?;
 
-    Ok(())
+    //     Ok(())
+    // }
 }

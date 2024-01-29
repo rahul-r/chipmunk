@@ -15,6 +15,10 @@ const STREAMING_URL: &str = "wss://streaming.vn.teslamotors.com/streaming/";
 
 pub type TeslaClient = reqwest::Client;
 
+fn get_base_url() -> String {
+    std::env::var("MOCK_TESLA_BASE_URL").unwrap_or_else(|_| BASE_URL.to_string())
+}
+
 #[derive(thiserror::Error, Debug)]
 pub enum TeslaError {
     #[error("Connection Error: {0}")]
@@ -184,7 +188,7 @@ pub struct Vehicles {
 
 pub async fn get_vehicles(client: &reqwest::Client) -> Result<Vec<Vehicles>, TeslaError> {
     log::debug!("Getting list of vehicles");
-    let res = client.get(format!("{BASE_URL}/vehicles")).send().await?;
+    let res = client.get(format!("{}/vehicles", get_base_url())).send().await?;
     log::debug!("Received response: {:?}", res);
     read_response_json!(res, Vec<Vehicles>)
 }
@@ -195,7 +199,7 @@ pub async fn get_vehicles(client: &reqwest::Client) -> Result<Vec<Vehicles>, Tes
 pub async fn get_vehicle_data(client: &reqwest::Client, id: u64) -> Result<String, TeslaError> {
     log::debug!("Getting vehicle data");
     let res = client
-        .get(format!("{BASE_URL}/vehicles/{id}/vehicle_data"))
+        .get(format!("{}/vehicles/{id}/vehicle_data", get_base_url()))
         .send()
         .await?;
 

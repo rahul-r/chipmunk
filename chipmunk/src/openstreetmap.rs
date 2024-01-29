@@ -312,7 +312,7 @@ const BASE_URL: &str = "https://nominatim.openstreetmap.org";
 
 pub fn osm_client() -> anyhow::Result<Client> {
     let mut headers = HeaderMap::new();
-    headers.insert(USER_AGENT, HeaderValue::from_static("Tesla-Rust"));
+    headers.insert(USER_AGENT, HeaderValue::from_static("reqwest"));
 
     let client = Client::builder().default_headers(headers).build()?;
 

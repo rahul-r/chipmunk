@@ -3,6 +3,8 @@ use chrono::NaiveDateTime;
 use sqlx::PgPool;
 use tesla_api::vehicle_data::VehicleData;
 
+use super::DBTable;
+
 #[derive(Debug, Default, Clone)]
 pub struct SoftwareUpdate {
     pub id: i32,
@@ -30,9 +32,14 @@ pub fn software_updated(previous_data: Option<&VehicleData>, current_data: &Vehi
     false
 }
 
-pub async fn insert(pool: &PgPool, data: &SoftwareUpdate) -> sqlx::Result<i32> {
-    let id = sqlx::query!(
-        r#"
+impl DBTable for SoftwareUpdate {
+    fn table_name() -> &'static str {
+        "updates"
+    }
+
+    async fn db_insert(&self, pool: &PgPool) -> sqlx::Result<i64> {
+        let id = sqlx::query!(
+            r#"
         INSERT INTO updates
         (
             start_date,
@@ -42,16 +49,17 @@ pub async fn insert(pool: &PgPool, data: &SoftwareUpdate) -> sqlx::Result<i32> {
         )
         VALUES ($1, $2, $3, $4)
         RETURNING id"#,
-        data.start_date,
-        data.end_date,
-        data.version,
-        data.car_id,
-    )
-    .fetch_one(pool)
-    .await?
-    .id;
+            self.start_date,
+            self.end_date,
+            self.version,
+            self.car_id,
+        )
+        .fetch_one(pool)
+        .await?
+        .id;
 
-    Ok(id)
+        Ok(id as i64)
+    }
 }
 
 pub async fn insert_end_date(pool: &PgPool, data: SoftwareUpdate) -> sqlx::Result<i64> {

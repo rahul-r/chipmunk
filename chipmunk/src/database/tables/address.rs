@@ -3,8 +3,11 @@ use sqlx::PgPool;
 
 use crate::openstreetmap::{self, OsmResponse};
 
+use super::DBTable;
+
 #[derive(Debug, Default, Clone)]
 pub struct Address {
+    pub id: i64,
     pub display_name: Option<String>,
     pub latitude: Option<f32>,
     pub longitude: Option<f32>,
@@ -51,6 +54,7 @@ impl Address {
         }
 
         Ok(Self {
+            id: 0,
             display_name: osm.get_formatted_display_name(),
             latitude: Some(latitude),
             longitude: Some(longitude),
@@ -72,15 +76,25 @@ impl Address {
         })
     }
 
-    pub async fn from_opt(latitude: Option<f32>, longitude: Option<f32>) -> anyhow::Result<Self> {      
+    pub async fn from_opt(latitude: Option<f32>, longitude: Option<f32>) -> anyhow::Result<Self> {
         if let (Some(lat), Some(lon)) = (latitude, longitude) {
             Self::from(lat, lon).await
         } else {
-            anyhow::bail!("Invalid latitude and/or longitude: ({:?}, {:?})", latitude, longitude);
+            anyhow::bail!(
+                "Invalid latitude and/or longitude: ({:?}, {:?})",
+                latitude,
+                longitude
+            );
         }
     }
+}
 
-    pub async fn db_insert(&self, pool: &PgPool) -> sqlx::Result<i64> {
+impl DBTable for Address {
+    fn table_name() -> &'static str {
+        "addresses"
+    }
+
+    async fn db_insert(&self, pool: &PgPool) -> sqlx::Result<i64> {
         // NOTE: Using the 'ON CONFLICT' will cause the id field to increment even if the insert is
         // skipped due to the conflict. This will cause missing IDs in the table.
         let id = sqlx::query!(
@@ -144,29 +158,15 @@ impl Address {
 
         Ok(id.unwrap_or(0) as i64)
     }
-}
 
-/**
-* Construct Address data structure from the given coordinates, insert the address into the
-* database and return the database row ID
-* On Error, returns None
-*/
-pub async fn insert_address(pool: &PgPool, lat: Option<f32>, lon: Option<f32>) -> Option<i32> {
-    if let (Some(lat), Some(lon)) = (lat, lon) {
-        match Address::from(lat, lon).await {
-            Ok(address) => match address.db_insert(pool).await {
-                Ok(id) => Some(id as i32),
-                Err(e) => {
-                    log::error!("Error inserting address to database: {e}");
-                    None
-                }
-            },
-            Err(e) => {
-                log::error!("Error creating Address data structure from latitude {lat} and longitude {lon}: {e}");
-                None
-            }
-        }
-    } else {
-        None
+    async fn db_get_last(pool: &PgPool) -> sqlx::Result<Self> {
+        sqlx::query_as!(Self, r#"SELECT * FROM addresses ORDER BY id DESC LIMIT 1"#)
+        .fetch_one(pool)
+        .await
+        .map_err(|e| {
+            log::error!("Error getting last row from table `{}`: {}", Self::table_name(), e);
+            e
+        })
     }
 }
+

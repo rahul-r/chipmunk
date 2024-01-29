@@ -5,6 +5,8 @@ use sqlx::PgPool;
 use tesla_api::utils::{get_elevation, miles_to_km, mph_to_kmh, timestamp_to_naivedatetime};
 use tesla_api::vehicle_data::VehicleData;
 
+use super::DBTable;
+
 #[derive(Debug, Default, Clone, sqlx::FromRow)]
 pub struct Position {
     pub id: Option<i32>,
@@ -91,7 +93,24 @@ impl Position {
         })
     }
 
-    pub async fn db_insert(&self, pool: &PgPool) -> sqlx::Result<i64> {
+    pub async fn db_update_drive_id(&self, pool: &PgPool, drive_id: i32) -> sqlx::Result<()> {
+        sqlx::query!(
+            r#"UPDATE positions SET drive_id = $1 WHERE id = $2"#,
+            drive_id,
+            self.id
+        )
+        .execute(pool)
+        .await?;
+        Ok(())
+    }
+}
+
+impl DBTable for Position {
+    fn table_name() -> &'static str {
+        "positions"
+    }
+
+    async fn db_insert(&self, pool: &PgPool) -> sqlx::Result<i64> {
         let id = sqlx::query!(
             r#"
         INSERT INTO positions
@@ -166,17 +185,6 @@ impl Position {
         Ok(id as i64)
     }
 
-    pub async fn db_update_drive_id(&self, pool: &PgPool, drive_id: i32) -> sqlx::Result<()> {
-        sqlx::query!(
-            r#"UPDATE positions SET drive_id = $1 WHERE id = $2"#,
-            drive_id,
-            self.id
-        )
-        .execute(pool)
-        .await?;
-        Ok(())
-    }
-
     // pub async fn db_get(pool: &PgPool, id: i32) -> sqlx::Result<Self> {
     //     let position = sqlx::query_as::<_, Self>(r#"SELECT * FROM positions WHERE id=$1"#)
     //         .bind(id)
@@ -184,6 +192,16 @@ impl Position {
     //         .await?;
     //     Ok(position)
     // }
+
+    async fn db_get_last(pool: &PgPool) -> sqlx::Result<Self> {
+        sqlx::query_as!(Self, r#"SELECT * FROM positions ORDER BY id DESC LIMIT 1"#)
+        .fetch_one(pool)
+        .await
+        .map_err(|e| {
+            log::error!("Error getting last row from table `{}`: {}", Self::table_name(), e);
+            e
+        })
+    }
 }
 
 #[allow(dead_code)]

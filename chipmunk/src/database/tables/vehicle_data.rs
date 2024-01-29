@@ -4,6 +4,8 @@ use sqlx::PgPool;
 use std::ops::{Deref, DerefMut};
 use tesla_api::vehicle_data::VehicleData;
 
+use super::DBTable;
+
 #[derive(sqlx::FromRow, Debug)]
 pub struct VehicleDataRow {
     pub data: sqlx::types::Json<VehicleData>,
@@ -75,38 +77,42 @@ pub async fn get_car_data_between(
         .await
 }
 
-pub async fn get_latest_car_data(pool: &PgPool, _car_id: i16) -> sqlx::Result<VehicleData> {
-    // TODO: filter car_data by car_id
-    sqlx::query_as!(
+impl DBTable for VehicleData {
+    fn table_name() -> &'static str {
+        "car_data"
+    }
+
+    async fn db_get_last(pool: &PgPool) -> sqlx::Result<VehicleData> {
+        // TODO: filter car_data by car_id
+        sqlx::query_as!(
             VehicleDataRow,
             r#"SELECT data as "data!:sqlx::types::Json<VehicleData>" FROM car_data ORDER BY timestamp DESC LIMIT 1"#,
         )
         .fetch_one(pool)
         .await
         .map(|d| d.get_data())
-}
+    }
 
-#[allow(dead_code)]
-pub async fn db_insert(data: &VehicleData, pool: &PgPool) -> anyhow::Result<()> {
-    let timestamp = match data.timestamp_epoch() {
-        Some(ts) => ts as i64,
-        None => anyhow::bail!("No timestamp found in vehicle data"),
-    };
+    async fn db_insert(&self, pool: &PgPool) -> sqlx::Result<i64> {
+        let Some(timestamp) = self.timestamp_epoch() else {
+            return Err(sqlx::Error::Protocol("No timestamp found in vehicle data".into()));
+        };
 
-    let data_json = match serde_json::to_value(data) {
-        Ok(val) => val,
-        Err(e) => anyhow::bail!("Error converting vehicle data to JSON: {}", e),
-    };
+        let data_json = match serde_json::to_value(self) {
+            Ok(val) => val,
+            Err(e) => return Err(sqlx::Error::Protocol(format!("Error converting vehicle data to JSON: {}", e))),
+        };
 
-    sqlx::query!(
-        r#"INSERT INTO car_data (timestamp,data) VALUES ($1, $2)"#,
-        timestamp,
-        data_json,
-    )
-    .execute(pool)
-    .await?;
+        sqlx::query!(
+            r#"INSERT INTO car_data (timestamp,data) VALUES ($1, $2)"#,
+            timestamp as i64,
+            data_json,
+        )
+        .execute(pool)
+        .await?;
 
-    Ok(())
+        Ok(0i64) // TODO: return the row ID
+    }
 }
 
 pub async fn db_insert_json(data: &str, pool: &PgPool) -> anyhow::Result<()> {
@@ -136,7 +142,7 @@ async fn test_vehicle_data_insertion() {
         vehicle_state: Some(vehicle_state),
         ..VehicleData::default()
     };
-    db_insert(&data, &pool)
+    data.db_insert(&pool)
         .await
         .expect("Error inserting vehicle data");
 }

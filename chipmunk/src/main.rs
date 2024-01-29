@@ -1,16 +1,16 @@
 #![feature(async_closure)]
 #![feature(let_chains)]
 #![feature(stmt_expr_attributes)]
+#![feature(async_fn_in_trait)]
 
 use std::{thread, time};
 
-use anyhow::Context;
 use backend::{
     get_default_wsmsg,
     server::TeslaServer,
 };
 use chipmunk::{
-    database::{self, tables::convert_database},
+    database,
     environment, logger,
 };
 use clap::Parser;
@@ -74,13 +74,6 @@ async fn main() -> anyhow::Result<()> {
 
     if let Some(option) = cli.option.as_deref() {
         match option {
-            "convertdb" => {
-                let car_data_database_url = std::env::var("CAR_DATA_DATABASE_URL")
-                    .context("Cannot read CAR_DATA_DATABASE_URL")?;
-
-                let car_data_pool = database::initilize_car_data(&car_data_database_url).await?;
-                convert_database(&pool, &car_data_pool, cli.num_rows).await?;
-            }
             "ws" => {
                 let (tx, _rx) = mpsc::unbounded_channel();
                 let server = TeslaServer::start(env.http_port, tx);

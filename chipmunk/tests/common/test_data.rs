@@ -288,3 +288,24 @@ pub fn get_data(timestamp: NaiveDateTime) -> VehicleData {
         vehicle_state: Some(get_vehicle_state(timestamp)),
     }
 }
+
+// Create a VehicleData with the provided shift state
+pub fn data_with_shift(timestamp: NaiveDateTime, shift: Option<ShiftState>) -> VehicleData {
+    let data = get_data(timestamp);
+    VehicleData {
+        drive_state: Some(DriveState {
+            latitude: Some(12.34),
+            longitude: Some(34.56),
+            shift_state: shift,
+            timestamp: Some(timestamp.timestamp_millis() as u64),
+            ..data.drive_state.clone().unwrap()
+        }),
+        ..data
+    }
+}
+
+pub fn data_charging(timestamp: NaiveDateTime) -> VehicleData {
+    let mut data = get_data(timestamp);
+    data.charge_state.as_mut().unwrap().charging_state = Some(ChargingState::Charging);
+    data
+}
