@@ -16,6 +16,7 @@ start_dev_env() {
   sudo chown -R 472:0 chipmunk_docker/grafana
   sudo chown -R 5050:5050 chipmunk_docker/pgadmin
 
+  set +e
   # https://docs.docker.com/engine/reference/commandline/compose_run/
   docker-compose -f docker-compose-dev.yml run \
                     --rm \
@@ -35,7 +36,7 @@ build_dev_env() {
   export HOST_GID
 
   docker-compose -f docker-compose-dev.yml down
-  docker-compose -f docker-compose-dev.yml build
+  docker-compose -f docker-compose-dev.yml build --no-cache
 }
 
 redo_migration() {
