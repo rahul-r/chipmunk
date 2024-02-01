@@ -357,6 +357,7 @@ pub async fn geocode(address: String) -> Option<OsmResponse> {
 }
 
 #[tokio::test]
+#[ignore]
 async fn test_reverse_geocode() {
     let lat = 64.752_91;
     let lon = -147.353_91;

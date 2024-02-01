@@ -1,1 +1,1 @@
-DROP TABLE geofences;
+DROP TABLE IF EXISTS geofences;

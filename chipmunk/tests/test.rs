@@ -2,24 +2,27 @@
 
 pub mod common;
 
+use chipmunk::database::types::DriveStatus;
+use chipmunk::database::DBTable;
+use chrono::Duration;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
-use std::sync::{Mutex, Arc};
-use chrono::Duration;
+use std::sync::{Arc, Mutex};
 
-use chipmunk::{database, openstreetmap};
-use chipmunk::database::tables::{Tables, DBTable};
-use chipmunk::database::tables::drive::{Drive, DriveStatus};
+use chipmunk::database::tables::drive::Drive;
 use chipmunk::database::tables::state::{State, StateStatus};
+use chipmunk::database::tables::Tables;
+use chipmunk::{database, openstreetmap};
+use rand::Rng;
 use tesla_api::utils::{miles_to_km, mph_to_kmh, timestamp_to_naivedatetime};
 use tesla_api::vehicle_data::{DriveState, ShiftState, VehicleData};
 
 use common::test_data::{self, data_with_shift};
-use common::utils::{init_database, ts_no_nanos};
+use common::utils::ts_no_nanos;
 
-use crate::common::utils::create_mock_osm_server;
 use crate::common::utils::create_mock_tesla_server;
+use crate::common::utils::{create_mock_osm_server, init_test_database};
 
 #[rustfmt::skip]
 pub fn create_drive_from_gpx() -> (Vec<VehicleData>, usize, usize) {
@@ -112,7 +115,7 @@ fn calculate_expected_drive(
     car_id: i16,
 ) -> Drive {
     let first_drive_data = vehicle_data_list[drive_start_index].clone();
-    let last_drive_data = vehicle_data_list[drive_end_index].clone();
+    let last_drive_data = vehicle_data_list[drive_end_index - 1].clone();
 
     let mut outside_tmp_total = 0f32;
     let mut inside_temp_total = 0f32;
@@ -149,7 +152,7 @@ fn calculate_expected_drive(
         end_date = Some(_end_date);
         end_address_id = Some(2);
         status = DriveStatus::NotDriving;
-        end_position_id = Some(drive_end_index as i32 + 1);
+        end_position_id = Some(drive_end_index as i32);
     }
 
     Drive {
@@ -182,16 +185,19 @@ fn calculate_expected_drive(
 
 #[tokio::test]
 async fn check_vehicle_data() -> anyhow::Result<()> {
-    let pool = init_database().await;
+    let random_http_port = rand::thread_rng().gen_range(4000..60000);
+    std::env::set_var("HTTP_PORT", random_http_port.to_string());
+
+    let pool = init_test_database("check_vehicle_data").await;
     let _osm_mock = create_mock_osm_server();
 
     let (vehicle_data_list, drive_start_index, drive_end_index) = create_drive_from_gpx();
-    let mut vin_id_map = database::tables::get_vin_id_map(&pool).await;
+    let mut vin_id_map = database::tables::car::get_vin_id_map(&pool).await;
     let mut tables = Tables::default();
 
     for data in &vehicle_data_list {
         (vin_id_map, tables) =
-            database::tables::logging_process(&pool, vin_id_map, tables, data).await;
+            chipmunk::logger::process_vehicle_data(&pool, vin_id_map, tables, data).await;
     }
 
     let expected_drive = calculate_expected_drive(
@@ -203,6 +209,7 @@ async fn check_vehicle_data() -> anyhow::Result<()> {
     
     #[rustfmt::skip]
     {
+        assert_eq!(Drive::db_num_rows(&pool).await.unwrap(), 1);
         let last_row = Drive::db_get_last(&pool).await.unwrap();
         assert_eq!(last_row.start_date, expected_drive.start_date);
         assert_eq!(last_row.end_date, expected_drive.end_date);
@@ -222,8 +229,8 @@ async fn check_vehicle_data() -> anyhow::Result<()> {
         assert_eq!(last_row.end_address_id, expected_drive.end_address_id);
         assert_eq!(last_row.start_rated_range_km, expected_drive.start_rated_range_km);
         assert_eq!(last_row.end_rated_range_km, expected_drive.end_rated_range_km);
-        // assert_eq!(last_row.start_position_id, expected_drive.start_position_id);
-        // assert_eq!(last_row.end_position_id, expected_drive.end_position_id);
+        assert_eq!(last_row.start_position_id, expected_drive.start_position_id);
+        assert_eq!(last_row.end_position_id, expected_drive.end_position_id);
         assert_eq!(last_row.start_geofence_id, expected_drive.start_geofence_id);
         assert_eq!(last_row.end_geofence_id, expected_drive.end_geofence_id);
         assert_eq!(last_row.status, expected_drive.status);
@@ -241,33 +248,33 @@ async fn startup_with_state() {
     let blank_tables = Tables::default();
 
     // Test startup with shift state null (expect parked state)
-    let t = database::tables::create_tables(&data_with_shift(ts, None), &blank_tables, car_id).await.unwrap();
+    let t = chipmunk::logger::create_tables(&data_with_shift(ts, None), &blank_tables, car_id).await.unwrap();
     assert_eq!(t.len(), 1);
     assert!(t[0].address.is_none());
     assert!(t[0].car.is_none());
     assert_eq!(t[0].charges.as_ref().unwrap().id, 0);
     assert!(t[0].charging_process.is_none());
     assert!(t[0].drive.is_none());
-    assert!(t[0].position.is_none());
+    assert!(t[0].position.is_some());
     assert!(t[0].settings.is_none());
     assert!(t[0].sw_update.is_none());
     assert_eq!(*t[0].state.as_ref().unwrap(), State {car_id, id: 0, state: Parked, start_date: ts_no_nanos(ts), end_date: None });
 
     // Test startup with shift state P (expect parked state)
-    let t = database::tables::create_tables(&data_with_shift(ts, Some(P)), &blank_tables, car_id).await.unwrap();
+    let t = chipmunk::logger::create_tables(&data_with_shift(ts, Some(P)), &blank_tables, car_id).await.unwrap();
     assert_eq!(t.len(), 1);
     assert!(t[0].address.is_none());
     assert!(t[0].car.is_none());
     assert_eq!(t[0].charges.as_ref().unwrap().id, 0);
     assert!(t[0].charging_process.is_none());
     assert!(t[0].drive.is_none());
-    assert!(t[0].position.is_none());
+    assert!(t[0].position.is_some());
     assert!(t[0].settings.is_none());
     assert!(t[0].sw_update.is_none());
     assert_eq!(*t[0].state.as_ref().unwrap(), State {car_id, id: 0, state: Parked, start_date: ts_no_nanos(ts), end_date: None });
 
     // Test startup with shift state D (expect driving state)
-    let t = database::tables::create_tables(&data_with_shift(ts, Some(D)), &blank_tables, car_id).await.unwrap();
+    let t = chipmunk::logger::create_tables(&data_with_shift(ts, Some(D)), &blank_tables, car_id).await.unwrap();
     assert_eq!(t.len(), 1);
     assert!(t[0].address.is_some());
     assert!(t[0].car.is_none());
@@ -280,7 +287,7 @@ async fn startup_with_state() {
     assert_eq!(*t[0].state.as_ref().unwrap(), State {car_id, id: 0, state: Driving, start_date: ts_no_nanos(ts), end_date: None });
 
     // Test startup with shift state R (expect driving state)
-    let t = database::tables::create_tables(&data_with_shift(ts, Some(R)), &blank_tables, car_id).await.unwrap();
+    let t = chipmunk::logger::create_tables(&data_with_shift(ts, Some(R)), &blank_tables, car_id).await.unwrap();
     assert_eq!(t.len(), 1);
     assert!(t[0].address.is_some());
     assert!(t[0].car.is_none());
@@ -293,7 +300,7 @@ async fn startup_with_state() {
     assert_eq!(*t[0].state.as_ref().unwrap(), State {car_id, id: 0, state: Driving, start_date: ts_no_nanos(ts), end_date: None });
 
     // Test startup with shift state N (expect driving state)
-    let t = database::tables::create_tables(&data_with_shift(ts, Some(N)), &blank_tables, car_id).await.unwrap();
+    let t = chipmunk::logger::create_tables(&data_with_shift(ts, Some(N)), &blank_tables, car_id).await.unwrap();
     assert_eq!(t.len(), 1);
     assert!(t[0].address.is_some());
     assert!(t[0].car.is_none());
@@ -315,43 +322,45 @@ async fn state_change_from_parked() {
     let car_id = 1i16;
 
     // Create initial parked state
-    let mut ts = chrono::Utc::now().naive_utc();
-    let parking_start_time = ts;
-    let t = database::tables::create_tables(&data_with_shift(ts, Some(P)), &Tables::default(), car_id).await.unwrap();
+    let parking_start_time = chrono::Utc::now().naive_utc();
+    let t = chipmunk::logger::create_tables(&data_with_shift(parking_start_time, Some(P)), &Tables::default(), car_id).await.unwrap();
     assert_eq!(t.len(), 1);
     let parked_state = &t[0];
 
     // Test state changes from parked state to parked state
-    ts += Duration::seconds(10);
-    let t = database::tables::create_tables(&data_with_shift(ts, Some(P)), parked_state, car_id).await.unwrap();
+    let ts = parking_start_time + Duration::seconds(10);
+    let t = chipmunk::logger::create_tables(&data_with_shift(ts, Some(P)), parked_state, car_id).await.unwrap();
     assert_eq!(t.len(), 1);
     assert!(t[0].address.is_none());
     assert!(t[0].car.is_none());
     assert_eq!(t[0].charges.as_ref().unwrap().id, 0);
     assert!(t[0].charging_process.is_none());
     assert!(t[0].drive.is_none());
-    assert!(t[0].position.is_none());
+    assert!(t[0].position.is_some());
     assert!(t[0].settings.is_none());
     assert!(t[0].sw_update.is_none());
     assert_eq!(*t[0].state.as_ref().unwrap(), State {car_id, id: 0, state: Parked, start_date: ts_no_nanos(parking_start_time), end_date: Some(ts_no_nanos(ts)) });
 
     // Test state changes from shift state P to null
-    ts += Duration::seconds(10);
-    let t = database::tables::create_tables(&data_with_shift(ts, None), parked_state, car_id).await.unwrap();
+    let ts = parking_start_time + Duration::seconds(10);
+    let t = chipmunk::logger::create_tables(&data_with_shift(ts, None), parked_state, car_id).await.unwrap();
     assert_eq!(t.len(), 1);
     assert!(t[0].address.is_none());
     assert!(t[0].car.is_none());
     assert_eq!(t[0].charges.as_ref().unwrap().id, 0);
     assert!(t[0].charging_process.is_none());
     assert!(t[0].drive.is_none());
-    assert!(t[0].position.is_none());
+    assert!(t[0].position.is_some());
     assert!(t[0].settings.is_none());
     assert!(t[0].sw_update.is_none());
     assert_eq!(*t[0].state.as_ref().unwrap(), State {car_id, id: 0, state: Parked, start_date: ts_no_nanos(parking_start_time), end_date: Some(ts_no_nanos(ts)) });
 
     // Test state changes from parked state to driving state
-    ts += Duration::seconds(10);
-    let t = database::tables::create_tables(&data_with_shift(ts, Some(D)), parked_state, car_id).await.unwrap();
+    let parking_end_time = parking_start_time + Duration::seconds(10);
+    let driving_start_time = parking_end_time + Duration::seconds(1);
+    let mut s = parked_state.clone();
+    s.position.as_mut().unwrap().date = Some(ts_no_nanos(parking_end_time));
+    let t = chipmunk::logger::create_tables(&data_with_shift(driving_start_time, Some(D)), &s, car_id).await.unwrap();
     assert_eq!(t.len(), 2);
     // End of Parked state
     assert!(t[0].address.is_none());
@@ -359,10 +368,10 @@ async fn state_change_from_parked() {
     assert_eq!(t[0].charges.as_ref().unwrap().id, 0);
     assert!(t[0].charging_process.is_none());
     assert!(t[0].drive.is_none());
-    assert!(t[0].position.is_none());
+    assert!(t[0].position.is_some());
     assert!(t[0].settings.is_none());
     assert!(t[0].sw_update.is_none());
-    assert_eq!(*t[0].state.as_ref().unwrap(), State {car_id, id: 0, state: Parked, start_date: ts_no_nanos(parking_start_time), end_date: Some(ts_no_nanos(ts)) });
+    assert_eq!(*t[0].state.as_ref().unwrap(), State {car_id, id: 0, state: Parked, start_date: ts_no_nanos(parking_start_time), end_date: Some(ts_no_nanos(parking_end_time)) });
     // Start of Driving state
     assert!(t[1].address.is_some());
     assert!(t[1].car.is_none());
@@ -372,25 +381,28 @@ async fn state_change_from_parked() {
     assert!(t[1].position.is_some());
     assert!(t[1].settings.is_none());
     assert!(t[1].sw_update.is_none());
-    assert_eq!(*t[1].state.as_ref().unwrap(), State {car_id, id: 0, state: Driving, start_date: ts_no_nanos(ts), end_date: None });
+    assert_eq!(*t[1].state.as_ref().unwrap(), State {car_id, id: 0, state: Driving, start_date: ts_no_nanos(driving_start_time), end_date: None });
 
     // Test state changes from parked state to reverse state
-    let t = database::tables::create_tables(&data_with_shift(ts, Some(R)), parked_state, car_id).await.unwrap();
+    let t = chipmunk::logger::create_tables(&data_with_shift(ts, Some(R)), parked_state, car_id).await.unwrap();
     assert_eq!(t.len(), 2);
     // End of Parked state
     assert!(t[0].drive.is_none());
-    assert_eq!(*t[0].state.as_ref().unwrap(), State {car_id, id: 0, state: Parked, start_date: ts_no_nanos(parking_start_time), end_date: Some(ts_no_nanos(ts)) });
+    // NOTE: the logging process will use the previous data point to stop a state, in this case
+    // previous data point is also the starting sata point of parking state. state start time and
+    // state end time will be same.
+    assert_eq!(*t[0].state.as_ref().unwrap(), State {car_id, id: 0, state: Parked, start_date: ts_no_nanos(parking_start_time), end_date: Some(ts_no_nanos(parking_start_time)) });
     // Start of Driving state
     assert!(t[1].drive.is_some());
     assert_eq!(*t[1].state.as_ref().unwrap(), State {car_id, id: 0, state: Driving, start_date: ts_no_nanos(ts), end_date: None });
 
     // Test state changes from parked state to neutral state
-    let t = database::tables::create_tables(&data_with_shift(ts, Some(N)), parked_state, car_id).await.unwrap();
+    let t = chipmunk::logger::create_tables(&data_with_shift(ts, Some(N)), parked_state, car_id).await.unwrap();
     assert_eq!(t.len(), 2);
     assert!(t[0].drive.is_none());
     assert!(t[1].drive.is_some());
     // End of Parked state
-    assert_eq!(*t[0].state.as_ref().unwrap(), State {car_id, id: 0, state: Parked, start_date: ts_no_nanos(parking_start_time), end_date: Some(ts_no_nanos(ts)) });
+    assert_eq!(*t[0].state.as_ref().unwrap(), State {car_id, id: 0, state: Parked, start_date: ts_no_nanos(parking_start_time), end_date: Some(ts_no_nanos(parking_start_time)) });
     // Start of Driving state
     assert_eq!(*t[1].state.as_ref().unwrap(), State {car_id, id: 0, state: Driving, start_date: ts_no_nanos(ts), end_date: None });
 }
@@ -401,13 +413,13 @@ async fn test_drive_to_drive_states(from_shift: ShiftState, to_shift: ShiftState
     // Create initial driving state
     let start_time = chrono::Utc::now().naive_utc();
     let driving_start_time = start_time;
-    let t = database::tables::create_tables(&data_with_shift(start_time, Some(from_shift)), &Tables::default(), car_id).await.unwrap();
+    let t = chipmunk::logger::create_tables(&data_with_shift(start_time, Some(from_shift)), &Tables::default(), car_id).await.unwrap();
     assert_eq!(t.len(), 1);
     let prev_state = &t[0];
 
     let curr_data_time = start_time + Duration::seconds(10);
 
-    let t = database::tables::create_tables(&data_with_shift(curr_data_time, Some(to_shift)), prev_state, car_id).await.unwrap();
+    let t = chipmunk::logger::create_tables(&data_with_shift(curr_data_time, Some(to_shift)), prev_state, car_id).await.unwrap();
     assert_eq!(t.len(), 1);
     assert!(t[0].address.is_none());
     assert!(t[0].car.is_none());
@@ -481,20 +493,20 @@ async fn state_transitions_with_time_gap() {
 
     // Create driving datapoint
     let first_ts = chrono::Utc::now().naive_utc();
-    let first_data_point = database::tables::create_tables(&data_with_shift(first_ts, Some(D)), &Tables::default(), car_id).await.unwrap();
+    let first_data_point = chipmunk::logger::create_tables(&data_with_shift(first_ts, Some(D)), &Tables::default(), car_id).await.unwrap();
     assert_eq!(first_data_point.len(), 1);
     assert_eq!(*first_data_point[0].state.as_ref().unwrap(), State {car_id, id: 0, state: Driving, start_date: ts_no_nanos(first_ts), end_date: None });
 
     // Create another driving data point in 10 minutes
     let second_ts = first_ts + Duration::minutes(10);
-    let second_data_point = database::tables::create_tables(&data_with_shift(second_ts, Some(D)), &first_data_point[0], car_id).await.unwrap();
+    let second_data_point = chipmunk::logger::create_tables(&data_with_shift(second_ts, Some(D)), &first_data_point[0], car_id).await.unwrap();
     // Verify the states when driving data points are 10 minutes apart
     assert_eq!(second_data_point.len(), 1);
     assert_eq!(*second_data_point[0].state.as_ref().unwrap(), State {car_id, id: 0, state: Driving, start_date: ts_no_nanos(first_ts), end_date: Some(ts_no_nanos(second_ts)) });
 
     // Create another driving data point after 11 minutes
     let second_ts = first_ts + Duration::minutes(11);
-    let second_data_point = database::tables::create_tables(&data_with_shift(second_ts, Some(D)), &first_data_point[0], car_id).await.unwrap();
+    let second_data_point = chipmunk::logger::create_tables(&data_with_shift(second_ts, Some(D)), &first_data_point[0], car_id).await.unwrap();
     // Verify the states when driving data points are more than 10 minutes apart
     assert_eq!(second_data_point.len(), 2);
     assert_eq!(*second_data_point[0].state.as_ref().unwrap(), State {car_id, id: 0, state: Driving, start_date: ts_no_nanos(first_ts), end_date: Some(ts_no_nanos(first_ts)) });
@@ -502,7 +514,7 @@ async fn state_transitions_with_time_gap() {
 
     // Create another driving data point after 10 minutes (10 minutes and 1 second)
     let second_ts = first_ts  + Duration::minutes(10 * 60 + 1);
-    let second_data_point = database::tables::create_tables(&data_with_shift(second_ts, Some(D)), &first_data_point[0], car_id).await.unwrap();
+    let second_data_point = chipmunk::logger::create_tables(&data_with_shift(second_ts, Some(D)), &first_data_point[0], car_id).await.unwrap();
     // Verify the states when driving data points are more than 10 minutes apart
     assert_eq!(second_data_point.len(), 2);
     assert_eq!(*second_data_point[0].state.as_ref().unwrap(), State {car_id, id: 0, state: Driving, start_date: ts_no_nanos(first_ts), end_date: Some(ts_no_nanos(first_ts)) });
@@ -510,11 +522,11 @@ async fn state_transitions_with_time_gap() {
 
     // Test state changes when a data point is received after 10 minutes of driving and the car hasn't moved
     let second_ts = first_ts + Duration::minutes(1);
-    let second_data_point = database::tables::create_tables(&data_with_shift(second_ts, Some(D)), &first_data_point[0], car_id).await.unwrap();
+    let second_data_point = chipmunk::logger::create_tables(&data_with_shift(second_ts, Some(D)), &first_data_point[0], car_id).await.unwrap();
     let third_ts = second_ts + Duration::minutes(1);
-    let third_data_point = database::tables::create_tables(&data_with_shift(third_ts, Some(D)), &second_data_point[0], car_id).await.unwrap();
+    let third_data_point = chipmunk::logger::create_tables(&data_with_shift(third_ts, Some(D)), &second_data_point[0], car_id).await.unwrap();
     let fourth_ts = third_ts + Duration::minutes(11);
-    let fourth_data_point = database::tables::create_tables(&data_with_shift(fourth_ts, Some(D)), &third_data_point[0], car_id).await.unwrap();
+    let fourth_data_point = chipmunk::logger::create_tables(&data_with_shift(fourth_ts, Some(D)), &third_data_point[0], car_id).await.unwrap();
     // Verify the states
     assert_eq!(second_data_point.len(), 1);
     assert_eq!(third_data_point.len(), 1);

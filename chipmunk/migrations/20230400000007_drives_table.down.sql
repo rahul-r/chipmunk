@@ -1,1 +1,1 @@
-DROP TABLE drives;
+DROP TABLE IF EXISTS drives;

@@ -1,1 +1,1 @@
-DROP TABLE charges;
+DROP TABLE IF EXISTS charges;

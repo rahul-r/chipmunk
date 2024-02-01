@@ -93,3 +93,11 @@ cargo sqlx prepare --workspace -- --all-targets --all-features
 The presence of a `DATABASE_URL` environment variable will take precedence over the presence of `.sqlx`, meaning SQLx will default to building against a database if it can. To make sure an accidentally-present `DATABASE_URL` environment variable or `.env` file does not result in cargo build (trying to) access the database, set the `SQLX_OFFLINE` environment variable to true.
 
 To make this the default, add it to `.env` file. cargo sqlx prepare will still do the right thing and connect to the database.
+
+## Testing
+`cargo test` will run tests parallely in different threads. Some of the tests in this project uses shared resources (database, http server, etc.) and will fail `cargo test`. One option is to run the tests sequentially which will take a long time to run the tests.
+
+Altranativels, we can use test frameworks like cargo-nextest to run the tests parallely without interferring with each other.
+
+cargo install cargo-nextest
+cargo nextest run

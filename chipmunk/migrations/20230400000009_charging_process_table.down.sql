@@ -1,1 +1,1 @@
-DROP TABLE charging_processes;
+DROP TABLE IF EXISTS charging_processes;

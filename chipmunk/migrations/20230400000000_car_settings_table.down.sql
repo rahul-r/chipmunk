@@ -1,1 +1,1 @@
-DROP TABLE car_settings;
+DROP TABLE IF EXISTS car_settings;

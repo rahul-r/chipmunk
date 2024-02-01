@@ -77,6 +77,16 @@ pub async fn get_car_data_between(
         .await
 }
 
+pub async fn db_insert_json(data: &str, pool: &PgPool) -> anyhow::Result<()> {
+    sqlx::query(r#"INSERT INTO car_data (timestamp,data) VALUES ($1, $2::json)"#)
+        .bind(Utc::now().timestamp_millis())
+        .bind(data)
+        .execute(pool)
+        .await?;
+
+    Ok(())
+}
+
 impl DBTable for VehicleData {
     fn table_name() -> &'static str {
         "car_data"
@@ -113,16 +123,6 @@ impl DBTable for VehicleData {
 
         Ok(0i64) // TODO: return the row ID
     }
-}
-
-pub async fn db_insert_json(data: &str, pool: &PgPool) -> anyhow::Result<()> {
-    sqlx::query(r#"INSERT INTO car_data (timestamp,data) VALUES ($1, $2::json)"#)
-        .bind(Utc::now().timestamp_millis())
-        .bind(data)
-        .execute(pool)
-        .await?;
-
-    Ok(())
 }
 
 #[tokio::test]

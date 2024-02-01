@@ -206,3 +206,73 @@ pub async fn get_vehicle_data(client: &reqwest::Client, id: u64) -> Result<Strin
     log::debug!("Received response: {:?}", res);
     Ok(read_response_json!(res, serde_json::Value)?.to_string())
 }
+
+pub struct Vehicle;
+impl Vehicle {
+    pub fn get_model_code(model_name: &Option<String>) -> Option<String> {
+        let Some(name) = model_name else {
+            log::warn!("model_name is `None`");
+            return None;
+        };
+
+        let model_code = match name.to_lowercase().as_str() {
+            "models" | "lychee" => "S",
+            "model3" => "3",
+            "modelx" | "tamarind" => "X",
+            "modely" => "Y",
+            s => {
+                log::warn!("Unknown model name `{s}`");
+                return None;
+            }
+        };
+
+        Some(model_code.to_string())
+    }
+
+    pub fn get_marketing_name(
+        model: Option<String>,
+        trim_badging: Option<String>,
+        m_type: Option<String>,
+    ) -> Option<String> {
+        let Some(model) = model else {
+            log::warn!("Model is `None`");
+            return None;
+        };
+
+        let Some(trim_badging) = trim_badging else {
+            // log::warn!("trim_badging is `None`"); // TODO: uncomment this
+            return None;
+        };
+
+        let Some(m_type) = m_type else {
+            log::warn!("Model type is `None`");
+            return None;
+        };
+
+        let model = model.to_ascii_uppercase();
+        let trim_badging = trim_badging.to_ascii_uppercase();
+        let m_type = m_type.to_ascii_lowercase();
+
+        let marketing_name = match (model.as_str(), trim_badging.as_str(), m_type.as_str()) {
+            ("S", "100D", "lychee") => "LR",
+            ("S", "P100D", "lychee") => "Plaid",
+            ("3", "P74D", _) => "LR AWD Performance",
+            ("3", "74D", _) => "LR AWD",
+            ("3", "74", _) => "LR",
+            ("3", "62", _) => "MR",
+            ("3", "50", _) => "SR+",
+            ("X", "100D", "tamarind") => "LR",
+            ("X", "P100D", "tamarind") => "Plaid",
+            ("Y", "P74D", _) => "LR AWD Performance",
+            ("Y", "74D", _) => "LR AWD",
+            (m, tr, ty) => {
+                log::warn!(
+                    "Unknown combination of model `{m}`, trim_badging `{tr}`, and type `{ty}`"
+                );
+                return None;
+            }
+        };
+
+        Some(marketing_name.to_string())
+    }
+}

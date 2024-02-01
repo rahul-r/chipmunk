@@ -5,13 +5,10 @@
 
 use std::{thread, time};
 
-use backend::{
-    get_default_wsmsg,
-    server::TeslaServer,
-};
+use backend::{get_default_wsmsg, server::TeslaServer};
 use chipmunk::{
-    database,
-    environment, logger,
+    database::{self, tables::token::Token},
+    load_env_vars, logger,
 };
 use clap::Parser;
 use tokio::sync::mpsc;
@@ -52,7 +49,7 @@ async fn main() -> anyhow::Result<()> {
     std::env::set_var("RUST_BACKTRACE", "1"); // Enable backtrace
     chipmunk::init_log();
 
-    let env = environment::load().unwrap_or_else(print_err_and_exit!());
+    let env = load_env_vars().unwrap_or_else(print_err_and_exit!());
 
     log::info!("Initializing database");
     let pool = database::initialize(&env.database_url)
@@ -65,9 +62,7 @@ async fn main() -> anyhow::Result<()> {
     // If token is provided, store it in the database
     if let Some(refresh_token) = cli.token {
         match tesla_api::auth::refresh_access_token(refresh_token.as_str()).await {
-            Ok(tokens) => {
-                database::token::insert(&pool, tokens, env.encryption_key.as_str()).await?
-            }
+            Ok(tokens) => Token::db_insert(&pool, tokens, env.encryption_key.as_str()).await?,
             Err(e) => log::error!("{e}"),
         };
     }

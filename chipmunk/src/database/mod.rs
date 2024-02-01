@@ -1,7 +1,10 @@
 use sqlx::PgPool;
 
 pub mod tables;
-pub mod token;
+pub mod types;
+mod traits;
+
+pub use traits::DBTable;
 
 pub async fn initialize(url: &str) -> anyhow::Result<PgPool> {
     let pool = PgPool::connect(url).await?;

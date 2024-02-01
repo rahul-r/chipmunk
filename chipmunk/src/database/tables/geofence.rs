@@ -1,7 +1,9 @@
 use chrono::{NaiveDateTime, Utc};
 use sqlx::PgPool;
 
-use super::{types::BillingType, DBTable};
+use crate::database::types::BillingType;
+
+use super::DBTable;
 
 #[derive(Debug)]
 pub struct Geofence {

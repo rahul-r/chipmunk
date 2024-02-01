@@ -1,9 +1,9 @@
 use chrono::{NaiveDateTime, Utc};
 use sqlx::PgPool;
 
-use super::{
+use crate::database::{
+    traits::DBTable,
     types::{Range, UnitOfLength, UnitOfPressure, UnitOfTemperature},
-    DBTable,
 };
 
 #[derive(Debug, Clone)]

@@ -2,8 +2,9 @@ use std::sync::{Arc, Mutex};
 
 use rand::Rng;
 
-use chipmunk::database;
+use chipmunk::database::{self, tables::token::Token};
 use chrono::NaiveDateTime;
+use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use tesla_api::{auth::AuthResponse, Vehicles, vehicle_data::VehicleData};
 
@@ -119,11 +120,28 @@ pub fn create_mock_osm_server() -> mockito::ServerGuard {
     server
 }
 
-pub async fn init_database() -> sqlx::Pool<sqlx::Postgres> {
+pub async fn init_test_database(db_name: &str) -> sqlx::Pool<sqlx::Postgres> {
     dotenvy::dotenv().ok();
-    let url = &std::env::var("TEST_DATABASE_URL")
+    let url = std::env::var("TEST_DATABASE_URL")
         .expect("Cannot get test database URL from environment variable, Please set env `TEST_DATABASE_URL`");
-    let pool = database::initialize(url).await.unwrap();
+    let mut parsed_url = Url::parse(&url).unwrap();
+    let username = parsed_url.username();
+
+    let pool = sqlx::PgPool::connect(&url).await.unwrap();
+    sqlx::query(format!("DROP DATABASE IF EXISTS {db_name}").as_str())
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query(format!("CREATE DATABASE {db_name} OWNER={username}").as_str())
+        .execute(&pool)
+        .await
+        .unwrap();
+    pool.close().await;
+
+    parsed_url.set_path(db_name);
+    let new_url = parsed_url.as_str();
+
+    let pool = database::initialize(new_url).await.unwrap();
     // delete all entries from database tables before running tests
     sqlx::query!("TRUNCATE TABLE cars, drives, positions, addresses, settings, states, charges, charging_processes RESTART IDENTITY CASCADE")
         .execute(&pool)
@@ -140,7 +158,7 @@ pub async fn init_database() -> sqlx::Pool<sqlx::Postgres> {
     };
     let encryption_key = "secret password acbdefghijklmnop";
     std::env::set_var("TOKEN_ENCRYPTION_KEY", encryption_key);
-    database::token::insert(&pool, tokens, encryption_key)
+    Token::db_insert(&pool, tokens, encryption_key)
         .await
         .unwrap();
 

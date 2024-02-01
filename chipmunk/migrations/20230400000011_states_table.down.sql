@@ -1,1 +1,1 @@
-DROP TABLE states;
+DROP TABLE IF EXISTS states;

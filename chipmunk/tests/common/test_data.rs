@@ -307,5 +307,6 @@ pub fn data_with_shift(timestamp: NaiveDateTime, shift: Option<ShiftState>) -> V
 pub fn data_charging(timestamp: NaiveDateTime) -> VehicleData {
     let mut data = get_data(timestamp);
     data.charge_state.as_mut().unwrap().charging_state = Some(ChargingState::Charging);
+    data.drive_state.as_mut().unwrap().shift_state = Some(ShiftState::P);
     data
 }

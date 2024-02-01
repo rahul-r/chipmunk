@@ -7,25 +7,39 @@ use std::{
     io::Write,
 };
 
-use chipmunk::database::tables::{car::Car, settings::Settings, DBTable, drive::{Drive, DriveStatus}, geofence::Geofence, position::Position, address::Address, charging::{ChargingProcess, Charges, ChargeStat}, state::{State, StateStatus}, swupdate::SoftwareUpdate};
-use common::utils::{create_mock_osm_server, create_mock_tesla_server, init_database};
-use tesla_api::vehicle_data::{ShiftState, VehicleData};
+use chipmunk::database::{tables::{
+    address::Address,
+    car::Car,
+    charges::Charges,
+    charging_process::ChargingProcess,
+    drive::Drive,
+    geofence::Geofence,
+    position::Position,
+    settings::Settings,
+    state::{State, StateStatus},
+    swupdate::SoftwareUpdate,
+}, types::DriveStatus, DBTable};
+use chipmunk::database::types::ChargeStat;
+use common::utils::{create_mock_osm_server, create_mock_tesla_server};
+use rand::Rng;
 use tesla_api::utils::miles_to_km;
+use tesla_api::vehicle_data::{ShiftState, VehicleData};
 use tokio::time::{sleep, Duration};
 
-use crate::common::{test_data, utils::ts_no_nanos};
+use crate::common::{test_data, utils::{ts_no_nanos, init_test_database}};
 
 #[tokio::test]
-#[ignore]
 async fn test_driving_and_parking() {
     use ShiftState::*;
 
     // chipmunk::init_log();
-    init_database().await;
+
+    let random_http_port = rand::thread_rng().gen_range(4000..60000);
+    std::env::set_var("HTTP_PORT", random_http_port.to_string());
 
     let _osm_mock = create_mock_osm_server();
-    let pool = init_database().await;
-    let env = chipmunk::environment::load().unwrap();
+    let pool = init_test_database("test_driving_and_parking").await;
+    let env = chipmunk::load_env_vars().unwrap();
 
     // Make the logging period faster to speed up the test
     let mut settings = Settings::db_get_last(&pool).await.unwrap();
@@ -191,8 +205,8 @@ async fn test_driving_and_parking() {
     assert_eq!(states[1].end_date, Some(ts_no_nanos(drive2_start_time)));
     assert_eq!(states[1].car_id, car.id);
 
-    let last_position = Position::db_get_last(&pool).await.unwrap();
-    assert_eq!(last_position.odometer, miles_to_km(&Some(odometer_mi)));
+    let last_driving_position = Position::db_get_last(&pool).await.unwrap();
+    assert_eq!(last_driving_position.odometer, miles_to_km(&Some(odometer_mi)));
     assert_eq!(Drive::db_num_rows(&pool).await.unwrap(), 2);
     let drive = Drive::db_get_last(&pool).await.unwrap();
 
@@ -202,16 +216,16 @@ async fn test_driving_and_parking() {
     assert_eq!(drive.start_address_id, Some(address.id as i32));
     assert_eq!(drive.end_address_id, None);
     assert_eq!(drive.status, DriveStatus::Driving);
-    assert_eq!(drive.end_km, last_position.odometer);
+    assert_eq!(drive.end_km, last_driving_position.odometer);
     approx_eq!(drive.distance, miles_to_km(&Some(odometer_mi - starting_odometer_mi)));
     assert_eq!(drive.start_position_id, Some(num_positions as i32));
-    assert_eq!(drive.end_position_id, last_position.id);
+    assert_eq!(drive.end_position_id, last_driving_position.id);
     assert_eq!(drive.start_geofence_id, None);
     assert_eq!(drive.end_geofence_id, None);
 
-    assert_eq!(last_position.date, Some(ts_no_nanos(drive2_start_time)));
-    assert_eq!(last_position.drive_id, Some(drive.id));
-    assert_eq!(last_position.car_id, car.id);
+    assert_eq!(last_driving_position.date, Some(ts_no_nanos(drive2_start_time)));
+    assert_eq!(last_driving_position.drive_id, Some(drive.id));
+    assert_eq!(last_driving_position.car_id, car.id);
 
     // Stop driving / start park state
     let parking_start_time = drive1_end_time + chrono::Duration::minutes(11);
@@ -242,7 +256,7 @@ async fn test_driving_and_parking() {
     assert_eq!(states[2].end_date, Some(ts_no_nanos(parking_start_time)));
     assert_eq!(states[2].car_id, car.id);
 
-    let last_position = Position::db_get_last(&pool).await.unwrap();
+    let last_parking_position = Position::db_get_last(&pool).await.unwrap();
     assert_eq!(Drive::db_num_rows(&pool).await.unwrap(), 2);
     let drive = Drive::db_get_last(&pool).await.unwrap();
 
@@ -251,23 +265,26 @@ async fn test_driving_and_parking() {
     assert_eq!(drive.end_date, Some(ts_no_nanos(drive2_start_time)));
     assert_eq!(drive.end_address_id, Some(address.id as i32));
     assert_eq!(drive.status, DriveStatus::NotDriving);
-    assert_eq!(drive.end_km, last_position.odometer);
+    assert_eq!(drive.end_km, last_driving_position.odometer);
     approx_eq!(drive.distance, miles_to_km(&Some(odometer_mi - starting_odometer_mi)));
-    assert_eq!(drive.end_position_id, last_position.id);
+    assert_eq!(drive.end_position_id, last_driving_position.id);
     assert_eq!(drive.start_geofence_id, None);
     assert_eq!(drive.end_geofence_id, None);
+
+    assert!(last_parking_position.id > last_driving_position.id);
 }
 
 #[tokio::test]
-#[ignore]
 async fn test_charging_process() {
     use ShiftState::*;
     // chipmunk::init_log();
-    init_database().await;
+
+    let random_http_port = rand::thread_rng().gen_range(4000..60000);
+    std::env::set_var("HTTP_PORT", random_http_port.to_string());
 
     let _osm_mock = create_mock_osm_server();
-    let pool = init_database().await;
-    let env = chipmunk::environment::load().unwrap();
+    let pool = init_test_database("test_charging_process").await;
+    let env = chipmunk::load_env_vars().unwrap();
 
     // Make the logging period faster to speed up the test
     let mut settings = Settings::db_get_last(&pool).await.unwrap();
@@ -334,7 +351,7 @@ async fn test_charging_process() {
     assert_eq!(cp.duration_min, Some(0));
     assert_eq!(cp.outside_temp_avg, climate_state.as_ref().unwrap().outside_temp); // We are not changing the temperature value of the test data. So the average will be the same as the current temperature
     assert_eq!(cp.car_id, car.id);
-    assert_eq!(cp.position_id, last_position.id.unwrap());
+    assert_eq!(cp.position_id, 1); // This will be the id of the first position row
     assert_eq!(cp.address_id, Some(address.id as i32));
     assert_eq!(cp.start_rated_range_km, miles_to_km(&charge_state.as_ref().unwrap().battery_range));
     assert_eq!(cp.start_rated_range_km, charges.first().unwrap().rated_battery_range_km);
@@ -346,9 +363,11 @@ async fn test_charging_process() {
     assert_eq!(cp.charging_status, ChargeStat::Charging);
 
     // Stop charging and start parked state
-    let num_positions_before_parked_state = Position::db_num_rows(&pool).await.unwrap();
-    let charging_end_time = chrono::Utc::now().naive_utc();
-    let parked_data = test_data::data_with_shift(charging_end_time, Some(P));
+    let charging_end_time1 = Position::db_get_last(&pool).await.unwrap().date;
+    let charging_end_time2 = Charges::db_get_last(&pool).await.unwrap().date;
+    assert_eq!(charging_end_time1, charging_end_time2);
+    let parking_start_time = chrono::Utc::now().naive_utc();
+    let parked_data = test_data::data_with_shift(parking_start_time, Some(P));
     **data.lock().as_mut().unwrap() = parked_data;
     *send_response.lock().unwrap() = true;
     sleep(Duration::from_secs(1)).await; // Run the logger for some time
@@ -365,25 +384,23 @@ async fn test_charging_process() {
     let states = State::db_get_all(&pool).await.unwrap();
     assert_eq!(states[0].state, StateStatus::Charging);
     assert_eq!(states[0].start_date, ts_no_nanos(charging_start_time));
-    assert_eq!(states[0].end_date, Some(ts_no_nanos(charging_end_time)));
+    assert_eq!(states[0].end_date, charging_end_time1);
     assert_eq!(states[1].state, StateStatus::Parked);
-    assert_eq!(states[1].start_date, ts_no_nanos(charging_end_time));
-    assert_eq!(states[1].end_date, Some(ts_no_nanos(charging_end_time)));
-
-    let num_positions_after_parked_state = Position::db_num_rows(&pool).await.unwrap();
-    assert_eq!(num_positions_after_parked_state, num_positions_before_parked_state + 1);
+    assert_eq!(states[1].start_date, ts_no_nanos(parking_start_time));
+    assert_eq!(states[1].end_date, Some(ts_no_nanos(parking_start_time)));
 }
 
 #[tokio::test]
-#[ignore]
 async fn test_hidden_charging_detection() {
     use ShiftState::*;
-    chipmunk::init_log();
-    init_database().await;
+    // chipmunk::init_log();
+
+    let random_http_port = rand::thread_rng().gen_range(4000..60000);
+    std::env::set_var("HTTP_PORT", random_http_port.to_string());
 
     let _osm_mock = create_mock_osm_server();
-    let pool = init_database().await;
-    let env = chipmunk::environment::load().unwrap();
+    let pool = init_test_database("test_hidden_charging_detection").await;
+    let env = chipmunk::load_env_vars().unwrap();
 
     // Make the logging period faster to speed up the test
     let mut settings = Settings::db_get_last(&pool).await.unwrap();

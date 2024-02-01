@@ -4,7 +4,7 @@ use sqlx::PgPool;
 use tesla_api::vehicle_data::{ChargingState, ShiftState, VehicleData};
 
 use crate::{
-    location::{Distance, Location},
+    utils::location::{Distance, Location},
     utils::time_diff,
 };
 
@@ -77,7 +77,7 @@ impl StateStatus {
 #[derive(Debug, PartialEq, Clone)]
 pub struct State {
     pub id: i32,
-    pub state: StateStatus,
+    pub state: StateStatus, // TODO: Make this optional
     pub start_date: NaiveDateTime,
     pub end_date: Option<NaiveDateTime>,
     pub car_id: i16,
@@ -117,8 +117,8 @@ impl State {
     ) -> (Option<StateStatus>, Option<StateStatus>) {
         // If there is no previous state, return start of the current state
         let Some(previous_state) = previous_state else {
-        return (None, Some(self.state));
-    };
+            return (None, Some(self.state));
+        };
 
         if self.state == previous_state.state {
             // If the state has not changed, return no state changes

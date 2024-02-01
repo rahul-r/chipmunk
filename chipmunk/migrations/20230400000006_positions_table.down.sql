@@ -1,1 +1,1 @@
-DROP TABLE positions;
+DROP TABLE IF EXISTS positions;

@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use anyhow::Context;
 use chrono::{NaiveDateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -7,7 +9,7 @@ use tesla_api::vehicle_data::VehicleData;
 
 use crate::utils::capitalize_string_option;
 
-use super::DBTable;
+use super::{car_settings::CarSettings, DBTable};
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct Car {
@@ -35,7 +37,7 @@ impl Car {
             .vehicle_config
             .clone()
             .context("vehicle_config is None")?;
-        let model_code = Self::get_model_code(&vehicle_config.car_type);
+        let model_code = tesla_api::Vehicle::get_model_code(&vehicle_config.car_type);
         let car = Self {
             id: 0,
             eid: Self::convert_id(data.id, "id")?,
@@ -59,80 +61,13 @@ impl Car {
             // Grafana dashboards. See https://github.com/adriankumpf/teslamate/pull/1904 for
             // details
             display_priority: 1,
-            marketing_name: Self::get_marketing_name(
+            marketing_name: tesla_api::Vehicle::get_marketing_name(
                 model_code,
                 vehicle_config.trim_badging,
                 vehicle_config.car_type,
             ),
         };
         Ok(car)
-    }
-
-    fn get_model_code(model_name: &Option<String>) -> Option<String> {
-        let Some(name) = model_name else {
-            log::warn!("model_name is `None`");
-            return None;
-        };
-
-        let model_code = match name.to_lowercase().as_str() {
-            "models" | "lychee" => "S",
-            "model3" => "3",
-            "modelx" | "tamarind" => "X",
-            "modely" => "Y",
-            s => {
-                log::warn!("Unknown model name `{s}`");
-                return None;
-            }
-        };
-
-        Some(model_code.to_string())
-    }
-
-    fn get_marketing_name(
-        model: Option<String>,
-        trim_badging: Option<String>,
-        m_type: Option<String>,
-    ) -> Option<String> {
-        let Some(model) = model else {
-            log::warn!("Model is `None`");
-            return None;
-        };
-
-        let Some(trim_badging) = trim_badging else {
-            // log::warn!("trim_badging is `None`"); // TODO: uncomment this
-            return None;
-        };
-
-        let Some(m_type) = m_type else {
-            log::warn!("Model type is `None`");
-            return None;
-        };
-
-        let model = model.to_ascii_uppercase();
-        let trim_badging = trim_badging.to_ascii_uppercase();
-        let m_type = m_type.to_ascii_lowercase();
-
-        let marketing_name = match (model.as_str(), trim_badging.as_str(), m_type.as_str()) {
-            ("S", "100D", "lychee") => "LR",
-            ("S", "P100D", "lychee") => "Plaid",
-            ("3", "P74D", _) => "LR AWD Performance",
-            ("3", "74D", _) => "LR AWD",
-            ("3", "74", _) => "LR",
-            ("3", "62", _) => "MR",
-            ("3", "50", _) => "SR+",
-            ("X", "100D", "tamarind") => "LR",
-            ("X", "P100D", "tamarind") => "Plaid",
-            ("Y", "P74D", _) => "LR AWD Performance",
-            ("Y", "74D", _) => "LR AWD",
-            (m, tr, ty) => {
-                log::warn!(
-                    "Unknown combination of model `{m}`, trim_badging `{tr}`, and type `{ty}`"
-                );
-                return None;
-            }
-        };
-
-        Some(marketing_name.to_string())
     }
 
     fn convert_id(id: Option<u64>, name: &str) -> anyhow::Result<i64> {
@@ -240,95 +175,17 @@ impl DBTable for Car {
 
     async fn db_get_last(pool: &PgPool) -> sqlx::Result<Self> {
         sqlx::query_as!(Self, r#"SELECT * FROM cars ORDER BY id DESC LIMIT 1"#)
-        .fetch_one(pool)
-        .await
-        .map_err(|e| {
-            log::error!("Error getting last row from table `{}`: {}", Self::table_name(), e);
-            e
-        })
+            .fetch_one(pool)
+            .await
+            .map_err(|e| {
+                log::error!(
+                    "Error getting last row from table `{}`: {}",
+                    Self::table_name(),
+                    e
+                );
+                e
+            })
     }
-}
-
-#[derive(Debug)]
-pub struct CarSettings {
-    pub id: i64,
-    pub suspend_min: i32,
-    pub suspend_after_idle_min: i32,
-    pub req_not_unlocked: bool,
-    pub free_supercharging: bool,
-    pub use_streaming_api: bool,
-}
-
-impl Default for CarSettings {
-    fn default() -> Self {
-        Self {
-            id: 0,
-            suspend_min: 21,
-            suspend_after_idle_min: 15,
-            req_not_unlocked: false,
-            free_supercharging: false,
-            use_streaming_api: true,
-        }
-    }
-}
-
-impl DBTable for CarSettings {
-    fn table_name() -> &'static str {
-        "car_settings"
-    }
-
-    async fn db_insert(&self, pool: &PgPool) -> sqlx::Result<i64> {
-        let id = sqlx::query!(
-            r#"
-        INSERT INTO car_settings
-        (
-            suspend_min,
-            suspend_after_idle_min,
-            req_not_unlocked,
-            free_supercharging,
-            use_streaming_api
-        )
-        VALUES ($1, $2, $3, $4, $5)
-            ON CONFLICT (id) DO UPDATE
-                SET
-                    suspend_min = excluded.suspend_min,
-                    suspend_after_idle_min = excluded.suspend_after_idle_min,
-                    req_not_unlocked = excluded.req_not_unlocked,
-                    free_supercharging = excluded.free_supercharging,
-                    use_streaming_api = excluded.use_streaming_api
-        RETURNING id"#,
-            self.suspend_min,
-            self.suspend_after_idle_min,
-            self.req_not_unlocked,
-            self.free_supercharging,
-            self.use_streaming_api,
-        )
-        .fetch_one(pool)
-        .await?
-        .id;
-
-        Ok(id)
-    }
-
-    async fn db_get_last(pool: &PgPool) -> sqlx::Result<Self> {
-        sqlx::query_as!(Self, r#"SELECT * FROM car_settings ORDER BY id DESC LIMIT 1"#)
-        .fetch_one(pool)
-        .await
-        .map_err(|e| {
-            log::error!("Error getting last row from table `{}`: {}", Self::table_name(), e);
-            e
-        })
-    }
-
-    // pub async fn db_get_for_car(pool: &PgPool, settings_id: i64) -> sqlx::Result<Vec<Self>> {
-    //     Ok(sqlx::query_as!(
-    //         CarSettings,
-    //         r#"SELECT * FROM car_settings WHERE id = $1"#,
-    //         settings_id
-    //     )
-    //     .fetch_all(pool)
-    //     .await?)
-    // }
 }
 
 /// Get the ID of the car from the database by looking at the VIN. If the car is not in the database, insert it.
@@ -371,4 +228,59 @@ pub async fn db_get_or_insert_car(
     }
 
     Ok((cars, car_id))
+}
+
+/// Get a map of VINs to car IDs from the database
+// Read the list of cars from the database, we will check which car the vehicle_data response from the API belongs to
+// It is more efficient to store the list of cars in memory and check against it instead of querying the database for each vehicle_data response
+pub async fn get_vin_id_map(pool: &sqlx::PgPool) -> HashMap<String, i16> {
+    #[rustfmt::skip]
+    let vin_id_map = if let Ok(cars) = Car::db_get_all(pool).await {
+        cars
+            .iter()
+            .filter(|c| c.id > 0 && c.vin.is_some()) // Remove entries with invalid id or None vins
+            .map(|c| (c.vin.clone().expect("VIN is None, this should never happen"), c.id)) // Get vin and id from Car struct
+            .collect()
+    } else {
+        log::error!("Error getting cars from database");
+        HashMap::new()
+    };
+
+    vin_id_map
+}
+
+/// Check if the vehicle_data response belongs to a car in the database, if not, insert a new entry and update `vin_id_map`
+pub async fn get_car_id_from_vin(
+    pool: &sqlx::PgPool,
+    data: &VehicleData,
+    vin_id_map: HashMap<String, i16>,
+    vin: &String,
+) -> (HashMap<String, i16>, Option<i16>) {
+    if let Some(id) = vin_id_map.get(vin) {
+        return (vin_id_map.clone(), Some(*id));
+    }
+
+    log::info!("Vehicle with VIN {vin} not found in the database, inserting a new entry");
+    let car_settings_id = match CarSettings::default().db_insert(pool).await {
+        Ok(id) => id,
+        Err(e) => {
+            log::error!("Error inserting car settings into database: {e}");
+            return (vin_id_map, None);
+        }
+    };
+    let Ok(car) = Car::from(data, car_settings_id).map_err(|e| log::error!("Error creating car: {e}")) else {
+        return (vin_id_map, None);
+    };
+
+    let Ok(id) = car.db_insert(pool)
+        .await
+        .map_err(|e| log::error!("{e}")).map(|id| id as i16)
+    else {
+        return (vin_id_map, None);
+    };
+
+    let mut vin_id_map = vin_id_map;
+    vin_id_map.insert(vin.clone(), id);
+
+    (vin_id_map, Some(id))
 }

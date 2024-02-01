@@ -1,4 +1,4 @@
-use std::sync::mpsc;
+use std::{collections::HashMap, sync::mpsc};
 
 use anyhow::Context;
 use backend::server::{MpscTopic, TeslaServer};
@@ -15,12 +15,16 @@ use tokio::time::{sleep, Duration};
 use crate::{
     database::{
         self,
-        tables::{settings::Settings, DBTable, Tables},
+        tables::{
+            address::Address, car::Car, car_settings::CarSettings, charges::Charges, charging_process::ChargingProcess, drive::Drive, position::Position, settings::Settings, state::{State, StateStatus}, token::Token, Tables
+        },
+        DBTable,
     },
-    environment::Environment,
+    utils::{sub_option, time_diff},
+    EnvVars,
 };
 
-pub async fn log(pool: &sqlx::PgPool, env: &Environment) -> anyhow::Result<()> {
+pub async fn log(pool: &sqlx::PgPool, env: &EnvVars) -> anyhow::Result<()> {
     let (server_tx, mut server_rx) = tokio::sync::mpsc::unbounded_channel();
     let ui_server = TeslaServer::start(env.http_port, server_tx);
 
@@ -48,8 +52,7 @@ pub async fn log(pool: &sqlx::PgPool, env: &Environment) -> anyhow::Result<()> {
                                 continue;
                             }
                         };
-                    if let Err(e) =
-                        database::token::insert(&pool1, tokens, encryption_key.as_str()).await
+                    if let Err(e) = Token::db_insert(&pool1, tokens, encryption_key.as_str()).await
                     {
                         log::error!("{e}");
                     }
@@ -83,7 +86,7 @@ async fn start(
 ) -> anyhow::Result<()> {
     let mut message_shown = false;
     loop {
-        if !database::token::exists(pool).await? {
+        if !Token::exists(pool).await? {
             if !message_shown {
                 log::info!(
                     "Cannot find Tesla auth tokens in database, waiting for token from user"
@@ -94,7 +97,7 @@ async fn start(
             continue;
         };
 
-        let tokens = database::token::get(pool, encryption_key).await?;
+        let tokens = Token::db_get_last(pool, encryption_key).await?;
 
         let tesla_client = get_tesla_client(&tokens.access_token)?;
 
@@ -259,7 +262,7 @@ async fn logging_process(
 
     log::info!("Logging started");
 
-    let mut vin_id_map = database::tables::get_vin_id_map(pool).await;
+    let mut vin_id_map = database::tables::car::get_vin_id_map(pool).await;
     let mut tables = Tables::default();
 
     loop {
@@ -283,7 +286,7 @@ async fn logging_process(
             match data_json {
                 Ok(data) => {
                     (vin_id_map, tables) =
-                        database::tables::logging_process(pool, vin_id_map, tables, &data).await;
+                        process_vehicle_data(pool, vin_id_map, tables, &data).await;
                 }
                 Err(e) => log::error!("Error parsing vehicle data to json: {e}"),
             };
@@ -291,4 +294,407 @@ async fn logging_process(
             sleep(Duration::from_millis(1)).await; // Add a small delay to prevent hogging tokio runtime
         }
     }
+}
+
+pub async fn process_vehicle_data(
+    pool: &sqlx::PgPool,
+    mut vin_id_map: HashMap<String, i16>,
+    mut prev_tables: Tables,
+    data: &VehicleData,
+) -> (HashMap<String, i16>, Tables) {
+    let Some(vin) = &data.vin else {
+        log::warn!("VIN is None, skipping this entry");
+        return (vin_id_map, prev_tables);
+    };
+
+    // Check if the vehicle_data response belongs to a car in the database, if not, insert a new entry and update `vin_id_map`
+    let car_id = if let Some(id) = vin_id_map.get(vin) {
+        *id
+    } else {
+        log::info!(
+            "Vehicle with VIN {} not found in the database, inserting a new entry into database",
+            vin
+        );
+        let car_settings_id = match CarSettings::default().db_insert(pool).await {
+            Ok(id) => id,
+            Err(e) => {
+                log::error!("Error inserting car settings into database: {e}");
+                return (vin_id_map, prev_tables);
+            }
+        };
+        let Ok(car) = Car::from(data, car_settings_id).map_err(|e| log::error!("Error creating car: {e}")) else {
+            return (vin_id_map, prev_tables);
+        };
+        // TODO: move to the main db_insert function
+        let Ok(id) = car.db_insert(pool)
+            .await
+            .map_err(|e| log::error!("{e}")).map(|id| id as i16)
+        else {
+            return (vin_id_map, prev_tables);
+        };
+        vin_id_map.insert(vin.clone(), id);
+        id
+    };
+
+    if let Ok(table_list) = create_tables(data, &prev_tables, car_id)
+        .await
+        .map_err(|e| log::error!("Error adding to database: {e}"))
+    {
+        for t in table_list {
+            match t.db_insert(pool).await {
+                Ok(updated_tables) => prev_tables = updated_tables,
+                Err(e) => log::error!("Error inserting tables into database: {e}"),
+            }
+        }
+    };
+
+    (vin_id_map, prev_tables)
+}
+
+pub async fn create_tables(
+    data: &VehicleData,
+    prev_tables: &Tables,
+    car_id: i16,
+) -> anyhow::Result<Vec<Tables>> {
+    let current_state = State::from(data, car_id).unwrap();
+    let current_position = Position::from(data, car_id, None).unwrap();
+    let current_charge = Charges::from(data, 0).map_err(|e| log::error!("{e}")).ok();
+
+    let mut table_list = vec![];
+
+    if let Some(tables) =
+        check_hidden_process(car_id, prev_tables, &current_position, &current_charge).await
+    {
+        table_list = tables;
+    } else {
+        let (end_prev_state, start_new_state) = current_state.transition(&prev_tables.state);
+
+        // If no state changes, continue logging current state
+        if end_prev_state.is_none() && start_new_state.is_none() {
+            table_list.push(
+                continue_logging(prev_tables, current_state, current_position, current_charge)
+                    .await,
+            );
+        } else {
+            if let Some(prev_state) = end_prev_state {
+                table_list
+                    .push(end_logging_for_state(prev_state, prev_tables, &current_charge).await);
+            }
+            if let Some(new_state) = start_new_state {
+                table_list.push(
+                    start_logging_for_state(new_state, car_id, current_position, current_charge)
+                        .await,
+                );
+            }
+        }
+    }
+
+    Ok(table_list)
+}
+
+async fn continue_logging(
+    prev_tables: &Tables,
+    current_state: State,
+    current_position: Position,
+    current_charge: Option<Charges>,
+) -> Tables {
+    use StateStatus::*;
+
+    let mut charging_process: Option<ChargingProcess> = None;
+    let mut drive: Option<Drive> = None;
+
+    match current_state.state {
+        Driving => {
+            drive = prev_tables
+                .drive
+                .as_ref()
+                .map(|d| d.update(&current_position))
+        }
+        Offline => todo!(),
+        Asleep => todo!(),
+        Unknown => todo!(),
+        Parked => (),
+        Charging => {
+            charging_process = prev_tables
+                .charging_process
+                .as_ref()
+                .zip(current_charge.as_ref())
+                .map(|(cp, c)| cp.update(c))
+        }
+    }
+
+    let state = Some(State {
+        end_date: current_position.date,
+        ..prev_tables.state.clone().unwrap_or_default()
+    });
+
+    let position = Some(Position {
+        drive_id: drive.as_ref().map(|d| d.id),
+        ..current_position
+    });
+
+    Tables {
+        drive,
+        address: None,
+        car: None,
+        charges: current_charge,
+        charging_process,
+        position,
+        settings: None,
+        state,
+        sw_update: None,
+    }
+}
+
+async fn end_logging_for_state(
+    state: StateStatus,
+    prev_tables: &Tables,
+    current_charge: &Option<Charges>,
+) -> Tables {
+    use StateStatus::*;
+
+    let mut charging_process: Option<ChargingProcess> = None;
+    let mut drive: Option<Drive> = None;
+
+    let Some(ref position) = prev_tables.position else {
+        return Tables::default();
+    };
+    match state {
+        Driving => {
+            drive = prev_tables
+                .drive
+                .as_ref()
+                .map(|d| d.stop(position, None, None))
+        }
+        Charging => {
+            charging_process = prev_tables
+                .charging_process
+                .as_ref()
+                .zip(current_charge.as_ref())
+                .map(|(cp, c)| cp.update(c))
+        }
+        Asleep => todo!(),
+        Offline => todo!(),
+        Unknown => todo!(),
+        Parked => (),
+    }
+
+    let address = if drive.is_some() {
+        Address::from_opt(position.latitude, position.longitude)
+            .await
+            .map_err(|e| log::error!("Error getting address: {e}"))
+            .ok()
+    } else {
+        None
+    };
+
+    let state = Some(State {
+        end_date: position.date,
+        ..prev_tables.state.clone().unwrap_or_default()
+    });
+
+    Tables {
+        address,
+        car: None,
+        charges: current_charge.clone(),
+        charging_process,
+        drive: drive.clone(),
+        position: Some(position.clone()),
+        settings: None,
+        state,
+        sw_update: None,
+    }
+}
+
+async fn start_logging_for_state(
+    new_state: StateStatus,
+    car_id: i16,
+    current_position: Position,
+    current_charge: Option<Charges>,
+) -> Tables {
+    use StateStatus::*;
+
+    let mut charging_process: Option<ChargingProcess> = None;
+    let mut drive: Option<Drive> = None;
+
+    match new_state {
+        Driving => drive = Some(Drive::start(&current_position, car_id, None, None)),
+        Charging => {
+            charging_process = current_charge
+                .as_ref()
+                .map(|c| ChargingProcess::start(c, car_id, 0, None, None));
+        }
+        Asleep => todo!(),
+        Offline => todo!(),
+        Unknown => todo!(),
+        Parked => (),
+    }
+
+    let address = if drive.is_some() || charging_process.is_some() {
+        Address::from_opt(current_position.latitude, current_position.longitude)
+            .await
+            .map_err(|e| log::error!("Error getting address: {e}"))
+            .ok()
+    } else {
+        None
+    };
+
+    let state = Some(State {
+        car_id,
+        state: new_state,
+        start_date: current_position.date.unwrap_or_else(|| {
+            log::error!("Timestamp is None, using current time");
+            chrono::Utc::now().naive_utc()
+        }),
+        ..State::default()
+    });
+
+    Tables {
+        address,
+        car: None,
+        charges: current_charge,
+        charging_process,
+        drive,
+        position: Some(current_position),
+        settings: None,
+        state,
+        sw_update: None,
+    }
+}
+
+/// This function checks for hidden drive or charge processes and returns a Vec of Tables
+/// representing the detected processes.
+///
+/// ## Hidden drive detection:
+/// If the time difference between the previous and current data points is more than 10 minutes
+/// and the vehicle has not moved more than 1 mile since the previous position,
+/// it ends the current driving state and starts a new one.
+///
+/// ## Hidden charging process detection:
+/// This function checks if the vehicle was charged since the previous data point was received
+/// by checking if the vehicle was moved since the previous data point and the battery level
+/// is up by more than 1% (The 1% check is to avoid logging any tolerance in charge level detection
+/// as a new charging process).
+///
+/// # Arguments
+///
+/// * `car_id` - The ID of the car.
+/// * `prev_tables` - A reference to the previous `Tables`.
+/// * `current_position` - A reference to the current `Position`.
+/// * `current_charge` - An `Option` that holds a reference to the current `Charges`.
+///
+/// # Returns
+///
+/// * `Option<Vec<Tables>>` - Returns `None` if no hidden drive or charge sessions are detected.
+async fn check_hidden_process(
+    car_id: i16,
+    prev_tables: &Tables,
+    current_position: &Position,
+    current_charge: &Option<Charges>,
+) -> Option<Vec<Tables>> {
+    let previous_state = prev_tables.state.clone();
+    let drive = prev_tables.drive.clone();
+    let mut table_list = vec![];
+
+    // End the previous state and start a new state if the previous data point was more than 10 minutes ago
+    // and the vehicle has not moved since then.
+    if time_diff(prev_tables.get_time(), current_position.date)
+        > Some(chrono::Duration::minutes(10))
+    {
+        // previous data point was more than 10 minutes ago
+        if let Some(ref prev_position) = prev_tables.position {
+            if sub_option(current_position.odometer, prev_position.odometer) < Some(1.0) {
+                // vehicle has not moved since the previous data point
+
+                // Since the vehicle has not moved, previous ans current positions will give the same address
+                // Using current position so we don't need to deal with Option<>
+                let address =
+                    Address::from_opt(current_position.latitude, current_position.longitude)
+                        .await
+                        .map_err(|e| log::error!("Error getting address: {e}"))
+                        .ok();
+
+                // End the current drive
+                let state = State {
+                    end_date: prev_tables.get_time(),
+                    ..previous_state.clone().unwrap_or_default()
+                };
+                table_list.push(Tables {
+                    address: address.clone(),
+                    drive: drive.map(|d| d.stop(current_position, None, None)),
+                    position: Some(current_position.clone()),
+                    state: Some(state),
+                    ..Default::default()
+                });
+
+                // Check if the vehicle was charged since the previous data point
+                let prev_battery_level =
+                    prev_tables.position.as_ref().and_then(|p| p.battery_level);
+                let curr_battery_level = current_position.battery_level;
+                if let Some(current_charge) = current_charge {
+                    if let Some(charge) = sub_option(curr_battery_level, prev_battery_level) {
+                        // Continue only if the battery level us up by at least 2% (>1)
+                        if charge > 1 {
+                            // Create a new charging process
+                            ChargingProcess::from_charges(
+                                prev_tables.charges.as_ref(),
+                                current_charge,
+                                car_id,
+                                current_position.id.unwrap_or(0),
+                                address.as_ref().map(|a| a.id as i32),
+                                None,
+                            )
+                            .map_err(|e| log::error!("Error creating charging process: {e}"))
+                            .map(|cp| {
+                                // Tables for beginning of charging
+                                table_list.push(Tables {
+                                    address: address.clone(),
+                                    charging_process: Some(cp.clone()),
+                                    charges: prev_tables.charges.clone(),
+                                    position: Some(prev_position.clone()),
+                                    ..Default::default()
+                                });
+                                // Tables for end of charging
+                                table_list.push(Tables {
+                                    charging_process: Some(cp),
+                                    charges: Some(current_charge.clone()),
+                                    position: Some(current_position.clone()),
+                                    state: Some(State {
+                                        state: StateStatus::Charging,
+                                        start_date: prev_tables.get_time().unwrap_or_default(),
+                                        end_date: current_position.date,
+                                        car_id,
+                                        ..Default::default()
+                                    }),
+                                    ..Default::default()
+                                })
+                            })
+                            .ok();
+                        }
+                    }
+                }
+
+                // Start a new drive
+                let new_drive = Drive {
+                    start_position_id: prev_position.id,
+                    ..Drive::start(current_position, car_id, None, None)
+                };
+                let state = Some(State {
+                    state: StateStatus::Driving,
+                    start_date: current_position.date.unwrap_or_default(),
+                    car_id,
+                    ..Default::default()
+                });
+                table_list.push(Tables {
+                    address,
+                    drive: Some(new_drive),
+                    position: Some(current_position.clone()),
+                    state,
+                    ..Default::default()
+                });
+            }
+        }
+        return Some(table_list);
+    }
+    None
 }
