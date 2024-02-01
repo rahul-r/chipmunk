@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT * FROM cars",
+  "query": "SELECT * FROM cars ORDER BY id DESC LIMIT 1",
   "describe": {
     "columns": [
       {
@@ -106,5 +106,5 @@
       true
     ]
   },
-  "hash": "e16fe347bec58ad66371b8b370e15c898e7f7ef3ddf9667719b8ec7341e4e23e"
+  "hash": "021502c6bd5acc0e60a65e169dbcea14f1501b3070c8c98ddffdba2be1b0a3e1"
 }

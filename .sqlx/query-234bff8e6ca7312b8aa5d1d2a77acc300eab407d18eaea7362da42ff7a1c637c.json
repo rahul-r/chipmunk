@@ -16,10 +16,12 @@
             "name": "states_status",
             "kind": {
               "Enum": [
-                "online",
                 "offline",
                 "asleep",
-                "unknown"
+                "unknown",
+                "parked",
+                "driving",
+                "charging"
               ]
             }
           }

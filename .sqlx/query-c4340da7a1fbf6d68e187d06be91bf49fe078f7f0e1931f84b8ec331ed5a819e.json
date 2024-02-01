@@ -1,0 +1,50 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT * FROM car_settings ORDER BY id DESC LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "suspend_min",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "suspend_after_idle_min",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 3,
+        "name": "req_not_unlocked",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 4,
+        "name": "free_supercharging",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 5,
+        "name": "use_streaming_api",
+        "type_info": "Bool"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "c4340da7a1fbf6d68e187d06be91bf49fe078f7f0e1931f84b8ec331ed5a819e"
+}

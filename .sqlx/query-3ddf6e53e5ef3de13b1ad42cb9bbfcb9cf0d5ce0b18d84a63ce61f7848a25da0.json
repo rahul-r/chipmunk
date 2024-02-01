@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n                SELECT\n                    id,\n                    state AS \"state!: StateStatus\",\n                    start_date,\n                    end_date,\n                    car_id\n                FROM states\n                ORDER BY start_date DESC LIMIT 1\n            ",
+  "query": "\n                SELECT\n                    id,\n                    state AS \"state!: StateStatus\",\n                    start_date,\n                    end_date,\n                    car_id\n                FROM states\n                ORDER BY id ASC\n            ",
   "describe": {
     "columns": [
       {
@@ -54,5 +54,5 @@
       false
     ]
   },
-  "hash": "8086d1373e065ead109d875fa7f12bb4503f7c615161e0d3406dd3907f2297d7"
+  "hash": "3ddf6e53e5ef3de13b1ad42cb9bbfcb9cf0d5ce0b18d84a63ce61f7848a25da0"
 }

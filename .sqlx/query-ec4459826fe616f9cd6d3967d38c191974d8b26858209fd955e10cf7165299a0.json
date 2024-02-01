@@ -1,0 +1,110 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT * FROM cars ORDER BY id ASC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int2"
+      },
+      {
+        "ordinal": 1,
+        "name": "eid",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 2,
+        "name": "vid",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 3,
+        "name": "model",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "efficiency",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 5,
+        "name": "inserted_at",
+        "type_info": "Timestamp"
+      },
+      {
+        "ordinal": 6,
+        "name": "updated_at",
+        "type_info": "Timestamp"
+      },
+      {
+        "ordinal": 7,
+        "name": "vin",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 8,
+        "name": "name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 9,
+        "name": "trim_badging",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 10,
+        "name": "settings_id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 11,
+        "name": "exterior_color",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 12,
+        "name": "spoiler_type",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 13,
+        "name": "wheel_type",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 14,
+        "name": "display_priority",
+        "type_info": "Int2"
+      },
+      {
+        "ordinal": 15,
+        "name": "marketing_name",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      false,
+      true,
+      true,
+      true,
+      false,
+      true,
+      true,
+      true,
+      false,
+      true
+    ]
+  },
+  "hash": "ec4459826fe616f9cd6d3967d38c191974d8b26858209fd955e10cf7165299a0"
+}
