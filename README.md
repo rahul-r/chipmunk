@@ -38,7 +38,7 @@ cargo build
 Run this command to start the development containers and drop into rust build container.
 
 ```shell
-./start-dev-environment.sh
+./dev-environment.sh start
 ```
 
 The application can be built with `cargo build` in the rust development container.
