@@ -491,6 +491,7 @@ async fn end_logging_for_state(
         Parked => (),
     }
 
+    // Insert address only if we are ending a drive
     let address = match drive.as_ref().zip(prev_tables.position.as_ref()) {
         Some((_, p)) => Address::from_opt(p.latitude, p.longitude)
             .await
