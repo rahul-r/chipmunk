@@ -44,4 +44,13 @@ async fn state_change_from_driving() {
     test_drive_to_drive_states(N, D).await;
     test_drive_to_drive_states(N, R).await;
     test_drive_to_drive_states(N, N).await;
+
+    // TODO:
+    // Drive to park
+
+    // Drive to asleep
+
+    // Drive to offline
+
+    // Drive to charging
 }

@@ -97,4 +97,11 @@ async fn state_change_from_parked() {
     assert_eq!(*t[0].state.as_ref().unwrap(), State {car_id, id: 0, state: Parked, start_date: ts_no_nanos(parking_start_time), end_date: Some(ts_no_nanos(parking_start_time)) });
     // Start of Driving state
     assert_eq!(*t[1].state.as_ref().unwrap(), State {car_id, id: 0, state: Driving, start_date: ts_no_nanos(ts), end_date: None });
+
+    // TODO:
+    // Parked to asleep
+
+    // Parked to offline
+
+    // Parked to charging
 }

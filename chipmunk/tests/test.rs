@@ -25,7 +25,7 @@ pub fn create_drive_from_gpx() -> (Vec<VehicleData>, usize, usize) {
     let data = test_data::get_data(chrono::Utc::now().naive_utc());
 
     // Load gpx file
-    let path = Path::new("/chipmunk/chipmunk/tests/route.gpx");
+    let path = Path::new("/chipmunk/chipmunk/tests/common/route.gpx");
     let file = File::open(path).unwrap();
     let reader = BufReader::new(file);
     let gpx = gpx::read(reader).unwrap();

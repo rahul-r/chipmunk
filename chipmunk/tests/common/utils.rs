@@ -96,7 +96,7 @@ pub fn create_mock_osm_server() -> mockito::ServerGuard {
     // Request a new server from the pool
     let mut server = mockito::Server::new();
 
-    let osm_response_string = std::fs::read_to_string("tests/osm_response.json").unwrap();
+    let osm_response_string = std::fs::read_to_string("tests/common/osm_response.json").unwrap();
     let resp_json: chipmunk::openstreetmap::OsmResponse =
         serde_json::from_str(&osm_response_string).unwrap();
     let resp_arc = Arc::new(Mutex::new(resp_json));
