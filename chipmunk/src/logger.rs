@@ -243,9 +243,9 @@ async fn logging_process(
         std::thread::Builder::new()
             .name("data_streaming".to_string())
             .spawn(move || {
-                if let Err(e) = stream::start(&access_token, vehicle_id, streaming_data_tx) {
-                    log::error!("Error streaming: {e}");
-                };
+                stream::start(&access_token, vehicle_id, streaming_data_tx)
+                    .map_err(|e| log::error!("Error streaming: {e}"))
+                    .ok();
                 log::warn!("Vehicle data streaming stopped");
             })?;
     }
@@ -381,25 +381,82 @@ pub async fn create_tables(
 
         // If no state changes, continue logging current state
         if end_prev_state.is_none() && start_new_state.is_none() {
-            table_list.push(
-                continue_logging(prev_tables, current_state, current_position, current_charge)
-                    .await,
-            );
+            let t = continue_logging(prev_tables, current_state, current_position, current_charge).await;
+            table_list.push(t);
         } else {
             if let Some(prev_state) = end_prev_state {
-                table_list
-                    .push(end_logging_for_state(prev_state, prev_tables, &current_charge).await);
+                let t = end_logging_for_state(prev_state, prev_tables, &current_charge).await;
+                table_list.push(t);
             }
             if let Some(new_state) = start_new_state {
-                table_list.push(
-                    start_logging_for_state(new_state, car_id, current_position, current_charge)
-                        .await,
-                );
+                let t = start_logging_for_state(new_state, car_id, current_position, current_charge).await;
+                table_list.push(t);
             }
         }
     }
 
     Ok(table_list)
+}
+
+async fn start_logging_for_state(
+    new_state: StateStatus,
+    car_id: i16,
+    current_position: Position,
+    current_charge: Option<Charges>,
+) -> Tables {
+    use StateStatus as S;
+
+    let mut charging_process: Option<ChargingProcess> = None;
+    let mut drive: Option<Drive> = None;
+
+    match new_state {
+        S::Driving => drive = Some(Drive::start(&current_position, car_id, None, None)),
+        S::Charging => {
+            charging_process = current_charge
+                .as_ref()
+                .map(|c| ChargingProcess::start(c, car_id, 0, None, None));
+        }
+        S::Asleep => (),
+        S::Offline => (),
+        S::Unknown => todo!(),
+        S::Parked => (),
+    }
+
+    let address = if drive.is_some() || charging_process.is_some() {
+        Address::from_opt(current_position.latitude, current_position.longitude)
+            .await
+            .map_err(|e| log::error!("Error getting address: {e}"))
+            .ok()
+    } else {
+        None
+    };
+
+    let state = Some(State {
+        car_id,
+        state: new_state,
+        start_date: current_position.date.unwrap_or_else(|| {
+            log::error!("Timestamp is None, using current time");
+            chrono::Utc::now().naive_utc()
+        }),
+        ..State::default()
+    });
+
+    let position = match new_state.is_online() {
+        true => Some(current_position),
+        false => None,
+    };
+
+    Tables {
+        address,
+        car: None,
+        charges: current_charge,
+        charging_process,
+        drive,
+        position,
+        settings: None,
+        state,
+        sw_update: None,
+    }
 }
 
 async fn continue_logging(
@@ -476,7 +533,7 @@ async fn end_logging_for_state(
                 .drive
                 .as_ref()
                 .zip(prev_tables.position.as_ref())
-                .map(|(d, pos)| d.stop(&pos, None, None))
+                .map(|(d, pos)| d.stop(pos, None, None))
         }
         S::Charging => {
             charging_process = prev_tables
@@ -506,7 +563,7 @@ async fn end_logging_for_state(
     };
 
     let state = Some(State {
-        end_date: prev_tables.position.as_ref().map(|p| p.date).flatten(),
+        end_date: prev_tables.position.as_ref().and_then(|p| p.date),
         ..prev_tables.state.clone().unwrap_or_default()
     });
 
@@ -516,67 +573,6 @@ async fn end_logging_for_state(
         charges: current_charge.clone(),
         charging_process,
         drive: drive.clone(),
-        position,
-        settings: None,
-        state,
-        sw_update: None,
-    }
-}
-
-async fn start_logging_for_state(
-    new_state: StateStatus,
-    car_id: i16,
-    current_position: Position,
-    current_charge: Option<Charges>,
-) -> Tables {
-    use StateStatus as S;
-
-    let mut charging_process: Option<ChargingProcess> = None;
-    let mut drive: Option<Drive> = None;
-
-    match new_state {
-        S::Driving => drive = Some(Drive::start(&current_position, car_id, None, None)),
-        S::Charging => {
-            charging_process = current_charge
-                .as_ref()
-                .map(|c| ChargingProcess::start(c, car_id, 0, None, None));
-        }
-        S::Asleep => (),
-        S::Offline => (),
-        S::Unknown => todo!(),
-        S::Parked => (),
-    }
-
-    let address = if drive.is_some() || charging_process.is_some() {
-        Address::from_opt(current_position.latitude, current_position.longitude)
-            .await
-            .map_err(|e| log::error!("Error getting address: {e}"))
-            .ok()
-    } else {
-        None
-    };
-
-    let state = Some(State {
-        car_id,
-        state: new_state,
-        start_date: current_position.date.unwrap_or_else(|| {
-            log::error!("Timestamp is None, using current time");
-            chrono::Utc::now().naive_utc()
-        }),
-        ..State::default()
-    });
-
-    let position = match new_state.is_online() {
-        true => Some(current_position),
-        false => None,
-    };
-
-    Tables {
-        address,
-        car: None,
-        charges: current_charge,
-        charging_process,
-        drive,
         position,
         settings: None,
         state,
