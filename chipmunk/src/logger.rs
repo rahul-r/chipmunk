@@ -421,7 +421,7 @@ async fn continue_logging(
                 .as_ref()
                 .map(|d| d.update(&current_position))
         }
-        Offline => todo!(),
+        Offline => (),
         Asleep => (),
         Unknown => todo!(),
         Parked => (),
@@ -486,7 +486,7 @@ async fn end_logging_for_state(
                 .map(|(cp, c)| cp.update(c))
         }
         Asleep => (),
-        Offline => todo!(),
+        Offline => (),
         Unknown => todo!(),
         Parked => (),
     }
@@ -542,7 +542,7 @@ async fn start_logging_for_state(
                 .map(|c| ChargingProcess::start(c, car_id, 0, None, None));
         }
         Asleep => (),
-        Offline => todo!(),
+        Offline => (),
         Unknown => todo!(),
         Parked => (),
     }

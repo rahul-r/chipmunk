@@ -1,3 +1,4 @@
+use chipmunk::database::tables::state::StateStatus;
 use chrono::NaiveDateTime;
 use rand::{self, Rng};
 
@@ -302,6 +303,12 @@ pub fn data_with_shift(timestamp: NaiveDateTime, shift: Option<ShiftState>) -> V
         }),
         ..data
     }
+}
+
+pub fn data_with_state(timestamp: NaiveDateTime, state: StateStatus) -> VehicleData {
+    let mut data = get_data(timestamp);
+    data.state = Some(state.as_str().to_string());
+    data
 }
 
 pub fn data_charging(timestamp: NaiveDateTime) -> VehicleData {
