@@ -408,24 +408,24 @@ async fn continue_logging(
     current_position: Position,
     current_charge: Option<Charges>,
 ) -> Tables {
-    use StateStatus::*;
+    use StateStatus as S;
 
     let mut charging_process: Option<ChargingProcess> = None;
     let mut drive: Option<Drive> = None;
 
     let state = current_state.state;
     match state {
-        Driving => {
+        S::Driving => {
             drive = prev_tables
                 .drive
                 .as_ref()
                 .map(|d| d.update(&current_position))
         }
-        Offline => (),
-        Asleep => (),
-        Unknown => todo!(),
-        Parked => (),
-        Charging => {
+        S::Offline => (),
+        S::Asleep => (),
+        S::Unknown => todo!(),
+        S::Parked => (),
+        S::Charging => {
             charging_process = prev_tables
                 .charging_process
                 .as_ref()
@@ -465,30 +465,30 @@ async fn end_logging_for_state(
     prev_tables: &Tables,
     current_charge: &Option<Charges>,
 ) -> Tables {
-    use StateStatus::*;
+    use StateStatus as S;
 
     let mut charging_process: Option<ChargingProcess> = None;
     let mut drive: Option<Drive> = None;
 
     match state {
-        Driving => {
+        S::Driving => {
             drive = prev_tables
                 .drive
                 .as_ref()
                 .zip(prev_tables.position.as_ref())
                 .map(|(d, pos)| d.stop(&pos, None, None))
         }
-        Charging => {
+        S::Charging => {
             charging_process = prev_tables
                 .charging_process
                 .as_ref()
                 .zip(current_charge.as_ref())
                 .map(|(cp, c)| cp.update(c))
         }
-        Asleep => (),
-        Offline => (),
-        Unknown => todo!(),
-        Parked => (),
+        S::Asleep => (),
+        S::Offline => (),
+        S::Unknown => todo!(),
+        S::Parked => (),
     }
 
     // Insert address only if we are ending a drive
@@ -529,22 +529,22 @@ async fn start_logging_for_state(
     current_position: Position,
     current_charge: Option<Charges>,
 ) -> Tables {
-    use StateStatus::*;
+    use StateStatus as S;
 
     let mut charging_process: Option<ChargingProcess> = None;
     let mut drive: Option<Drive> = None;
 
     match new_state {
-        Driving => drive = Some(Drive::start(&current_position, car_id, None, None)),
-        Charging => {
+        S::Driving => drive = Some(Drive::start(&current_position, car_id, None, None)),
+        S::Charging => {
             charging_process = current_charge
                 .as_ref()
                 .map(|c| ChargingProcess::start(c, car_id, 0, None, None));
         }
-        Asleep => (),
-        Offline => (),
-        Unknown => todo!(),
-        Parked => (),
+        S::Asleep => (),
+        S::Offline => (),
+        S::Unknown => todo!(),
+        S::Parked => (),
     }
 
     let address = if drive.is_some() || charging_process.is_some() {
