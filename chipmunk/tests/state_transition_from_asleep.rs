@@ -1,4 +1,4 @@
-mod common;
+pub mod common;
 
 use chipmunk::database::tables::{state::{StateStatus, State}, Tables};
 use chrono::Duration;
