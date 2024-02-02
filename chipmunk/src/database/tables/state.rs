@@ -26,8 +26,26 @@ pub enum StateStatus {
 }
 
 impl StateStatus {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Offline => "offline",
+            Self::Asleep => "asleep",
+            Self::Unknown => "unknown",
+            Self::Parked => "parked",
+            Self::Driving => "driving",
+            Self::Charging => "charging",
+        }
+    }
+
+    pub fn is_online(&self) -> bool {
+        match self {
+            Self::Parked | Self::Driving | Self::Charging => true,
+            Self::Offline | Self::Asleep | Self::Unknown => false,
+        }
+    }
+
     fn from(data: &VehicleData) -> Self {
-        let Some(state) = data.state.clone() else {
+        let Some(ref state) = data.state else {
             log::warn!("Value of vehicle state is None");
             return Self::Unknown;
         };

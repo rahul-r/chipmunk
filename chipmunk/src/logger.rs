@@ -16,7 +16,17 @@ use crate::{
     database::{
         self,
         tables::{
-            address::Address, car::Car, car_settings::CarSettings, charges::Charges, charging_process::ChargingProcess, drive::Drive, position::Position, settings::Settings, state::{State, StateStatus}, token::Token, Tables
+            address::Address,
+            car::Car,
+            car_settings::CarSettings,
+            charges::Charges,
+            charging_process::ChargingProcess,
+            drive::Drive,
+            position::Position,
+            settings::Settings,
+            state::{State, StateStatus},
+            token::Token,
+            Tables,
         },
         DBTable,
     },
@@ -403,7 +413,8 @@ async fn continue_logging(
     let mut charging_process: Option<ChargingProcess> = None;
     let mut drive: Option<Drive> = None;
 
-    match current_state.state {
+    let state = current_state.state;
+    match state {
         Driving => {
             drive = prev_tables
                 .drive
@@ -411,7 +422,7 @@ async fn continue_logging(
                 .map(|d| d.update(&current_position))
         }
         Offline => todo!(),
-        Asleep => todo!(),
+        Asleep => (),
         Unknown => todo!(),
         Parked => (),
         Charging => {
@@ -423,14 +434,17 @@ async fn continue_logging(
         }
     }
 
+    let position = match state.is_online() {
+        true => Some(Position {
+            drive_id: drive.as_ref().map(|d| d.id),
+            ..current_position
+        }),
+        false => None,
+    };
+
     let state = Some(State {
         end_date: current_position.date,
         ..prev_tables.state.clone().unwrap_or_default()
-    });
-
-    let position = Some(Position {
-        drive_id: drive.as_ref().map(|d| d.id),
-        ..current_position
     });
 
     Tables {
@@ -456,15 +470,13 @@ async fn end_logging_for_state(
     let mut charging_process: Option<ChargingProcess> = None;
     let mut drive: Option<Drive> = None;
 
-    let Some(ref position) = prev_tables.position else {
-        return Tables::default();
-    };
     match state {
         Driving => {
             drive = prev_tables
                 .drive
                 .as_ref()
-                .map(|d| d.stop(position, None, None))
+                .zip(prev_tables.position.as_ref())
+                .map(|(d, pos)| d.stop(&pos, None, None))
         }
         Charging => {
             charging_process = prev_tables
@@ -473,23 +485,27 @@ async fn end_logging_for_state(
                 .zip(current_charge.as_ref())
                 .map(|(cp, c)| cp.update(c))
         }
-        Asleep => todo!(),
+        Asleep => (),
         Offline => todo!(),
         Unknown => todo!(),
         Parked => (),
     }
 
-    let address = if drive.is_some() {
-        Address::from_opt(position.latitude, position.longitude)
+    let address = match drive.as_ref().zip(prev_tables.position.as_ref()) {
+        Some((_, p)) => Address::from_opt(p.latitude, p.longitude)
             .await
             .map_err(|e| log::error!("Error getting address: {e}"))
-            .ok()
-    } else {
-        None
+            .ok(),
+        None => None,
+    };
+
+    let position = match state.is_online() {
+        true => prev_tables.position.clone(),
+        false => None,
     };
 
     let state = Some(State {
-        end_date: position.date,
+        end_date: prev_tables.position.as_ref().map(|p| p.date).flatten(),
         ..prev_tables.state.clone().unwrap_or_default()
     });
 
@@ -499,7 +515,7 @@ async fn end_logging_for_state(
         charges: current_charge.clone(),
         charging_process,
         drive: drive.clone(),
-        position: Some(position.clone()),
+        position,
         settings: None,
         state,
         sw_update: None,
@@ -524,7 +540,7 @@ async fn start_logging_for_state(
                 .as_ref()
                 .map(|c| ChargingProcess::start(c, car_id, 0, None, None));
         }
-        Asleep => todo!(),
+        Asleep => (),
         Offline => todo!(),
         Unknown => todo!(),
         Parked => (),
@@ -549,13 +565,18 @@ async fn start_logging_for_state(
         ..State::default()
     });
 
+    let position = match new_state.is_online() {
+        true => Some(current_position),
+        false => None,
+    };
+
     Tables {
         address,
         car: None,
         charges: current_charge,
         charging_process,
         drive,
-        position: Some(current_position),
+        position,
         settings: None,
         state,
         sw_update: None,
