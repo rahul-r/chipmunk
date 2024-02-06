@@ -45,6 +45,7 @@ impl Tables {
     pub fn get_time(&self) -> Option<NaiveDateTime> {
         #[rustfmt::skip]
         self.position.as_ref().and_then(|p| p.date)
+            .or_else(|| self.charges.as_ref().and_then(|c| c.date))
             .or_else(|| self.drive.as_ref().map(|d| d.start_date))
             .or_else(|| self.charging_process.as_ref().map(|cp| cp.start_date))
             .or_else(|| self.state.as_ref().map(|s| s.start_date))

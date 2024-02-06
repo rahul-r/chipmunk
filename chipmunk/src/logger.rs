@@ -418,7 +418,7 @@ async fn start_logging_for_state(
         }
         S::Asleep => (),
         S::Offline => (),
-        S::Unknown => todo!(),
+        S::Unknown => (),
         S::Parked => (),
     }
 
@@ -480,7 +480,7 @@ async fn continue_logging(
         }
         S::Offline => (),
         S::Asleep => (),
-        S::Unknown => todo!(),
+        S::Unknown => (),
         S::Parked => (),
         S::Charging => {
             charging_process = prev_tables
@@ -544,7 +544,7 @@ async fn end_logging_for_state(
         }
         S::Asleep => (),
         S::Offline => (),
-        S::Unknown => todo!(),
+        S::Unknown => (),
         S::Parked => (),
     }
 
@@ -563,7 +563,7 @@ async fn end_logging_for_state(
     };
 
     let state = Some(State {
-        end_date: prev_tables.position.as_ref().and_then(|p| p.date),
+        end_date: prev_tables.get_time(),
         ..prev_tables.state.clone().unwrap_or_default()
     });
 
