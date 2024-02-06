@@ -381,7 +381,8 @@ pub async fn create_tables(
 
         // If no state changes, continue logging current state
         if end_prev_state.is_none() && start_new_state.is_none() {
-            let t = continue_logging(prev_tables, current_state, current_position, current_charge).await;
+            let t = continue_logging(prev_tables, current_state, current_position, current_charge)
+                .await;
             table_list.push(t);
         } else {
             if let Some(prev_state) = end_prev_state {
@@ -389,7 +390,9 @@ pub async fn create_tables(
                 table_list.push(t);
             }
             if let Some(new_state) = start_new_state {
-                let t = start_logging_for_state(new_state, car_id, current_position, current_charge).await;
+                let t =
+                    start_logging_for_state(new_state, car_id, current_position, current_charge)
+                        .await;
                 table_list.push(t);
             }
         }
@@ -617,102 +620,108 @@ async fn check_hidden_process(
     // End the previous state and start a new state if the previous data point was more than 10 minutes ago
     // and the vehicle has not moved since then.
     if time_diff(prev_tables.get_time(), current_position.date)
-        > Some(chrono::Duration::minutes(10))
+        <= Some(chrono::Duration::minutes(10))
     {
         // previous data point was more than 10 minutes ago
-        if let Some(ref prev_position) = prev_tables.position {
-            if sub_option(current_position.odometer, prev_position.odometer) < Some(1.0) {
-                // vehicle has not moved since the previous data point
-
-                // Since the vehicle has not moved, previous ans current positions will give the same address
-                // Using current position so we don't need to deal with Option<>
-                let address =
-                    Address::from_opt(current_position.latitude, current_position.longitude)
-                        .await
-                        .map_err(|e| log::error!("Error getting address: {e}"))
-                        .ok();
-
-                // End the current drive
-                let state = State {
-                    end_date: prev_tables.get_time(),
-                    ..previous_state.clone().unwrap_or_default()
-                };
-                table_list.push(Tables {
-                    address: address.clone(),
-                    drive: drive.map(|d| d.stop(current_position, None, None)),
-                    position: Some(current_position.clone()),
-                    state: Some(state),
-                    ..Default::default()
-                });
-
-                // Check if the vehicle was charged since the previous data point
-                let prev_battery_level =
-                    prev_tables.position.as_ref().and_then(|p| p.battery_level);
-                let curr_battery_level = current_position.battery_level;
-                if let Some(current_charge) = current_charge {
-                    if let Some(charge) = sub_option(curr_battery_level, prev_battery_level) {
-                        // Continue only if the battery level us up by at least 2% (>1)
-                        if charge > 1 {
-                            // Create a new charging process
-                            ChargingProcess::from_charges(
-                                prev_tables.charges.as_ref(),
-                                current_charge,
-                                car_id,
-                                current_position.id.unwrap_or(0),
-                                address.as_ref().map(|a| a.id as i32),
-                                None,
-                            )
-                            .map_err(|e| log::error!("Error creating charging process: {e}"))
-                            .map(|cp| {
-                                // Tables for beginning of charging
-                                table_list.push(Tables {
-                                    address: address.clone(),
-                                    charging_process: Some(cp.clone()),
-                                    charges: prev_tables.charges.clone(),
-                                    position: Some(prev_position.clone()),
-                                    ..Default::default()
-                                });
-                                // Tables for end of charging
-                                table_list.push(Tables {
-                                    charging_process: Some(cp),
-                                    charges: Some(current_charge.clone()),
-                                    position: Some(current_position.clone()),
-                                    state: Some(State {
-                                        state: StateStatus::Charging,
-                                        start_date: prev_tables.get_time().unwrap_or_default(),
-                                        end_date: current_position.date,
-                                        car_id,
-                                        ..Default::default()
-                                    }),
-                                    ..Default::default()
-                                })
-                            })
-                            .ok();
-                        }
-                    }
-                }
-
-                // Start a new drive
-                let new_drive = Drive {
-                    start_position_id: prev_position.id,
-                    ..Drive::start(current_position, car_id, None, None)
-                };
-                let state = Some(State {
-                    state: StateStatus::Driving,
-                    start_date: current_position.date.unwrap_or_default(),
-                    car_id,
-                    ..Default::default()
-                });
-                table_list.push(Tables {
-                    address,
-                    drive: Some(new_drive),
-                    position: Some(current_position.clone()),
-                    state,
-                    ..Default::default()
-                });
-            }
-        }
-        return Some(table_list);
+        return None;
     }
-    None
+
+    let Some(ref prev_position) = prev_tables.position else {
+        return None;
+    };
+
+    if sub_option(current_position.odometer, prev_position.odometer) >= Some(1.0) {
+        // vehicle has moved since the previous data point
+        return None;
+    }
+
+    // Since the vehicle has not moved, previous and current positions will give the same address
+    // Using current position so we don't need to deal with Option<>
+    let address = Address::from_opt(current_position.latitude, current_position.longitude)
+        .await
+        .map_err(|e| log::error!("Error getting address: {e}"))
+        .ok();
+
+    // End the current drive
+    let state = State {
+        end_date: prev_tables.get_time(),
+        ..previous_state.clone().unwrap_or_default()
+    };
+
+    table_list.push(Tables {
+        address: address.clone(),
+        drive: drive.map(|d| d.stop(current_position, None, None)),
+        position: Some(current_position.clone()),
+        state: Some(state),
+        ..Default::default()
+    });
+
+    // Check if the vehicle was charged since the previous data point
+    let prev_battery_level = prev_tables.position.as_ref().and_then(|p| p.battery_level);
+    let curr_battery_level = current_position.battery_level;
+    if let Some(current_charge) = current_charge {
+        if let Some(charge) = sub_option(curr_battery_level, prev_battery_level) {
+            // If the vehicle is already charging, don't start a new charging process
+            // if prev_tables.state.as_ref().map(|s| s.state == StateStatus::Charging) != Some(true) {
+            // Continue only if the battery level us up by at least 2% (>1)
+            if charge > 1 {
+                // Create a new charging process
+                ChargingProcess::from_charges(
+                    prev_tables.charges.as_ref(),
+                    current_charge,
+                    car_id,
+                    current_position.id.unwrap_or(0),
+                    address.as_ref().map(|a| a.id as i32),
+                    None,
+                )
+                .map_err(|e| log::error!("Error creating charging process: {e}"))
+                .map(|cp| {
+                    // Tables for beginning of charging
+                    table_list.push(Tables {
+                        address: address.clone(),
+                        charging_process: Some(cp.clone()),
+                        charges: prev_tables.charges.clone(),
+                        position: Some(prev_position.clone()),
+                        ..Default::default()
+                    });
+                    // Tables for end of charging
+                    table_list.push(Tables {
+                        charging_process: Some(cp),
+                        charges: Some(current_charge.clone()),
+                        position: Some(current_position.clone()),
+                        state: Some(State {
+                            state: StateStatus::Charging,
+                            start_date: prev_tables.get_time().unwrap_or_default(),
+                            end_date: current_position.date,
+                            car_id,
+                            ..Default::default()
+                        }),
+                        ..Default::default()
+                    })
+                })
+                .ok();
+            }
+            // }
+        }
+    }
+
+    // Start a new drive
+    let new_drive = Drive {
+        start_position_id: prev_position.id,
+        ..Drive::start(current_position, car_id, None, None)
+    };
+    let state = Some(State {
+        state: StateStatus::Driving,
+        start_date: current_position.date.unwrap_or_default(),
+        car_id,
+        ..Default::default()
+    });
+    table_list.push(Tables {
+        address,
+        drive: Some(new_drive),
+        position: Some(current_position.clone()),
+        state,
+        ..Default::default()
+    });
+    return Some(table_list);
 }
