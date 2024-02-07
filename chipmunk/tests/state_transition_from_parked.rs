@@ -164,7 +164,7 @@ async fn state_change_from_parked() {
     let parked_tables_3 = &t[0];
     
     let charging_start_time = parking_end_time + Duration::seconds(DELAYED_DATAPOINT_TIME_SEC + 1);
-    let t = chipmunk::logger::create_tables(&data_charging(charging_start_time), parked_tables_3, car_id).await.unwrap();
+    let t = chipmunk::logger::create_tables(&data_charging(charging_start_time, 25), parked_tables_3, car_id).await.unwrap();
     assert_eq!(t.len(), 2);
     assert!(t[0].address.is_none());
     assert!(t[0].car.is_none());

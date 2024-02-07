@@ -175,7 +175,7 @@ async fn state_change_from_driving() {
     assert!(t[1].sw_update.is_none());
 
     // Drive to charging
-    let t = chipmunk::logger::create_tables(&data_charging(ts), prev_tables, car_id).await.unwrap();
+    let t = chipmunk::logger::create_tables(&data_charging(ts, 25), prev_tables, car_id).await.unwrap();
     assert_eq!(t.len(), 2);
     assert!(t[0].address.is_some());
     assert!(t[0].car.is_none());

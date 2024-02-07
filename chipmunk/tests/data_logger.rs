@@ -309,7 +309,7 @@ async fn test_charging_process() {
 
     // Setup a pointer to send vehicle data to the mock server
     let charging_start_time = chrono::Utc::now().naive_utc();
-    let data = test_data::data_charging(charging_start_time);
+    let data = test_data::data_charging(charging_start_time, 25);
     let charge_state = data.charge_state.clone();
     let climate_state = data.climate_state.clone();
     let data = Arc::new(Mutex::new(data));

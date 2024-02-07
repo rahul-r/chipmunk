@@ -16,7 +16,7 @@ async fn state_change_from_charging() {
 
     // Charging to charging
     let charging_start_time = chrono::Utc::now().naive_utc();
-    let t = chipmunk::logger::create_tables(&data_charging(charging_start_time), &Tables::default(), car_id).await.unwrap();
+    let t = chipmunk::logger::create_tables(&data_charging(charging_start_time, 25), &Tables::default(), car_id).await.unwrap();
     assert_eq!(t.len(), 1);
     let charging_start_tables = &t[0];
     assert!(t[0].address.is_some());
@@ -31,7 +31,7 @@ async fn state_change_from_charging() {
     assert!(t[0].sw_update.is_none());
 
     let charging_end_time = charging_start_time + Duration::seconds(1);
-    let t = chipmunk::logger::create_tables(&data_charging(charging_end_time), charging_start_tables, car_id).await.unwrap();
+    let t = chipmunk::logger::create_tables(&data_charging(charging_end_time, 25), charging_start_tables, car_id).await.unwrap();
     assert_eq!(t.len(), 1);
     let charging_end_tables = &t[0];
     assert!(t[0].address.is_none());
@@ -47,7 +47,7 @@ async fn state_change_from_charging() {
 
     // Charging to charging after a delay
     let charging_end_time_1 = charging_start_time + Duration::seconds(DELAYED_DATAPOINT_TIME_SEC + 1);
-    let t = chipmunk::logger::create_tables(&data_charging(charging_end_time_1), charging_end_tables, car_id).await.unwrap();
+    let t = chipmunk::logger::create_tables(&data_charging(charging_end_time_1, 25), charging_end_tables, car_id).await.unwrap();
     assert_eq!(t.len(), 1);
     assert!(t[0].address.is_none());
     assert!(t[0].car.is_none());

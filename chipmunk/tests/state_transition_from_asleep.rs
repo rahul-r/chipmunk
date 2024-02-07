@@ -184,7 +184,7 @@ async fn test1() {
     assert_eq!(t.len(), 1);
     let prev_tables = &t[0];
     let ts = start_time + Duration::seconds(1);
-    let t = chipmunk::logger::create_tables(&data_charging(ts), prev_tables, car_id).await.unwrap();
+    let t = chipmunk::logger::create_tables(&data_charging(ts, 25), prev_tables, car_id).await.unwrap();
     assert_eq!(t.len(), 2);
     assert!(t[0].address.is_none());
     assert!(t[0].car.is_none());
@@ -212,7 +212,7 @@ async fn test1() {
     assert_eq!(t.len(), 1);
     let prev_tables = &t[0];
     let ts = start_time + Duration::seconds(DELAYED_DATAPOINT_TIME_SEC + 1);
-    let t = chipmunk::logger::create_tables(&data_charging(ts), prev_tables, car_id).await.unwrap();
+    let t = chipmunk::logger::create_tables(&data_charging(ts, 25), prev_tables, car_id).await.unwrap();
     assert_eq!(t.len(), 2);
     assert!(t[0].address.is_none());
     assert!(t[0].car.is_none());
