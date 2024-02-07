@@ -1,0 +1,172 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                SELECT\n                    id,\n                    status AS \"status!: DriveStatus\",\n                    start_date,\n                    end_date,\n                    outside_temp_avg,\n                    speed_max,\n                    power_max,\n                    power_min,\n                    start_ideal_range_km,\n                    end_ideal_range_km,\n                    start_km,\n                    end_km,\n                    distance,\n                    duration_min,\n                    car_id,\n                    inside_temp_avg,\n                    start_address_id,\n                    end_address_id,\n                    start_rated_range_km,\n                    end_rated_range_km,\n                    start_position_id,\n                    end_position_id,\n                    start_geofence_id,\n                    end_geofence_id\n                FROM drives\n                ORDER BY id ASC\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "status!: DriveStatus",
+        "type_info": {
+          "Custom": {
+            "name": "drive_stat",
+            "kind": {
+              "Enum": [
+                "start",
+                "stop",
+                "driving",
+                "not_driving",
+                "restart",
+                "unknown"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "start_date",
+        "type_info": "Timestamp"
+      },
+      {
+        "ordinal": 3,
+        "name": "end_date",
+        "type_info": "Timestamp"
+      },
+      {
+        "ordinal": 4,
+        "name": "outside_temp_avg",
+        "type_info": "Float4"
+      },
+      {
+        "ordinal": 5,
+        "name": "speed_max",
+        "type_info": "Float4"
+      },
+      {
+        "ordinal": 6,
+        "name": "power_max",
+        "type_info": "Float4"
+      },
+      {
+        "ordinal": 7,
+        "name": "power_min",
+        "type_info": "Float4"
+      },
+      {
+        "ordinal": 8,
+        "name": "start_ideal_range_km",
+        "type_info": "Float4"
+      },
+      {
+        "ordinal": 9,
+        "name": "end_ideal_range_km",
+        "type_info": "Float4"
+      },
+      {
+        "ordinal": 10,
+        "name": "start_km",
+        "type_info": "Float4"
+      },
+      {
+        "ordinal": 11,
+        "name": "end_km",
+        "type_info": "Float4"
+      },
+      {
+        "ordinal": 12,
+        "name": "distance",
+        "type_info": "Float4"
+      },
+      {
+        "ordinal": 13,
+        "name": "duration_min",
+        "type_info": "Int2"
+      },
+      {
+        "ordinal": 14,
+        "name": "car_id",
+        "type_info": "Int2"
+      },
+      {
+        "ordinal": 15,
+        "name": "inside_temp_avg",
+        "type_info": "Float4"
+      },
+      {
+        "ordinal": 16,
+        "name": "start_address_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 17,
+        "name": "end_address_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 18,
+        "name": "start_rated_range_km",
+        "type_info": "Float4"
+      },
+      {
+        "ordinal": 19,
+        "name": "end_rated_range_km",
+        "type_info": "Float4"
+      },
+      {
+        "ordinal": 20,
+        "name": "start_position_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 21,
+        "name": "end_position_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 22,
+        "name": "start_geofence_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 23,
+        "name": "end_geofence_id",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "aaf00b1223a968b597f660d375a406fd62c73701226f91320bba667e0535e5b9"
+}

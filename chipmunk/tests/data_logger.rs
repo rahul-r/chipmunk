@@ -73,8 +73,8 @@ async fn test_driving_and_parking() {
     wait_for_db!(pool);
 
     assert_eq!(Address::db_num_rows(&pool).await.unwrap(), 1);
-    let address = Address::db_get_last(&pool).await.unwrap();
-    assert!(drive1_start_time - address.inserted_at < chrono::Duration::seconds(2));
+    let drive1_start_address = Address::db_get_last(&pool).await.unwrap();
+    assert!(drive1_start_time - drive1_start_address.inserted_at < chrono::Duration::seconds(2));
 
     assert_eq!(Car::db_num_rows(&pool).await.unwrap(), 1);
     let car = Car::db_get_last(&pool).await.unwrap();
@@ -97,7 +97,7 @@ async fn test_driving_and_parking() {
     assert_eq!(drive.car_id, car.id);
     assert_eq!(drive.start_date, ts_no_nanos(drive1_start_time));
     assert_eq!(drive.end_date, None);
-    assert_eq!(drive.start_address_id, Some(address.id as i32));
+    assert_eq!(drive.start_address_id, Some(drive1_start_address.id as i32));
     assert_eq!(drive.end_address_id, None);
     assert_eq!(drive.status, DriveStatus::Driving);
     assert_eq!(drive.end_km, last_position.odometer);
@@ -143,7 +143,7 @@ async fn test_driving_and_parking() {
     assert_eq!(drive.car_id, car.id);
     assert_eq!(drive.start_date, ts_no_nanos(drive1_start_time));
     assert_eq!(drive.end_date, None);
-    assert_eq!(drive.start_address_id, Some(address.id as i32));
+    assert_eq!(drive.start_address_id, Some(drive1_start_address.id as i32));
     assert_eq!(drive.end_address_id, None);
     assert_eq!(drive.status, DriveStatus::Driving);
     assert_eq!(drive.end_km, last_position.odometer);
@@ -175,7 +175,7 @@ async fn test_driving_and_parking() {
     // This is to test that the logger can handle a large time difference between the last and the current data points
     // This can happen if the there are no data points recorded while the car is parked
     // The logger should create a new drive with the same start and end address
-    let num_positions = Position::db_num_rows(&pool).await.unwrap();
+    let drive1_num_positions = Position::db_num_rows(&pool).await.unwrap();
     let drive2_start_time = drive1_end_time + chrono::Duration::seconds(DELAYED_DATAPOINT_TIME_SEC + 1);
     let mut vehicle_data = test_data::data_with_shift(drive2_start_time, Some(D));
     vehicle_data.vehicle_state.as_mut().unwrap().odometer = Some(odometer_mi);
@@ -186,7 +186,7 @@ async fn test_driving_and_parking() {
     wait_for_db!(pool);
 
     assert_eq!(Address::db_num_rows(&pool).await.unwrap(), 2);
-    let address = Address::db_get_last(&pool).await.unwrap();
+    let drive2_start_address = Address::db_get_last(&pool).await.unwrap();
     assert_eq!(Car::db_num_rows(&pool).await.unwrap(), 1);
     assert_eq!(Charges::db_num_rows(&pool).await.unwrap(), 0);
     assert_eq!(ChargingProcess::db_num_rows(&pool).await.unwrap(), 0);
@@ -208,23 +208,39 @@ async fn test_driving_and_parking() {
     let last_driving_position = Position::db_get_last(&pool).await.unwrap();
     assert_eq!(last_driving_position.odometer, miles_to_km(&Some(odometer_mi)));
     assert_eq!(Drive::db_num_rows(&pool).await.unwrap(), 2);
-    let drive = Drive::db_get_last(&pool).await.unwrap();
+    let drives = Drive::db_get_all(&pool).await.unwrap();
+    assert_eq!(drives.len(), 2);
+    let drive1 = &drives[0];
+    let drive2 = &drives[1];
 
-    assert_eq!(drive.car_id, car.id);
-    assert_eq!(drive.start_date, ts_no_nanos(drive2_start_time));
-    assert_eq!(drive.end_date, None);
-    assert_eq!(drive.start_address_id, Some(address.id as i32));
-    assert_eq!(drive.end_address_id, None);
-    assert_eq!(drive.status, DriveStatus::Driving);
-    assert_eq!(drive.end_km, last_driving_position.odometer);
-    approx_eq!(drive.distance, miles_to_km(&Some(odometer_mi - starting_odometer_mi)));
-    // assert_eq!(drive.start_position_id, Some(num_positions as i32));
-    assert_eq!(drive.end_position_id, last_driving_position.id);
-    assert_eq!(drive.start_geofence_id, None);
-    assert_eq!(drive.end_geofence_id, None);
+    assert_eq!(drive1.car_id, car.id);
+    assert_eq!(drive1.start_date, ts_no_nanos(drive1_start_time));
+    assert_eq!(drive1.end_date, Some(ts_no_nanos(drive1_end_time)));
+    assert_eq!(drive1.start_address_id, Some(drive1_start_address.id as i32));
+    assert_eq!(drive1.end_address_id, Some(drive2_start_address.id as i32));
+    assert_eq!(drive1.status, DriveStatus::NotDriving);
+    assert_eq!(drive1.end_km, last_driving_position.odometer);
+    approx_eq!(drive1.distance, miles_to_km(&Some(odometer_mi - starting_odometer_mi)));
+    assert_eq!(drive1.start_position_id, Some(1));
+    assert_eq!(drive1.end_position_id, Some(drive1_num_positions as i32));
+    assert_eq!(drive1.start_geofence_id, None);
+    assert_eq!(drive1.end_geofence_id, None);
+
+    assert_eq!(drive2.car_id, car.id);
+    assert_eq!(drive2.start_date, ts_no_nanos(drive2_start_time));
+    assert_eq!(drive2.end_date, None);
+    assert_eq!(drive2.start_address_id, Some(drive2_start_address.id as i32));
+    assert_eq!(drive2.end_address_id, None);
+    assert_eq!(drive2.status, DriveStatus::Driving);
+    assert_eq!(drive2.end_km, last_driving_position.odometer);
+    approx_eq!(drive2.distance, miles_to_km(&Some(odometer_mi - starting_odometer_mi)));
+    assert_eq!(drive2.start_position_id, Some(drive1_num_positions as i32 + 1));
+    assert_eq!(drive2.end_position_id, last_driving_position.id);
+    assert_eq!(drive2.start_geofence_id, None);
+    assert_eq!(drive2.end_geofence_id, None);
 
     assert_eq!(last_driving_position.date, Some(ts_no_nanos(drive2_start_time)));
-    assert_eq!(last_driving_position.drive_id, Some(drive.id));
+    assert_eq!(last_driving_position.drive_id, Some(drive2.id));
     assert_eq!(last_driving_position.car_id, car.id);
 
     // Stop driving / start park state
