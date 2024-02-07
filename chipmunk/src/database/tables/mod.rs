@@ -111,13 +111,18 @@ impl Tables {
         }
 
         // Insert address and update the ID field
-        let address_id = if let Some(ref address) = tables.address {
-            address
-                .db_insert(pool)
-                .await
-                .map_err(|e| log::error!("Error inserting address into database: {e}"))
-                .map(|id| id as i32)
-                .ok()
+        let address_id = if let Some(ref mut address) = tables.address {
+            if address.id != 0 {
+                // If address id is not 0, address is already in the database, jsut return the id
+                Some(address.id as i32)
+            } else {
+                address
+                    .db_insert(pool)
+                    .await
+                    .map_err(|e| log::error!("Error inserting address into database: {e}"))
+                    .map(|id| {address.id = id; id as i32})
+                    .ok()
+            }
         } else {
             None
         };

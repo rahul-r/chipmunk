@@ -386,12 +386,12 @@ pub async fn create_tables(
             table_list.push(t);
         } else {
             if let Some(prev_state) = end_prev_state {
-                let t = end_logging_for_state(prev_state, prev_tables, &current_charge).await;
+                let t = end_logging_for_state(prev_state, prev_tables, &current_charge, None).await;
                 table_list.push(t);
             }
             if let Some(new_state) = start_new_state {
                 let t =
-                    start_logging_for_state(new_state, car_id, current_position, current_charge)
+                    start_logging_for_state(new_state, car_id, current_position, current_charge, None)
                         .await;
                 table_list.push(t);
             }
@@ -406,6 +406,7 @@ async fn start_logging_for_state(
     car_id: i16,
     current_position: Position,
     current_charge: Option<Charges>,
+    address_override: Option<Address>,
 ) -> Tables {
     use StateStatus as S;
 
@@ -426,10 +427,14 @@ async fn start_logging_for_state(
     }
 
     let address = if drive.is_some() || charging_process.is_some() {
-        Address::from_opt(current_position.latitude, current_position.longitude)
-            .await
-            .map_err(|e| log::error!("Error getting address: {e}"))
-            .ok()
+        if address_override.is_some() {
+            address_override
+        } else {
+            Address::from_opt(current_position.latitude, current_position.longitude)
+                .await
+                .map_err(|e| log::error!("Error getting address: {e}"))
+                .ok()
+        }
     } else {
         None
     };
@@ -524,6 +529,7 @@ async fn end_logging_for_state(
     state: StateStatus,
     prev_tables: &Tables,
     current_charge: &Option<Charges>,
+    address_override: Option<Address>,
 ) -> Tables {
     use StateStatus as S;
 
@@ -553,10 +559,16 @@ async fn end_logging_for_state(
 
     // Insert address only if we are ending a drive
     let address = match drive.as_ref().zip(prev_tables.position.as_ref()) {
-        Some((_, p)) => Address::from_opt(p.latitude, p.longitude)
-            .await
-            .map_err(|e| log::error!("Error getting address: {e}"))
-            .ok(),
+        Some((_, p)) => {
+            if address_override.is_some() {
+                address_override
+            } else {
+                Address::from_opt(p.latitude, p.longitude)
+                    .await
+                    .map_err(|e| log::error!("Error getting address: {e}"))
+                    .ok()
+            }
+        }
         None => None,
     };
 
@@ -613,8 +625,6 @@ async fn check_hidden_process(
     current_position: &Position,
     current_charge: &Option<Charges>,
 ) -> Option<Vec<Tables>> {
-    let previous_state = prev_tables.state.clone();
-    let drive = prev_tables.drive.clone();
     let mut table_list = vec![];
 
     // Continue only if the previous state was either Driving
@@ -653,21 +663,8 @@ async fn check_hidden_process(
     if prev_tables.is_driving()
     {
         // End the current drive
-        table_list.push(Tables {
-            drive: drive.map(|d| {
-                d.stop(
-                    current_position,
-                    prev_tables.address.as_ref().map(|a| a.id as i32),
-                    None,
-                )
-            }),
-            position: Some(current_position.clone()),
-            state: Some(State {
-                end_date: prev_tables.get_time(),
-                ..previous_state.clone().unwrap_or_default()
-            }),
-            ..Default::default()
-        });
+        let t = end_logging_for_state(StateStatus::Driving, prev_tables, current_charge, address.clone()).await;
+        table_list.push(t);
     }
 
     // Check if the vehicle was charged since the previous data point
@@ -720,22 +717,8 @@ async fn check_hidden_process(
     }
 
     // Start a new drive
-    let new_drive = Drive {
-        start_position_id: prev_position.id,
-        ..Drive::start(current_position, car_id, None, None)
-    };
-    let state = Some(State {
-        state: StateStatus::Driving,
-        start_date: current_position.date.unwrap_or_default(),
-        car_id,
-        ..Default::default()
-    });
-    table_list.push(Tables {
-        address,
-        drive: Some(new_drive),
-        position: Some(current_position.clone()),
-        state,
-        ..Default::default()
-    });
+    let t = start_logging_for_state(StateStatus::Driving, car_id, current_position.clone(), current_charge.clone(), address).await;
+    table_list.push(t);
+
     Some(table_list)
 }

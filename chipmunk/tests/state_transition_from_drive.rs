@@ -48,6 +48,45 @@ async fn state_change_from_driving() {
     test_drive_to_drive_states(N, R).await;
     test_drive_to_drive_states(N, N).await;
 
+    // Drive to drive with delayed data point
+    let drive_start_time = chrono::Utc::now().naive_utc();
+    let t = chipmunk::logger::create_tables(&data_with_shift(drive_start_time, Some(D)), &Tables::default(), car_id).await.unwrap();
+    assert_eq!(t.len(), 1);
+    let drive_start_tables = &t[0];
+    assert!(t[0].address.is_some());
+    assert!(t[0].car.is_none());
+    assert_eq!(t[0].charges.as_ref().unwrap().id, 0);
+    assert!(t[0].charging_process.is_none());
+    assert!(t[0].drive.is_some());
+    assert!(t[0].position.is_some());
+    assert!(t[0].settings.is_none());
+    assert!(t[0].sw_update.is_none());
+    assert!(t[0].state.is_some());
+    assert_eq!(*t[0].state.as_ref().unwrap(), State {car_id, id: 0, state: Driving, start_date: ts_no_nanos(drive_start_time), end_date: None });
+    let ts = drive_start_time + Duration::seconds(DELAYED_DATAPOINT_TIME_SEC + 1);
+    let t = chipmunk::logger::create_tables(&data_with_shift(ts, Some(D)), drive_start_tables, car_id).await.unwrap();
+    assert_eq!(t.len(), 2);
+    assert!(t[0].address.is_some());
+    assert!(t[0].car.is_none());
+    assert_eq!(t[0].charges.as_ref().unwrap().id, 0);
+    assert!(t[0].charging_process.is_none());
+    assert!(t[0].drive.is_some());
+    assert!(t[0].position.is_some());
+    assert!(t[0].settings.is_none());
+    assert!(t[0].state.is_some());
+    assert_eq!(*t[0].state.as_ref().unwrap(), State {car_id, id: 0, state: Driving, start_date: ts_no_nanos(drive_start_time), end_date:  Some(ts_no_nanos(drive_start_time)) });
+    assert!(t[0].sw_update.is_none());
+    assert!(t[1].address.is_some());
+    assert!(t[1].car.is_none());
+    assert_eq!(t[1].charges.as_ref().unwrap().id, 0);
+    assert!(t[1].charging_process.is_none());
+    assert!(t[1].drive.is_some());
+    assert!(t[1].position.is_some());
+    assert!(t[1].settings.is_none());
+    assert!(t[0].state.is_some());
+    assert_eq!(*t[1].state.as_ref().unwrap(), State {car_id, id: 0, state: Driving, start_date: ts_no_nanos(ts), end_date: None });
+    assert!(t[1].sw_update.is_none());
+
     // Drive to park
     let start_time = chrono::Utc::now().naive_utc();
     let drive_tables = chipmunk::logger::create_tables(&data_with_shift(start_time, Some(D)), &Tables::default(), car_id).await.unwrap();
