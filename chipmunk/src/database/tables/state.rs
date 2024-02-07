@@ -264,14 +264,6 @@ fn was_asleep(prev_data: &Option<VehicleData>, curr_data: &VehicleData) -> bool 
     };
     let curr_loc = Location::new(lat, lon);
 
-    println!(
-        "{:?}, {:?}, {:?} to {:?}",
-        diff.num_minutes(),
-        curr_loc,
-        prev_data.timestamp_utc().unwrap(),
-        curr_data.timestamp_utc().unwrap()
-    );
-
     // Check if the previous and current GPS coordinates are within 1 meter to account for any
     // minor errors in GPS coordinates
     curr_loc.within_radius(&prev_loc, Distance::from_m(1))

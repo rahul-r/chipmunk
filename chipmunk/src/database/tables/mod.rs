@@ -40,6 +40,7 @@ pub struct Tables {
     pub state: Option<State>,
     pub sw_update: Option<SoftwareUpdate>,
     pub time: Option<NaiveDateTime>,
+    pub raw_data: Option<VehicleData>,
 }
 
 impl Tables {
@@ -81,6 +82,7 @@ impl Tables {
                 .ok(),
             sw_update: None,
             time: data.timestamp_utc(),
+            raw_data: Some(data.clone()),
         }
     }
 
@@ -227,6 +229,7 @@ impl Tables {
                 .map_err(|e| log::error!("{e}"))
                 .ok(),
             time,
+            raw_data: None, // TODO: Load raw data from car_data table
         }
     }
 }

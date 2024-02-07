@@ -31,17 +31,13 @@ pub struct ChargingProcess {
 impl ChargingProcess {
     pub fn from_charges(
         // Merge this with the start() function
-        charge_start: Option<&Charges>,
+        charge_start: &Charges,
         charge_end: &Charges,
         car_id: i16,
         position_id: i32,
         address_id: Option<i32>,
         geofence_id: Option<i32>,
     ) -> anyhow::Result<Self> {
-        let Some(charge_start) = charge_start else {
-            anyhow::bail!("Charge start is None")
-        };
-
         let charging_process = ChargingProcess {
             id: 0,
             start_date: charge_start.date.unwrap_or_default(),

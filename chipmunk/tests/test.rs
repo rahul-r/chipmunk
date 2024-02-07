@@ -7,9 +7,13 @@ use std::io::BufReader;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
+use chipmunk::database::tables::state::{StateStatus, State};
+use chrono::Duration;
 use rand::Rng;
 
-use crate::common::utils::create_mock_tesla_server;
+use crate::common::DELAYED_DATAPOINT_TIME_SEC;
+use crate::common::test_data::data_with_shift;
+use crate::common::utils::{create_mock_tesla_server, ts_no_nanos};
 use crate::common::utils::{create_mock_osm_server, init_test_database};
 use chipmunk::database::tables::drive::Drive;
 use chipmunk::database::tables::Tables;
@@ -193,7 +197,7 @@ async fn check_vehicle_data() -> anyhow::Result<()> {
 
     for data in &vehicle_data_list {
         (vin_id_map, tables) =
-            chipmunk::logger::process_vehicle_data(&pool, vin_id_map, tables, data).await;
+            chipmunk::logger::process_vehicle_data(&pool, vin_id_map, tables, data.clone()).await;
     }
 
     let expected_drive = calculate_expected_drive(
@@ -265,3 +269,83 @@ async fn test_tesla_mock() {
     assert_eq!(vd1.drive_state.unwrap().timestamp, Some(1234));
     assert_eq!(vd2.drive_state.unwrap().timestamp, Some(4321));
 }
+
+#[tokio::test]
+async fn test_charged_and_driven_offline() {
+    use ShiftState::*;
+    use StateStatus::*;
+    let car_id = 1i16;
+    chipmunk::init_log();
+    
+    // Start from driving state
+    let driving_start_time = chrono::Utc::now().naive_utc();
+    let t = chipmunk::logger::create_tables(&data_with_shift(driving_start_time, Some(D)), &Tables::default(), car_id).await.unwrap();
+    assert_eq!(t.len(), 1);
+    let drive_start_tables = &t[0];
+    assert!(t[0].address.is_some());
+    assert!(t[0].car.is_none());
+    assert!(t[0].charges.is_none());
+    assert!(t[0].charging_process.is_none());
+    assert!(t[0].drive.is_some());
+    assert!(t[0].position.is_some());
+    assert!(t[0].settings.is_none());
+    assert!(t[0].sw_update.is_none());
+    assert!(t[0].state.is_some());
+    assert_eq!(*t[0].state.as_ref().unwrap(), State {car_id, id: 0, state: Driving, start_date: ts_no_nanos(driving_start_time), end_date: None });
+
+    let driving_intermediate_time = driving_start_time + Duration::seconds(5);
+    let t = chipmunk::logger::create_tables(&data_with_shift(driving_intermediate_time, Some(D)), drive_start_tables, car_id).await.unwrap();
+    assert_eq!(t.len(), 1);
+    let drive_tables = &t[0];
+
+    // Create a data point after a delay with drive and charge data
+    let driving_after_delay_time = driving_intermediate_time + Duration::seconds(DELAYED_DATAPOINT_TIME_SEC + 1);
+    let mut charged_and_driven_data = data_with_shift(driving_after_delay_time, Some(D));
+    charged_and_driven_data.charge_state.as_mut().unwrap().battery_level = charged_and_driven_data.charge_state.as_ref().unwrap().battery_level.map(|mut c| {c += 10; c});
+    let t = chipmunk::logger::create_tables(&charged_and_driven_data, drive_tables, car_id).await.unwrap();
+    assert_eq!(t.len(), 4); // 4 tables (1. end current drive, 2. charging process, 3. log charges, 4. start new drive)
+    // Table 1: End current drive
+    assert!(t[0].address.is_some());
+    assert!(t[0].car.is_none());
+    assert!(t[0].charges.is_none());
+    assert!(t[0].charging_process.is_none());
+    assert!(t[0].drive.is_some());
+    assert!(t[0].position.is_some());
+    assert!(t[0].settings.is_none());
+    assert!(t[0].sw_update.is_none());
+    assert!(t[0].state.is_some());
+    assert_eq!(*t[0].state.as_ref().unwrap(), State {car_id, id: 0, state: Driving, start_date: ts_no_nanos(driving_start_time), end_date: Some(ts_no_nanos(driving_intermediate_time)) });
+    // Table 2: Charging process
+    assert!(t[1].address.is_some());
+    assert!(t[1].car.is_none());
+    assert!(t[1].charges.is_some());
+    assert!(t[1].charging_process.is_some());
+    assert!(t[1].drive.is_none());
+    assert!(t[1].position.is_some());
+    assert!(t[1].settings.is_none());
+    assert!(t[1].sw_update.is_none());
+    assert!(t[1].state.is_some());
+    assert_eq!(*t[1].state.as_ref().unwrap(), State {car_id, id: 0, state: Charging, start_date: ts_no_nanos(driving_intermediate_time), end_date: Some(ts_no_nanos(driving_after_delay_time)) });
+    // Table 3: Log charges
+    assert!(t[2].address.is_none());
+    assert!(t[2].car.is_none());
+    assert!(t[2].charges.is_some());
+    assert!(t[2].drive.is_none());
+    assert!(t[2].position.is_none());
+    assert!(t[2].settings.is_none());
+    assert!(t[2].state.is_none());
+    assert!(t[2].sw_update.is_none());
+    // Table 4: Start new drive
+    assert!(t[3].address.is_some());
+    assert!(t[3].car.is_none());
+    assert!(t[3].charges.is_none());
+    assert!(t[3].charging_process.is_none());
+    assert!(t[3].drive.is_some());
+    assert!(t[3].position.is_some());
+    assert!(t[3].settings.is_none());
+    assert!(t[3].sw_update.is_none());
+    assert!(t[3].state.is_some());
+    assert_eq!(*t[3].state.as_ref().unwrap(), State {car_id, id: 0, state: Driving, start_date: ts_no_nanos(driving_after_delay_time), end_date: None });
+}
+
+// TODO: test no new charging process is started when a delayed data point is received if the vehicle is already charging

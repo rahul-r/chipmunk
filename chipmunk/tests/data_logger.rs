@@ -461,8 +461,8 @@ async fn test_hidden_charging_detection() {
     assert_eq!(state.state, StateStatus::Driving);
 
     // Simulate charging without any recorded data point
-    // 1. Create a driving data point after more than 10 minutes with the same odometer value
-    // 2. have the battery level more than what it was in the previous data point. This will trigger a charging process
+    // 1. Create a driving data point after more than delayed data point threshold with the same odometer value
+    // 2. Have battery level more than what it was in the previous data point. This will trigger a charging process
     // After this, a new charging process should be created and we should be in driving state (ends
     // current drive, create and finalize a charging state, and start a new drive)
     let drive1_timestamp2 = drive1_timestamp1 + chrono::Duration::seconds(DELAYED_DATAPOINT_TIME_SEC + 1);
