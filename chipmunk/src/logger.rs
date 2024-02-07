@@ -386,7 +386,7 @@ pub async fn create_tables(
             table_list.push(t);
         } else {
             if let Some(prev_state) = end_prev_state {
-                let t = end_logging_for_state(prev_state, prev_tables, &current_charge, None).await;
+                let t = end_logging_for_state(prev_state, prev_tables, &current_position, current_charge.clone(), None).await;
                 table_list.push(t);
             }
             if let Some(new_state) = start_new_state {
@@ -411,6 +411,7 @@ async fn start_logging_for_state(
     use StateStatus as S;
 
     let mut charging_process: Option<ChargingProcess> = None;
+    let mut charges: Option<Charges> = None;
     let mut drive: Option<Drive> = None;
 
     match new_state {
@@ -419,6 +420,9 @@ async fn start_logging_for_state(
             charging_process = current_charge
                 .as_ref()
                 .map(|c| ChargingProcess::start(c, car_id, 0, None, None));
+            if charging_process.is_some() {
+                charges = current_charge;
+            }
         }
         S::Asleep => (),
         S::Offline => (),
@@ -449,6 +453,7 @@ async fn start_logging_for_state(
         ..State::default()
     });
 
+    let time = current_position.date;
     let position = match new_state.is_online() {
         true => Some(current_position),
         false => None,
@@ -457,13 +462,14 @@ async fn start_logging_for_state(
     Tables {
         address,
         car: None,
-        charges: current_charge,
+        charges,
         charging_process,
         drive,
         position,
         settings: None,
         state,
         sw_update: None,
+        time,
     }
 }
 
@@ -476,6 +482,7 @@ async fn continue_logging(
     use StateStatus as S;
 
     let mut charging_process: Option<ChargingProcess> = None;
+    let mut charges: Option<Charges> = None;
     let mut drive: Option<Drive> = None;
 
     let state = current_state.state;
@@ -495,7 +502,10 @@ async fn continue_logging(
                 .charging_process
                 .as_ref()
                 .zip(current_charge.as_ref())
-                .map(|(cp, c)| cp.update(c))
+                .map(|(cp, c)| cp.update(c));
+            if charging_process.is_some() {
+                charges = current_charge;
+            }
         }
     }
 
@@ -516,24 +526,27 @@ async fn continue_logging(
         drive,
         address: None,
         car: None,
-        charges: current_charge,
+        charges,
         charging_process,
         position,
         settings: None,
         state,
         sw_update: None,
+        time: current_position.date,
     }
 }
 
 async fn end_logging_for_state(
     state: StateStatus,
     prev_tables: &Tables,
-    current_charge: &Option<Charges>,
+    current_position: &Position,
+    current_charge: Option<Charges>,
     address_override: Option<Address>,
 ) -> Tables {
     use StateStatus as S;
 
     let mut charging_process: Option<ChargingProcess> = None;
+    let mut charges: Option<Charges> = None;
     let mut drive: Option<Drive> = None;
 
     match state {
@@ -549,7 +562,10 @@ async fn end_logging_for_state(
                 .charging_process
                 .as_ref()
                 .zip(current_charge.as_ref())
-                .map(|(cp, c)| cp.update(c))
+                .map(|(cp, c)| cp.update(c));
+            if charging_process.is_some() {
+                charges = current_charge;
+            }
         }
         S::Asleep => (),
         S::Offline => (),
@@ -585,13 +601,14 @@ async fn end_logging_for_state(
     Tables {
         address,
         car: None,
-        charges: current_charge.clone(),
+        charges,
         charging_process,
         drive: drive.clone(),
         position,
         settings: None,
         state,
         sw_update: None,
+        time: current_position.date,
     }
 }
 
@@ -663,7 +680,7 @@ async fn check_hidden_process(
     if prev_tables.is_driving()
     {
         // End the current drive
-        let t = end_logging_for_state(StateStatus::Driving, prev_tables, current_charge, address.clone()).await;
+        let t = end_logging_for_state(StateStatus::Driving, prev_tables, current_position, current_charge.clone(), address.clone()).await;
         table_list.push(t);
     }
 
@@ -693,6 +710,7 @@ async fn check_hidden_process(
                         charging_process: Some(cp.clone()),
                         charges: prev_tables.charges.clone(),
                         position: Some(prev_position.clone()),
+                        time: prev_tables.get_time(),
                         ..Default::default()
                     });
                     // Tables for end of charging
@@ -700,6 +718,7 @@ async fn check_hidden_process(
                         charging_process: Some(cp),
                         charges: Some(current_charge.clone()),
                         position: Some(current_position.clone()),
+                        time: current_position.date,
                         state: Some(State {
                             state: StateStatus::Charging,
                             start_date: prev_tables.get_time().unwrap_or_default(),

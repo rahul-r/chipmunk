@@ -21,7 +21,7 @@ async fn state_change_from_charging() {
     let charging_start_tables = &t[0];
     assert!(t[0].address.is_some());
     assert!(t[0].car.is_none());
-    assert_eq!(t[0].charges.as_ref().unwrap().id, 0);
+    assert!(t[0].charges.is_some());
     assert!(t[0].charging_process.is_some());
     assert!(t[0].drive.is_none());
     assert!(t[0].position.is_some());
@@ -36,7 +36,7 @@ async fn state_change_from_charging() {
     let charging_end_tables = &t[0];
     assert!(t[0].address.is_none());
     assert!(t[0].car.is_none());
-    assert_eq!(t[0].charges.as_ref().unwrap().id, 0);
+    assert!(t[0].charges.is_some());
     assert!(t[0].charging_process.is_some());
     assert!(t[0].drive.is_none());
     assert!(t[0].position.is_some());
@@ -51,7 +51,7 @@ async fn state_change_from_charging() {
     assert_eq!(t.len(), 1);
     assert!(t[0].address.is_none());
     assert!(t[0].car.is_none());
-    assert_eq!(t[0].charges.as_ref().unwrap().id, 0);
+    assert!(t[0].charges.is_some());
     assert!(t[0].charging_process.is_some());
     assert!(t[0].drive.is_none());
     assert!(t[0].position.is_some());
@@ -66,7 +66,7 @@ async fn state_change_from_charging() {
     assert_eq!(t.len(), 2);
     assert!(t[0].address.is_none());
     assert!(t[0].car.is_none());
-    assert_eq!(t[0].charges.as_ref().unwrap().id, 0);
+    assert!(t[0].charges.is_some());
     assert!(t[0].charging_process.is_some());
     assert!(t[0].drive.is_none());
     assert!(t[0].position.is_some());
@@ -76,7 +76,7 @@ async fn state_change_from_charging() {
     assert!(t[0].sw_update.is_none());
     assert!(t[1].address.is_none());
     assert!(t[1].car.is_none());
-    assert_eq!(t[1].charges.as_ref().unwrap().id, 0);
+    assert!(t[1].charges.is_none());
     assert!(t[1].charging_process.is_none());
     assert!(t[1].drive.is_none());
     assert!(t[1].position.is_some());
@@ -93,7 +93,7 @@ async fn state_change_from_charging() {
     assert_eq!(t.len(), 2);
     assert!(t[0].address.is_none());
     assert!(t[0].car.is_none());
-    assert_eq!(t[0].charges.as_ref().unwrap().id, 0);
+    assert!(t[0].charges.is_some());
     assert!(t[0].charging_process.is_some());
     assert!(t[0].drive.is_none());
     assert!(t[0].position.is_some());
@@ -103,7 +103,7 @@ async fn state_change_from_charging() {
     assert!(t[0].sw_update.is_none());
     assert!(t[1].address.is_none());
     assert!(t[1].car.is_none());
-    assert_eq!(t[1].charges.as_ref().unwrap().id, 0);
+    assert!(t[1].charges.is_none());
     assert!(t[1].charging_process.is_none());
     assert!(t[1].drive.is_none());
     assert!(t[1].position.is_some());
@@ -118,7 +118,7 @@ async fn state_change_from_charging() {
     assert_eq!(t.len(), 2);
     assert!(t[0].address.is_none());
     assert!(t[0].car.is_none());
-    assert_eq!(t[0].charges.as_ref().unwrap().id, 0);
+    assert!(t[0].charges.is_some());
     assert!(t[0].charging_process.is_some());
     assert!(t[0].drive.is_none());
     assert!(t[0].position.is_some());
@@ -128,7 +128,7 @@ async fn state_change_from_charging() {
     assert!(t[0].sw_update.is_none());
     assert!(t[1].address.is_some());
     assert!(t[1].car.is_none());
-    assert_eq!(t[1].charges.as_ref().unwrap().id, 0);
+    assert!(t[1].charges.is_none());
     assert!(t[1].charging_process.is_none());
     assert!(t[1].drive.is_some());
     assert!(t[1].position.is_some());
@@ -143,7 +143,7 @@ async fn state_change_from_charging() {
     assert_eq!(t.len(), 2);
     assert!(t[0].address.is_none());
     assert!(t[0].car.is_none());
-    assert_eq!(t[0].charges.as_ref().unwrap().id, 0);
+    assert!(t[0].charges.is_some());
     assert!(t[0].charging_process.is_some());
     assert!(t[0].drive.is_none());
     assert!(t[0].position.is_some());
@@ -153,7 +153,7 @@ async fn state_change_from_charging() {
     assert!(t[0].sw_update.is_none());
     assert!(t[1].address.is_some());
     assert!(t[1].car.is_none());
-    assert_eq!(t[1].charges.as_ref().unwrap().id, 0);
+    assert!(t[1].charges.is_none());
     assert!(t[1].charging_process.is_none());
     assert!(t[1].drive.is_some());
     assert!(t[1].position.is_some());
@@ -168,7 +168,7 @@ async fn state_change_from_charging() {
     assert_eq!(t.len(), 2);
     assert!(t[0].address.is_none());
     assert!(t[0].car.is_none());
-    assert_eq!(t[0].charges.as_ref().unwrap().id, 0);
+    assert!(t[0].charges.is_some());
     assert!(t[0].charging_process.is_some());
     assert!(t[0].drive.is_none());
     assert!(t[0].position.is_some());
@@ -178,7 +178,7 @@ async fn state_change_from_charging() {
     assert!(t[0].sw_update.is_none());
     assert!(t[1].address.is_none());
     assert!(t[1].car.is_none());
-    assert_eq!(t[1].charges.as_ref().unwrap().id, 0);
+    assert!(t[1].charges.is_none());
     assert!(t[1].charging_process.is_none());
     assert!(t[1].drive.is_none());
     assert!(t[1].position.is_none());
@@ -193,7 +193,7 @@ async fn state_change_from_charging() {
     assert_eq!(t.len(), 2);
     assert!(t[0].address.is_none());
     assert!(t[0].car.is_none());
-    assert_eq!(t[0].charges.as_ref().unwrap().id, 0);
+    assert!(t[0].charges.is_some());
     assert!(t[0].charging_process.is_some());
     assert!(t[0].drive.is_none());
     assert!(t[0].position.is_some());
@@ -203,7 +203,7 @@ async fn state_change_from_charging() {
     assert!(t[0].sw_update.is_none());
     assert!(t[1].address.is_none());
     assert!(t[1].car.is_none());
-    assert_eq!(t[1].charges.as_ref().unwrap().id, 0);
+    assert!(t[1].charges.is_none());
     assert!(t[1].charging_process.is_none());
     assert!(t[1].drive.is_none());
     assert!(t[1].position.is_none());
@@ -218,7 +218,7 @@ async fn state_change_from_charging() {
     assert_eq!(t.len(), 2);
     assert!(t[0].address.is_none());
     assert!(t[0].car.is_none());
-    assert_eq!(t[0].charges.as_ref().unwrap().id, 0);
+    assert!(t[0].charges.is_some());
     assert!(t[0].charging_process.is_some());
     assert!(t[0].drive.is_none());
     assert!(t[0].position.is_some());
@@ -228,7 +228,7 @@ async fn state_change_from_charging() {
     assert!(t[0].sw_update.is_none());
     assert!(t[1].address.is_none());
     assert!(t[1].car.is_none());
-    assert_eq!(t[1].charges.as_ref().unwrap().id, 0);
+    assert!(t[1].charges.is_none());
     assert!(t[1].charging_process.is_none());
     assert!(t[1].drive.is_none());
     assert!(t[1].position.is_none());
@@ -243,7 +243,7 @@ async fn state_change_from_charging() {
     assert_eq!(t.len(), 2);
     assert!(t[0].address.is_none());
     assert!(t[0].car.is_none());
-    assert_eq!(t[0].charges.as_ref().unwrap().id, 0);
+    assert!(t[0].charges.is_some());
     assert!(t[0].charging_process.is_some());
     assert!(t[0].drive.is_none());
     assert!(t[0].position.is_some());
@@ -253,7 +253,7 @@ async fn state_change_from_charging() {
     assert!(t[0].sw_update.is_none());
     assert!(t[1].address.is_none());
     assert!(t[1].car.is_none());
-    assert_eq!(t[1].charges.as_ref().unwrap().id, 0);
+    assert!(t[1].charges.is_none());
     assert!(t[1].charging_process.is_none());
     assert!(t[1].drive.is_none());
     assert!(t[1].position.is_none());

@@ -39,20 +39,12 @@ pub struct Tables {
     pub settings: Option<Settings>,
     pub state: Option<State>,
     pub sw_update: Option<SoftwareUpdate>,
+    pub time: Option<NaiveDateTime>,
 }
 
 impl Tables {
     pub fn get_time(&self) -> Option<NaiveDateTime> {
-        #[rustfmt::skip]
-        self.position.as_ref().and_then(|p| p.date)
-            .or_else(|| self.charges.as_ref().and_then(|c| c.date))
-            .or_else(|| self.drive.as_ref().map(|d| d.start_date))
-            .or_else(|| self.charging_process.as_ref().map(|cp| cp.start_date))
-            .or_else(|| self.state.as_ref().map(|s| s.start_date))
-            .or_else(|| self.sw_update.as_ref().map(|sw| sw.start_date))
-            .or_else(|| self.address.as_ref().map(|a| a.inserted_at))
-            .or_else(|| self.settings.as_ref().map(|s| s.inserted_at))
-            .or_else(|| self.car.as_ref().map(|c| c.inserted_at))
+        self.time
     }
 
     fn is_state(&self, state: StateStatus) -> bool {
@@ -88,6 +80,7 @@ impl Tables {
                 .map_err(|e| log::error!("Error creating state from vehicle data: {e}"))
                 .ok(),
             sw_update: None,
+            time: data.timestamp_utc(),
         }
     }
 
@@ -194,6 +187,11 @@ impl Tables {
     }
 
     async fn _db_get_last(pool: &PgPool) -> Self {
+        let position = Position::db_get_last(pool)
+            .await
+            .map_err(|e| log::error!("{e}"))
+            .ok();
+        let time = position.as_ref().and_then(|p| p.date);
         Self {
             address: Address::db_get_last(pool)
                 .await
@@ -215,10 +213,7 @@ impl Tables {
                 .await
                 .map_err(|e| log::error!("{e}"))
                 .ok(),
-            position: Position::db_get_last(pool)
-                .await
-                .map_err(|e| log::error!("{e}"))
-                .ok(),
+            position,
             settings: Settings::db_get_last(pool)
                 .await
                 .map_err(|e| log::error!("{e}"))
@@ -231,6 +226,7 @@ impl Tables {
                 .await
                 .map_err(|e| log::error!("{e}"))
                 .ok(),
+            time,
         }
     }
 }
