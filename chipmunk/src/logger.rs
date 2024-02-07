@@ -30,7 +30,7 @@ use crate::{
         },
         DBTable,
     },
-    utils::{sub_option, time_diff},
+    utils::sub_option,
     EnvVars,
 };
 
@@ -617,16 +617,24 @@ async fn check_hidden_process(
     let drive = prev_tables.drive.clone();
     let mut table_list = vec![];
 
+    // Continue only if the previous state was either Driving
+    if !prev_tables.is_driving() {
+        return None;
+    }
+ 
     // End the previous state and start a new state if the previous data point was more than 10 minutes ago
     // and the vehicle has not moved since then.
-    if time_diff(prev_tables.get_time(), current_position.date)
-        <= Some(chrono::Duration::minutes(10))
+    if prev_tables.get_time()
+        .zip(current_position.date)
+        .map(|(prev, curr)| curr - prev)
+        .map(|diff| diff <= chrono::Duration::minutes(10))
+        .unwrap_or(true)
     {
-        // previous data point was more than 10 minutes ago
         return None;
     }
 
     let Some(ref prev_position) = prev_tables.position else {
+        // No previous position to compare with
         return None;
     };
 
@@ -642,19 +650,25 @@ async fn check_hidden_process(
         .map_err(|e| log::error!("Error getting address: {e}"))
         .ok();
 
-    // End the current drive
-    let state = State {
-        end_date: prev_tables.get_time(),
-        ..previous_state.clone().unwrap_or_default()
-    };
-
-    table_list.push(Tables {
-        address: address.clone(),
-        drive: drive.map(|d| d.stop(current_position, None, None)),
-        position: Some(current_position.clone()),
-        state: Some(state),
-        ..Default::default()
-    });
+    if prev_tables.is_driving()
+    {
+        // End the current drive
+        table_list.push(Tables {
+            drive: drive.map(|d| {
+                d.stop(
+                    current_position,
+                    prev_tables.address.as_ref().map(|a| a.id as i32),
+                    None,
+                )
+            }),
+            position: Some(current_position.clone()),
+            state: Some(State {
+                end_date: prev_tables.get_time(),
+                ..previous_state.clone().unwrap_or_default()
+            }),
+            ..Default::default()
+        });
+    }
 
     // Check if the vehicle was charged since the previous data point
     let prev_battery_level = prev_tables.position.as_ref().and_then(|p| p.battery_level);
@@ -723,5 +737,5 @@ async fn check_hidden_process(
         state,
         ..Default::default()
     });
-    return Some(table_list);
+    Some(table_list)
 }

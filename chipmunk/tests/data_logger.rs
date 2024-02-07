@@ -176,7 +176,7 @@ async fn test_driving_and_parking() {
     // This can happen if the there are no data points while the car is parked
     // The logger should create a new drive with the same start and end address
     let num_positions = Position::db_num_rows(&pool).await.unwrap();
-    let drive2_start_time = drive1_end_time + chrono::Duration::minutes(DELAYED_DATAPOINT_TIME_SEC);
+    let drive2_start_time = drive1_end_time + chrono::Duration::seconds(DELAYED_DATAPOINT_TIME_SEC + 1);
     let mut vehicle_data = test_data::data_with_shift(drive2_start_time, Some(D));
     vehicle_data.vehicle_state.as_mut().unwrap().odometer = Some(odometer_mi);
     **data.lock().as_mut().unwrap() = vehicle_data;
@@ -228,7 +228,7 @@ async fn test_driving_and_parking() {
     assert_eq!(last_driving_position.car_id, car.id);
 
     // Stop driving / start park state
-    let parking_start_time = drive1_end_time + chrono::Duration::minutes(DELAYED_DATAPOINT_TIME_SEC);
+    let parking_start_time = drive1_end_time + chrono::Duration::seconds(DELAYED_DATAPOINT_TIME_SEC + 1);
     let vehicle_data = test_data::data_with_shift(drive2_start_time, Some(P));
     **data.lock().as_mut().unwrap() = vehicle_data;
     *send_response.lock().unwrap() = true;
@@ -449,7 +449,7 @@ async fn test_hidden_charging_detection() {
     // 2. have the battery level more than what it was in the previous data point. This will trigger a charging process
     // After this, a new charging process should be created and we should be in driving state (ends
     // current drive, create and finalize a charging state, and start a new drive)
-    let drive1_timestamp2 = drive1_timestamp1 + chrono::Duration::minutes(DELAYED_DATAPOINT_TIME_SEC);
+    let drive1_timestamp2 = drive1_timestamp1 + chrono::Duration::seconds(DELAYED_DATAPOINT_TIME_SEC + 1);
     let mut vehicle_data = test_data::data_with_shift(drive1_timestamp2, Some(D));
     vehicle_data.vehicle_state.as_mut().unwrap().odometer = Some(odometer_mi);
     vehicle_data.charge_state.as_mut().unwrap().battery_level = Some(55);

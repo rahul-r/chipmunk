@@ -4,7 +4,7 @@ use tesla_api::vehicle_data::VehicleData;
 
 use self::{
     address::Address, car::Car, charges::Charges, charging_process::ChargingProcess, drive::Drive,
-    position::Position, settings::Settings, state::State, swupdate::SoftwareUpdate,
+    position::Position, settings::Settings, state::{State, StateStatus}, swupdate::SoftwareUpdate,
 };
 
 use super::{types::DriveStatus, DBTable};
@@ -53,6 +53,22 @@ impl Tables {
             .or_else(|| self.address.as_ref().map(|a| a.inserted_at))
             .or_else(|| self.settings.as_ref().map(|s| s.inserted_at))
             .or_else(|| self.car.as_ref().map(|c| c.inserted_at))
+    }
+
+    fn is_state(&self, state: StateStatus) -> bool {
+        self
+        .state
+        .as_ref()
+        .map(|s| s.state == state)
+        .unwrap_or(false)
+    }
+
+    pub fn is_driving(&self) -> bool {
+        self.is_state(StateStatus::Driving)
+    }
+
+    pub fn is_charging(&self) -> bool {
+        self.is_state(StateStatus::Charging)
     }
 
     pub fn from_vehicle_data(data: &VehicleData, car_id: i16) -> Self {

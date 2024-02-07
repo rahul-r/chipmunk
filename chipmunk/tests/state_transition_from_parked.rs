@@ -20,7 +20,7 @@ async fn state_change_from_parked() {
     let parked_state = &t[0];
 
     // Test state changes from parked state to parked state
-    let ts = parking_start_time + Duration::seconds(DELAYED_DATAPOINT_TIME_SEC - 1);
+    let ts = parking_start_time + Duration::seconds(DELAYED_DATAPOINT_TIME_SEC);
     let t = chipmunk::logger::create_tables(&data_with_shift(ts, Some(P)), parked_state, car_id).await.unwrap();
     assert_eq!(t.len(), 1);
     assert!(t[0].address.is_none());
@@ -34,7 +34,7 @@ async fn state_change_from_parked() {
     assert_eq!(*t[0].state.as_ref().unwrap(), State {car_id, id: 0, state: Parked, start_date: ts_no_nanos(parking_start_time), end_date: Some(ts_no_nanos(ts)) });
 
     // Test state changes from shift state P to null
-    let ts = parking_start_time + Duration::seconds(DELAYED_DATAPOINT_TIME_SEC - 1);
+    let ts = parking_start_time + Duration::seconds(DELAYED_DATAPOINT_TIME_SEC);
     let t = chipmunk::logger::create_tables(&data_with_shift(ts, None), parked_state, car_id).await.unwrap();
     assert_eq!(t.len(), 1);
     assert!(t[0].address.is_none());
@@ -48,7 +48,7 @@ async fn state_change_from_parked() {
     assert_eq!(*t[0].state.as_ref().unwrap(), State {car_id, id: 0, state: Parked, start_date: ts_no_nanos(parking_start_time), end_date: Some(ts_no_nanos(ts)) });
 
     // Test state changes from parked state to driving state
-    let parking_end_time = parking_start_time + Duration::seconds(DELAYED_DATAPOINT_TIME_SEC - 1);
+    let parking_end_time = parking_start_time + Duration::seconds(DELAYED_DATAPOINT_TIME_SEC);
     let driving_start_time = parking_end_time + Duration::seconds(1);
     let mut s = parked_state.clone();
     s.position.as_mut().unwrap().date = Some(ts_no_nanos(parking_end_time));

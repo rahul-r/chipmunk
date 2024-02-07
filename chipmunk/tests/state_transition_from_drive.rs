@@ -16,7 +16,7 @@ async fn test_drive_to_drive_states(from_shift: ShiftState, to_shift: ShiftState
     assert_eq!(t.len(), 1);
     let prev_state = &t[0];
 
-    let curr_data_time = start_time + Duration::seconds(DELAYED_DATAPOINT_TIME_SEC - 1);
+    let curr_data_time = start_time + Duration::seconds(DELAYED_DATAPOINT_TIME_SEC);
 
     let t = chipmunk::logger::create_tables(&data_with_shift(curr_data_time, Some(to_shift)), prev_state, car_id).await.unwrap();
     assert_eq!(t.len(), 1);
