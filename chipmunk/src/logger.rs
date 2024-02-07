@@ -430,10 +430,7 @@ async fn start_logging_for_state(
                 charges = current_charge;
             }
         }
-        S::Asleep => (),
-        S::Offline => (),
-        S::Unknown => (),
-        S::Parked => (),
+        S::Asleep | S::Offline | S::Unknown | S::Parked => (),
     }
 
     let address = if drive.is_some() || charging_process.is_some() {
@@ -500,10 +497,6 @@ async fn continue_logging(
                 .as_ref()
                 .map(|d| d.update(&current_position))
         }
-        S::Offline => (),
-        S::Asleep => (),
-        S::Unknown => (),
-        S::Parked => (),
         S::Charging => {
             charging_process = prev_tables
                 .charging_process
@@ -514,6 +507,7 @@ async fn continue_logging(
                 charges = current_charge;
             }
         }
+        S::Asleep | S::Offline | S::Unknown | S::Parked => (),
     }
 
     let position = match state.is_online() {
@@ -575,10 +569,7 @@ async fn end_logging_for_state(
                 charges = curr_charge;
             }
         }
-        S::Asleep => (),
-        S::Offline => (),
-        S::Unknown => (),
-        S::Parked => (),
+        S::Asleep | S::Offline | S::Unknown | S::Parked => (),
     }
 
     // Insert address only if we are ending a drive
