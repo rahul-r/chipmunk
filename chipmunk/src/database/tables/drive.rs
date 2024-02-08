@@ -1,6 +1,6 @@
-use crate::{database::types::DriveStatus, utils::{
+use crate::utils::{
     avg_option, max_option, min_option, sub_option, time_diff_minutes_i16,
-}};
+};
 use chrono::NaiveDateTime;
 use sqlx::PgPool;
 

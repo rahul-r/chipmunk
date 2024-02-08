@@ -6,6 +6,9 @@ mod traits;
 
 pub use traits::DBTable;
 
+pub mod teslamate;
+pub use teslamate::Teslamate;
+
 pub async fn initialize(url: &str) -> anyhow::Result<PgPool> {
     let pool = PgPool::connect(url).await?;
 
