@@ -1,6 +1,7 @@
 use sqlx::PgPool;
 
-pub mod drive;
+mod drive;
+mod position;
 
 pub trait Teslamate {
     // required methods
