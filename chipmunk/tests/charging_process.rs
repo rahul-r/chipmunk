@@ -31,6 +31,7 @@ use crate::common::{test_data, utils::{ts_no_nanos, init_test_database}, DELAYED
 #[tokio::test]
 async fn test_hidden_charging_detection() {
     use ShiftState::*;
+    use StateStatus::*;
     // chipmunk::init_log();
 
     let random_http_port = rand::thread_rng().gen_range(4000..60000);
@@ -69,28 +70,34 @@ async fn test_hidden_charging_detection() {
     assert_eq!(state.state, StateStatus::Driving);
 
     // Update the driving data point
-    let drive1_timestamp1 = chrono::Utc::now().naive_utc();
+    let ts_before_delayed_data = chrono::Utc::now().naive_utc();
     let odometer_mi = starting_odometer_mi + 123.4;
-    let mut vehicle_data = test_data::data_with_shift(drive1_timestamp1, Some(D));
+    let mut vehicle_data = test_data::data_with_shift(ts_before_delayed_data, Some(D));
     vehicle_data.vehicle_state.as_mut().unwrap().odometer = Some(odometer_mi);
     vehicle_data.charge_state.as_mut().unwrap().battery_level = Some(49);
+    let charge_start = Charges::from(&vehicle_data, 0);
     **data.lock().as_mut().unwrap() = vehicle_data;
     *send_response.lock().unwrap() = true;
     sleep(Duration::from_secs(1)).await; // Run the logger for some time
+    // Stop sending vehicle data
+    *send_response.lock().unwrap() = false;
+    wait_for_db!(pool);
 
     assert_eq!(State::db_num_rows(&pool).await.unwrap(), 1);
     let state = State::db_get_last(&pool).await.unwrap();
     assert_eq!(state.state, StateStatus::Driving);
+    let num_positions = Position::db_num_rows(&pool).await.unwrap();
 
     // Simulate charging without any recorded data point
     // 1. Create a driving data point after more than delayed data point threshold with the same odometer value
     // 2. Have battery level more than what it was in the previous data point. This will trigger a charging process
     // After this, a new charging process should be created and we should be in driving state (ends
     // current drive, create and finalize a charging state, and start a new drive)
-    let drive1_timestamp2 = drive1_timestamp1 + chrono::Duration::seconds(DELAYED_DATAPOINT_TIME_SEC + 1);
-    let mut vehicle_data = test_data::data_with_shift(drive1_timestamp2, Some(D));
+    let ts_after_delayed_data = ts_before_delayed_data + chrono::Duration::seconds(DELAYED_DATAPOINT_TIME_SEC + 1);
+    let mut vehicle_data = test_data::data_with_shift(ts_after_delayed_data, Some(D));
     vehicle_data.vehicle_state.as_mut().unwrap().odometer = Some(odometer_mi);
     vehicle_data.charge_state.as_mut().unwrap().battery_level = Some(55);
+    let charge_end = Charges::from(&vehicle_data, 0);
     **data.lock().as_mut().unwrap() = vehicle_data;
     *send_response.lock().unwrap() = true;
     sleep(Duration::from_secs(1)).await; // Run the logger for some time
@@ -100,15 +107,35 @@ async fn test_hidden_charging_detection() {
 
     assert_eq!(State::db_num_rows(&pool).await.unwrap(), 3);
     let states = State::db_get_all(&pool).await.unwrap();
-    assert_eq!(states[0].state, StateStatus::Driving);
-    assert_eq!(states[0].start_date, ts_no_nanos(drive1_start_time));
-    assert_eq!(states[0].end_date, Some(ts_no_nanos(drive1_timestamp1)));
-    assert_eq!(states[1].state, StateStatus::Charging);
-    assert_eq!(states[1].start_date, ts_no_nanos(drive1_timestamp1));
-    assert_eq!(states[1].end_date, Some(ts_no_nanos(drive1_timestamp2)));
-    assert_eq!(states[2].state, StateStatus::Driving);
-    assert_eq!(states[2].start_date, ts_no_nanos(drive1_timestamp2));
-    assert_eq!(states[2].end_date, Some(ts_no_nanos(drive1_timestamp2)));
+    assert_eq!(states[0], State {id: 1, state: Driving, start_date: ts_no_nanos(drive1_start_time), end_date: Some(ts_no_nanos(ts_before_delayed_data)), car_id: 1 });
+    assert_eq!(states[1], State {id: 2, state: Charging, start_date: ts_no_nanos(ts_before_delayed_data), end_date: Some(ts_no_nanos(ts_after_delayed_data)), car_id: 1 });
+    assert_eq!(states[2], State {id: 3, state: Driving, start_date: ts_no_nanos(ts_after_delayed_data), end_date: Some(ts_no_nanos(ts_after_delayed_data)), car_id: 1 });
+
+    assert_eq!(ChargingProcess::db_num_rows(&pool).await.unwrap(), 1);
+    let cp = ChargingProcess::db_get_last(&pool).await.unwrap();
+    let expected_cp = ChargingProcess {
+        id: 1,
+        start_date: ts_no_nanos(ts_before_delayed_data),
+        end_date: Some(ts_no_nanos(ts_after_delayed_data)),
+        charge_energy_added: charge_end.as_ref().map(|c| c.charge_energy_added).unwrap(),
+        start_ideal_range_km: charge_start.as_ref().map(|c| c.ideal_battery_range_km).unwrap(),
+        end_ideal_range_km: charge_end.as_ref().map(|c| c.ideal_battery_range_km).unwrap(),
+        start_battery_level: charge_start.as_ref().map(|c| c.battery_level).unwrap(),
+        end_battery_level: charge_end.as_ref().map(|c| c.battery_level).unwrap(),
+        duration_min: Some((charge_end.as_ref().unwrap().date.unwrap() - charge_start.as_ref().unwrap().date.unwrap()).num_minutes() as i16),
+        outside_temp_avg: Some((charge_start.as_ref().unwrap().outside_temp.unwrap() + charge_end.as_ref().unwrap().outside_temp.unwrap()) / 2.0),
+        car_id: 1,
+        position_id: num_positions as i32,
+        address_id: Some(2),
+        start_rated_range_km: charge_start.as_ref().unwrap().rated_battery_range_km,
+        end_rated_range_km: charge_end.as_ref().unwrap().rated_battery_range_km,
+        geofence_id: None,
+        charge_energy_used: None,
+        cost: None,
+        charging_status: ChargeStat::Done,
+    };
+    assert_eq!(cp, expected_cp);
+
 }
 
 #[tokio::test]

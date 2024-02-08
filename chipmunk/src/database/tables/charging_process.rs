@@ -5,7 +5,7 @@ use crate::{database::types::ChargeStat, utils::time_diff_minutes_i64};
 use super::{charges::Charges, DBTable};
 use crate::charging::calculate_cost;
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq)]
 pub struct ChargingProcess {
     pub id: i32,
     pub start_date: NaiveDateTime,
