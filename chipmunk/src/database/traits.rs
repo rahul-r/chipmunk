@@ -1,7 +1,7 @@
 use sqlx::PgPool;
 
 pub trait DBTable {
-    // equired methods
+    // required methods
     fn table_name() -> &'static str;
     async fn db_insert(&self, pool: &PgPool) -> sqlx::Result<i64>;
 

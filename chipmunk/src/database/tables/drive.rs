@@ -9,7 +9,7 @@ use super::{position::Position, DBTable};
 #[derive(Debug, Default, Clone)]
 pub struct Drive {
     pub id: i32,
-    pub status: DriveStatus, // This is used to track the current status of charging
+    pub status: DriveStatus, // This is used to track the current status of driving
     pub start_date: NaiveDateTime,
     pub end_date: Option<NaiveDateTime>,
     pub outside_temp_avg: Option<f32>,

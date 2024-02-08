@@ -257,12 +257,4 @@ impl DBTable for ChargingProcess {
         .await?;
         Ok(())
     }
-
-    // pub async fn db_get(pool: &PgPool) -> sqlx::Result<Vec<Self>> {
-    //     Ok(
-    //         sqlx::query_as!(Self, r#"SELECT * FROM charging_processes"#)
-    //             .fetch_all(pool)
-    //             .await?,
-    //     )
-    // }
 }
