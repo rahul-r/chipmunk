@@ -83,6 +83,64 @@ impl Charges {
         .fetch_all(pool)
         .await
     }
+
+    /// Insert a charge into the database for the last charging process
+    pub async fn db_insert_for_last_charging_process(&self, pool: &PgPool) -> sqlx::Result<i64> {
+        let id = sqlx::query!(
+            r#"
+            INSERT INTO charges
+            (
+                date,
+                battery_heater_on,
+                battery_level,
+                charge_energy_added,
+                charger_actual_current,
+                charger_phases,
+                charger_pilot_current,
+                charger_power,
+                charger_voltage,
+                fast_charger_present,
+                conn_charge_cable,
+                fast_charger_brand,
+                fast_charger_type,
+                ideal_battery_range_km,
+                not_enough_power_to_heat,
+                outside_temp,
+                charging_process_id,
+                battery_heater,
+                battery_heater_no_power,
+                rated_battery_range_km,
+                usable_battery_level
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, (SELECT id FROM charging_processes ORDER BY id DESC LIMIT 1), $17, $18, $19, $20)
+            RETURNING id"#,
+            self.date,
+            self.battery_heater_on,
+            self.battery_level,
+            self.charge_energy_added,
+            self.charger_actual_current,
+            self.charger_phases,
+            self.charger_pilot_current,
+            self.charger_power,
+            self.charger_voltage,
+            self.fast_charger_present,
+            self.conn_charge_cable,
+            self.fast_charger_brand,
+            self.fast_charger_type,
+            self.ideal_battery_range_km,
+            self.not_enough_power_to_heat,
+            self.outside_temp,
+            self.battery_heater,
+            self.battery_heater_no_power,
+            self.rated_battery_range_km,
+            self.usable_battery_level
+        )
+        .fetch_one(pool)
+        .await?
+        .id;
+
+        Ok(id as i64)
+    }
 }
 
 impl DBTable for Charges {

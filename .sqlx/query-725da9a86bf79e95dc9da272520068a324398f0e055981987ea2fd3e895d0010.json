@@ -1,0 +1,41 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO charges\n            (\n                date,\n                battery_heater_on,\n                battery_level,\n                charge_energy_added,\n                charger_actual_current,\n                charger_phases,\n                charger_pilot_current,\n                charger_power,\n                charger_voltage,\n                fast_charger_present,\n                conn_charge_cable,\n                fast_charger_brand,\n                fast_charger_type,\n                ideal_battery_range_km,\n                not_enough_power_to_heat,\n                outside_temp,\n                charging_process_id,\n                battery_heater,\n                battery_heater_no_power,\n                rated_battery_range_km,\n                usable_battery_level\n            )\n            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, (SELECT id FROM charging_processes ORDER BY id DESC LIMIT 1), $17, $18, $19, $20)\n            RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamp",
+        "Bool",
+        "Int2",
+        "Float4",
+        "Int2",
+        "Int2",
+        "Int2",
+        "Int2",
+        "Int2",
+        "Bool",
+        "Varchar",
+        "Varchar",
+        "Varchar",
+        "Float4",
+        "Bool",
+        "Float4",
+        "Bool",
+        "Bool",
+        "Float4",
+        "Int2"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "725da9a86bf79e95dc9da272520068a324398f0e055981987ea2fd3e895d0010"
+}

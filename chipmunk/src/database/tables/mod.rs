@@ -175,14 +175,13 @@ impl Tables {
             } else {
                 charging_process.db_update(pool).await?;
             }
+        }
 
-            if let Some(ref mut charges) = tables.charges {
-                charges.charging_process_id = charging_process.id;
-                charges
-                    .db_insert(pool)
-                    .await
-                    .map(|id| charges.id = id as i32)?;
-            }
+        if let Some(ref mut charges) = tables.charges {
+            charges
+                .db_insert_for_last_charging_process(pool)
+                .await
+                .map(|id| charges.id = id as i32)?;
         }
 
         Ok(tables)
