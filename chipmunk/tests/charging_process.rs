@@ -136,6 +136,27 @@ async fn test_hidden_charging_detection() {
     };
     assert_eq!(cp, expected_cp);
 
+    assert_eq!(Charges::db_num_rows(&pool).await.unwrap(), 2);
+    let charges = Charges::db_get_all(&pool).await.unwrap();
+    let expected_charge_start = Charges {
+        id: 1,
+        charging_process_id: cp.id,
+        ..charge_start.unwrap()
+    };
+    let expected_charge_end = Charges {
+        id: 2,
+        charging_process_id: cp.id,
+        ..charge_end.unwrap()
+    };
+    assert_eq!(charges[0], expected_charge_start);
+    assert_eq!(charges[1], expected_charge_end);
+
+    assert_eq!(Drive::db_num_rows(&pool).await.unwrap(), 2);
+    let drives = Drive::db_get_all(&pool).await.unwrap();
+    assert_eq!(drives[0].start_date, ts_no_nanos(drive1_start_time));
+    assert_eq!(drives[0].end_date, Some(ts_no_nanos(ts_before_delayed_data)));
+    assert_eq!(drives[1].start_date, ts_no_nanos(ts_after_delayed_data));
+    assert_eq!(drives[1].end_date, None);
 }
 
 #[tokio::test]
@@ -253,10 +274,3 @@ async fn test_charging_process() {
     assert_eq!(states[1].start_date, ts_no_nanos(parking_start_time));
     assert_eq!(states[1].end_date, Some(ts_no_nanos(parking_start_time)));
 }
-
-// * Test hidden charging process
-// Create a drive
-// Wait for for more than the threshold
-// Create new data point with more battery level than before and with the same odometer
-// Check that a charging process is created in database
-// Check that two charges datapoints are created (one from previous data point and one from the current data point) in database
