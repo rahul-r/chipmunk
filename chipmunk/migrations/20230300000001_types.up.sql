@@ -34,6 +34,3 @@ CREATE TYPE public.states_status AS ENUM
 
 CREATE TYPE public.charge_stat AS ENUM
     ('start', 'stop', 'charging', 'done', 'idle');
-
-CREATE TYPE public.drive_stat AS ENUM
-    ('start', 'stop', 'driving', 'not_driving', 'restart', 'unknown');

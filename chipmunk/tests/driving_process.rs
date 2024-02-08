@@ -18,7 +18,7 @@ use chipmunk::database::{tables::{
     settings::Settings,
     state::{State, StateStatus},
     swupdate::SoftwareUpdate,
-}, types::DriveStatus, DBTable};
+}, DBTable};
 use common::utils::{create_mock_osm_server, create_mock_tesla_server};
 use rand::Rng;
 use tesla_api::utils::miles_to_km;
@@ -98,7 +98,7 @@ async fn test_driving_and_parking() {
     assert_eq!(drive.end_date, None);
     assert_eq!(drive.start_address_id, Some(drive1_start_address.id as i32));
     assert_eq!(drive.end_address_id, None);
-    assert_eq!(drive.status, DriveStatus::Driving);
+    assert!(drive.in_progress);
     assert_eq!(drive.end_km, last_position.odometer);
     assert_eq!(drive.distance, Some(0.0));
     assert_eq!(drive.duration_min, Some(0));
@@ -144,7 +144,7 @@ async fn test_driving_and_parking() {
     assert_eq!(drive.end_date, None);
     assert_eq!(drive.start_address_id, Some(drive1_start_address.id as i32));
     assert_eq!(drive.end_address_id, None);
-    assert_eq!(drive.status, DriveStatus::Driving);
+    assert!(drive.in_progress);
     assert_eq!(drive.end_km, last_position.odometer);
     approx_eq!(drive.distance, miles_to_km(&Some(odometer_mi - starting_odometer_mi)));
     assert_eq!(drive.duration_min, Some(0));
@@ -217,7 +217,7 @@ async fn test_driving_and_parking() {
     assert_eq!(drive1.end_date, Some(ts_no_nanos(drive1_end_time)));
     assert_eq!(drive1.start_address_id, Some(drive1_start_address.id as i32));
     assert_eq!(drive1.end_address_id, Some(drive2_start_address.id as i32));
-    assert_eq!(drive1.status, DriveStatus::NotDriving);
+    assert_eq!(drive1.in_progress, false);
     assert_eq!(drive1.end_km, last_driving_position.odometer);
     approx_eq!(drive1.distance, miles_to_km(&Some(odometer_mi - starting_odometer_mi)));
     assert_eq!(drive1.start_position_id, Some(1));
@@ -230,7 +230,7 @@ async fn test_driving_and_parking() {
     assert_eq!(drive2.end_date, None);
     assert_eq!(drive2.start_address_id, Some(drive2_start_address.id as i32));
     assert_eq!(drive2.end_address_id, None);
-    assert_eq!(drive2.status, DriveStatus::Driving);
+    assert_eq!(drive2.in_progress, true);
     assert_eq!(drive2.end_km, last_driving_position.odometer);
     approx_eq!(drive2.distance, miles_to_km(&Some(odometer_mi - starting_odometer_mi)));
     assert_eq!(drive2.start_position_id, Some(drive1_num_positions as i32 + 1));
@@ -279,7 +279,7 @@ async fn test_driving_and_parking() {
     assert_eq!(drive.start_date, ts_no_nanos(drive2_start_time));
     assert_eq!(drive.end_date, Some(ts_no_nanos(drive2_start_time)));
     assert_eq!(drive.end_address_id, Some(address.id as i32));
-    assert_eq!(drive.status, DriveStatus::NotDriving);
+    assert!(!drive.in_progress);
     assert_eq!(drive.end_km, last_driving_position.odometer);
     approx_eq!(drive.distance, miles_to_km(&Some(odometer_mi - starting_odometer_mi)));
     assert_eq!(drive.end_position_id, last_driving_position.id);

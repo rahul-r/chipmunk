@@ -6,10 +6,10 @@ use sqlx::PgPool;
 
 use super::{position::Position, DBTable};
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, sqlx::FromRow)]
 pub struct Drive {
     pub id: i32,
-    pub status: DriveStatus, // This is used to track the current status of driving
+    pub in_progress: bool, // This is used to track the current status of driving
     pub start_date: NaiveDateTime,
     pub end_date: Option<NaiveDateTime>,
     pub outside_temp_avg: Option<f32>,
@@ -42,7 +42,7 @@ impl Drive {
         start_geofence_id: Option<i32>,
     ) -> Self {
         Self {
-            status: DriveStatus::Driving,
+            in_progress: true,
             car_id: car_foreign_key,
             start_date: position.date.unwrap_or_else(|| {
                 log::warn!("Position date is None, using current system time");
@@ -83,7 +83,7 @@ impl Drive {
         end_geofence_id: Option<i32>,
     ) -> Self {
         Self {
-            status: DriveStatus::NotDriving,
+            in_progress: false,
             end_date: position.date,
             end_position_id: position.id,
             end_address_id,
@@ -143,7 +143,7 @@ impl DBTable for Drive {
                     end_position_id,
                     start_geofence_id,
                     end_geofence_id,
-                    status AS "status!: DriveStatus"
+                    in_progress
                 FROM drives
                 ORDER BY start_date DESC LIMIT 1
             "#
@@ -159,7 +159,7 @@ impl DBTable for Drive {
             r#"
                 SELECT
                     id,
-                    status AS "status!: DriveStatus",
+                    in_progress,
                     start_date,
                     end_date,
                     outside_temp_avg,
@@ -217,7 +217,7 @@ impl DBTable for Drive {
             end_position_id,
             start_geofence_id,
             end_geofence_id,
-            status
+            in_progress
         )
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
             $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
@@ -244,7 +244,7 @@ impl DBTable for Drive {
             self.end_position_id,
             self.start_geofence_id,
             self.end_geofence_id,
-            self.status.clone() as DriveStatus,
+            self.in_progress,
         )
         .fetch_one(pool)
         .await?
@@ -279,7 +279,7 @@ impl DBTable for Drive {
             end_position_id = $19,
             start_geofence_id = $20,
             end_geofence_id = $21,
-            status = $22
+            in_progress = $22
         WHERE id = $23
         "#,
             self.start_date,
@@ -303,7 +303,7 @@ impl DBTable for Drive {
             self.end_position_id,
             self.start_geofence_id,
             self.end_geofence_id,
-            self.status.clone() as DriveStatus,
+            self.in_progress,
             self.id,
         )
         .execute(pool)

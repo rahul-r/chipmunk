@@ -1,0 +1,36 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        UPDATE drives\n        SET\n            start_date = $1,\n            end_date = $2,\n            outside_temp_avg = $3,\n            speed_max = $4,\n            power_max = $5,\n            power_min = $6,\n            start_ideal_range_km = $7,\n            end_ideal_range_km = $8,\n            start_km = $9,\n            end_km = $10,\n            distance = $11,\n            duration_min = $12,\n            inside_temp_avg = $13,\n            start_address_id = $14,\n            end_address_id = $15,\n            start_rated_range_km = $16,\n            end_rated_range_km = $17,\n            start_position_id = $18,\n            end_position_id = $19,\n            start_geofence_id = $20,\n            end_geofence_id = $21,\n            in_progress = $22\n        WHERE id = $23\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Timestamp",
+        "Timestamp",
+        "Float4",
+        "Float4",
+        "Float4",
+        "Float4",
+        "Float4",
+        "Float4",
+        "Float4",
+        "Float4",
+        "Float4",
+        "Int2",
+        "Float4",
+        "Int4",
+        "Int4",
+        "Float4",
+        "Float4",
+        "Int4",
+        "Int4",
+        "Int4",
+        "Int4",
+        "Bool",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "1b609831a61c289ce97ea9d0fe03f30ae40dcee578c9a7755fc8b929b488517f"
+}

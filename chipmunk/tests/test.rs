@@ -17,7 +17,6 @@ use crate::common::utils::{create_mock_tesla_server, ts_no_nanos};
 use crate::common::utils::{create_mock_osm_server, init_test_database};
 use chipmunk::database::tables::drive::Drive;
 use chipmunk::database::tables::Tables;
-use chipmunk::database::types::DriveStatus;
 use chipmunk::database::DBTable;
 use chipmunk::{database, openstreetmap};
 use common::test_data;
@@ -141,17 +140,17 @@ fn calculate_expected_drive(
 
     let end_date;
     let end_address_id;
-    let status;
+    let in_progress;
     let end_position_id;
     if vehicle_data_list.last().unwrap().is_driving() {
         end_date = None;
         end_address_id = None;
-        status = DriveStatus::Driving;
+        in_progress = true;
         end_position_id = None;
     } else {
         end_date = Some(_end_date);
         end_address_id = Some(2);
-        status = DriveStatus::NotDriving;
+        in_progress = false;
         end_position_id = Some(drive_end_index as i32);
     }
 
@@ -177,7 +176,7 @@ fn calculate_expected_drive(
         end_address_id,
         start_position_id: Some(drive_start_index as i32 + 1),
         end_position_id,
-        status,
+        in_progress,
         start_geofence_id: None,
         end_geofence_id: None,
     }
@@ -233,7 +232,7 @@ async fn check_vehicle_data() -> anyhow::Result<()> {
         assert_eq!(last_row.end_position_id, expected_drive.end_position_id);
         assert_eq!(last_row.start_geofence_id, expected_drive.start_geofence_id);
         assert_eq!(last_row.end_geofence_id, expected_drive.end_geofence_id);
-        assert_eq!(last_row.status, expected_drive.status);
+        assert_eq!(last_row.in_progress, expected_drive.in_progress);
     }
     Ok(())
 }

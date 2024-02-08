@@ -1,0 +1,158 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                SELECT\n                    id,\n                    start_date,\n                    end_date,\n                    outside_temp_avg,\n                    speed_max,\n                    power_max,\n                    power_min,\n                    start_ideal_range_km,\n                    end_ideal_range_km,\n                    start_km,\n                    end_km,\n                    distance,\n                    duration_min,\n                    car_id,\n                    inside_temp_avg,\n                    start_address_id,\n                    end_address_id,\n                    start_rated_range_km,\n                    end_rated_range_km,\n                    start_position_id,\n                    end_position_id,\n                    start_geofence_id,\n                    end_geofence_id,\n                    in_progress\n                FROM drives\n                ORDER BY start_date DESC LIMIT 1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "start_date",
+        "type_info": "Timestamp"
+      },
+      {
+        "ordinal": 2,
+        "name": "end_date",
+        "type_info": "Timestamp"
+      },
+      {
+        "ordinal": 3,
+        "name": "outside_temp_avg",
+        "type_info": "Float4"
+      },
+      {
+        "ordinal": 4,
+        "name": "speed_max",
+        "type_info": "Float4"
+      },
+      {
+        "ordinal": 5,
+        "name": "power_max",
+        "type_info": "Float4"
+      },
+      {
+        "ordinal": 6,
+        "name": "power_min",
+        "type_info": "Float4"
+      },
+      {
+        "ordinal": 7,
+        "name": "start_ideal_range_km",
+        "type_info": "Float4"
+      },
+      {
+        "ordinal": 8,
+        "name": "end_ideal_range_km",
+        "type_info": "Float4"
+      },
+      {
+        "ordinal": 9,
+        "name": "start_km",
+        "type_info": "Float4"
+      },
+      {
+        "ordinal": 10,
+        "name": "end_km",
+        "type_info": "Float4"
+      },
+      {
+        "ordinal": 11,
+        "name": "distance",
+        "type_info": "Float4"
+      },
+      {
+        "ordinal": 12,
+        "name": "duration_min",
+        "type_info": "Int2"
+      },
+      {
+        "ordinal": 13,
+        "name": "car_id",
+        "type_info": "Int2"
+      },
+      {
+        "ordinal": 14,
+        "name": "inside_temp_avg",
+        "type_info": "Float4"
+      },
+      {
+        "ordinal": 15,
+        "name": "start_address_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 16,
+        "name": "end_address_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 17,
+        "name": "start_rated_range_km",
+        "type_info": "Float4"
+      },
+      {
+        "ordinal": 18,
+        "name": "end_rated_range_km",
+        "type_info": "Float4"
+      },
+      {
+        "ordinal": 19,
+        "name": "start_position_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 20,
+        "name": "end_position_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 21,
+        "name": "start_geofence_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 22,
+        "name": "end_geofence_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 23,
+        "name": "in_progress",
+        "type_info": "Bool"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "e76aa536d4e28159aec7928ad5b5e4e39fcf6b782292e92e275d5387349defde"
+}

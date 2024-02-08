@@ -49,24 +49,3 @@ pub enum ChargeStat {
     #[default]
     Unknown,
 }
-
-#[derive(Debug, PartialEq, Clone, Default, sqlx::Type)]
-#[sqlx(type_name = "drive_stat", rename_all = "snake_case")]
-pub enum DriveStatus {
-    Start,
-    /// Start a new drive
-    Driving,
-    /// Currently driving, record the position/drive statistics data
-    Stop,
-    /// Stop the current drive
-    NotDriving,
-    /// Not driving, waiting for a drive to start
-    Restart,
-    /// Stop the current drive and immediately start a new one.
-    /// Use the previous data point as the last data point for the previous drive
-    /// and use the current data point as the starting of a new drive (Leave the end_date None to
-    /// mark we don't know when the current drive ended).
-    /// Leave the start_date None to mark we don't know when the drive was started.
-    #[default]
-    Unknown, // Unknown state, do nothing
-}

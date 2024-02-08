@@ -22,7 +22,7 @@ CREATE TABLE public.drives (
     end_position_id integer,
     start_geofence_id integer,
     end_geofence_id integer,
-    status public.drive_stat NOT NULL
+    in_progress bool NOT NULL
 );
 
 ALTER TABLE ONLY public.drives

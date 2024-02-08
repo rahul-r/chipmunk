@@ -7,7 +7,7 @@ use self::{
     position::Position, settings::Settings, state::{State, StateStatus}, swupdate::SoftwareUpdate,
 };
 
-use super::{types::DriveStatus, DBTable};
+use super::DBTable;
 
 pub mod address;
 pub mod car;
@@ -124,7 +124,7 @@ impl Tables {
 
         if let Some(ref mut drive) = tables.drive {
             if address_id.is_some() {
-                if drive.status == DriveStatus::Driving {
+                if drive.in_progress {
                     drive.start_address_id = address_id;
                 } else {
                     drive.end_address_id = address_id;

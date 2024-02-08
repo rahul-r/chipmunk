@@ -6,4 +6,3 @@ DROP TYPE public.billing_type;
 DROP TYPE public.range;
 DROP TYPE public.states_status;
 DROP TYPE public.charge_stat;
-DROP TYPE public.drive_stat;
