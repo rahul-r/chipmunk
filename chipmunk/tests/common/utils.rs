@@ -2,7 +2,7 @@ use std::sync::{Arc, Mutex};
 
 use rand::Rng;
 
-use chipmunk::database::{self, tables::token::Token};
+use chipmunk::database::{self, tables::{drive::Drive, position::Position, token::Token}};
 use chrono::NaiveDateTime;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
@@ -11,14 +11,23 @@ use tesla_api::{auth::AuthResponse, Vehicles, vehicle_data::VehicleData};
 /// Asserts that two floats are approximately equal.
 #[macro_export]
 macro_rules! approx_eq {
-    ($x:expr, $y:expr) => {
+    ($x:expr, $y:expr) => {{
         if $x.zip($y).map(|(a, b)| a.abs() - b.abs()) > Some(0.01) {
             panic!(
                 "assertion failed: `(left == right)`\n  left: `{:?}`,\n right: `{:?}`",
                 $x, $y
             );
         }
-    };
+    }};
+
+    ($x:expr, $y:expr, $accuracy:expr) => {{
+        if $x.zip($y).map(|(a, b)| a.abs() - b.abs()) > Some($accuracy) {
+            panic!(
+                "assertion failed: `(left == right)`\n  left: `{:?}`,\n right: `{:?}`",
+                $x, $y
+            );
+        }
+    }};
 }
 
 #[macro_export]
@@ -170,4 +179,39 @@ pub fn ts_no_nanos(ts: NaiveDateTime) -> NaiveDateTime {
     let secs = timestamp / 1000;
     let nsecs = (timestamp % 1000 * 1_000_000) as u32;
     NaiveDateTime::from_timestamp_opt(secs, nsecs).unwrap()
+}
+
+pub fn create_drive_from_positions(positions: &[Position]) -> Option<Drive> {
+    let start_position = positions.first()?;
+    let end_position = positions.last()?;
+    
+    let filtered_outside_temp = positions.iter().filter_map(|p| p.outside_temp).collect::<Vec<_>>();
+    let filtered_inside_temp = positions.iter().filter_map(|p| p.inside_temp).collect::<Vec<_>>();
+
+    Some(Drive {
+        id: 0,
+        in_progress: false,
+        start_date: start_position.date.unwrap_or_default(),
+        end_date: end_position.date,
+        outside_temp_avg: Some(filtered_outside_temp.iter().sum::<f32>() / filtered_outside_temp.len() as f32),
+        speed_max: positions.iter().filter_map(|p| p.speed).map(|v| v as i32).max().map(|speed| speed as f32),
+        power_max: positions.iter().filter_map(|p| p.power).map(|v| v as i32).max().map(|power| power as f32),
+        power_min: positions.iter().filter_map(|p| p.power).map(|v| v as i32).min().map(|power| power as f32),
+        start_ideal_range_km: positions.iter().filter_map(|p| p.ideal_battery_range_km).next(), // Take the first non None value
+        end_ideal_range_km: positions.iter().filter_map(|p| p.ideal_battery_range_km).last(), // Take the last non None value
+        start_km: start_position.odometer,
+        end_km: end_position.odometer,
+        distance: end_position.odometer.zip(start_position.odometer).map(|(end, start)| end - start),
+        duration_min: end_position.date.zip(start_position.date).map(|(e, s)| e - s).map(|d| (d.num_seconds() as f64 / 60.0).round() as i16),
+        car_id: start_position.car_id,
+        inside_temp_avg: Some(filtered_inside_temp.iter().sum::<f32>() / filtered_inside_temp.len() as f32),
+        start_address_id: None,
+        end_address_id: None,
+        start_rated_range_km: positions.iter().filter_map(|p| p.rated_battery_range_km).next(), // Take the first non None value
+        end_rated_range_km: positions.iter().filter_map(|p| p.rated_battery_range_km).last(), // Take the last non None value
+        start_position_id: start_position.id,
+        end_position_id: end_position.id,
+        start_geofence_id: None,
+        end_geofence_id: None,
+    })
 }

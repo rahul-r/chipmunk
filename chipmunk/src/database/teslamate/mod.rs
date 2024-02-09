@@ -24,6 +24,15 @@ pub trait Teslamate {
         #[rustfmt::skip]
         panic!("{}", format!("`db_get_last` is not implemented for `{}` table!", Self::table_name()))
     }
+
+    async fn tm_get_id(_pool: &PgPool, _id: i64) -> sqlx::Result<Self>
+    where
+        Self: Sized,
+    {
+        #[rustfmt::skip]
+        panic!("{}", format!("`db_get_last` is not implemented for `{}` table!", Self::table_name()))
+    }
+
     async fn tm_get_all(_pool: &PgPool) -> sqlx::Result<Vec<Self>>
     where
         Self: Sized,
