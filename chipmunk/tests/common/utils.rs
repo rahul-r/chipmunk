@@ -2,7 +2,7 @@ use std::sync::{Arc, Mutex};
 
 use rand::Rng;
 
-use chipmunk::database::{self, tables::{drive::Drive, position::Position, token::Token}};
+use chipmunk::{database::{self, tables::{charges::Charges, charging_process::ChargingProcess, drive::Drive, position::Position, token::Token}, types::ChargeStat}};
 use chrono::NaiveDateTime;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
@@ -213,5 +213,31 @@ pub fn create_drive_from_positions(positions: &[Position]) -> Option<Drive> {
         end_position_id: end_position.id,
         start_geofence_id: None,
         end_geofence_id: None,
+    })
+}
+
+pub fn create_charging_from_charges(charges: &[Charges]) -> Option<ChargingProcess> {
+    let start_charge = charges.first()?;
+    let end_charge = charges.last()?;
+    Some(ChargingProcess {
+        id: 0,
+        start_date: start_charge.date.unwrap_or_default(),
+        end_date: end_charge.date,
+        charge_energy_added: end_charge.charge_energy_added,
+        start_ideal_range_km: start_charge.ideal_battery_range_km,
+        end_ideal_range_km: end_charge.ideal_battery_range_km,
+        start_battery_level: start_charge.battery_level,
+        end_battery_level: end_charge.battery_level,
+        duration_min: end_charge.date.zip(start_charge.date).map(|(e, s)| e - s).map(|d| (d.num_seconds() as f64 / 60.0).round() as i16),
+        outside_temp_avg: Some(charges.iter().filter_map(|c| c.outside_temp).sum::<f32>() / charges.len() as f32),
+        start_rated_range_km: start_charge.rated_battery_range_km,
+        end_rated_range_km: end_charge.rated_battery_range_km,
+        charge_energy_used: None,
+        cost: None,
+        car_id: 1,
+        position_id: 0,
+        address_id: None,
+        geofence_id: None,
+        charging_status: ChargeStat::Done,
     })
 }

@@ -2,7 +2,7 @@ use crate::database::tables::position::Position;
 use crate::database::DBTable;
 
 impl Position {
-    pub async fn tm_get_for_drive(pool: &sqlx::PgPool, car_id: i16, drive_id: i64) -> sqlx::Result<Vec<Position>> {
+    pub async fn tm_get_for_drive(pool: &sqlx::PgPool, car_id: i16, drive_id: i64) -> sqlx::Result<Vec<Self>> {
         sqlx::query_as::<_, Position>(
             format!(
                 r#"SELECT
@@ -36,7 +36,8 @@ impl Position {
                     tpms_pressure_fr::FLOAT4,
                     tpms_pressure_rl::FLOAT4,
                     tpms_pressure_rr::FLOAT4
-                FROM {} WHERE drive_id = {} AND car_id = {}"#,
+                FROM {} WHERE drive_id = {} AND car_id = {}
+                ORDER BY date ASC"#,
                 Self::table_name(),
                 drive_id,
                 car_id

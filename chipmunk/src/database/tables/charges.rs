@@ -11,7 +11,7 @@ use tesla_api::{
 };
 
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, sqlx::FromRow)]
 pub struct Charges {
     pub id: i32,
     pub date: Option<NaiveDateTime>,
