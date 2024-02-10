@@ -37,7 +37,7 @@ impl Token {
             .await?
             .exists;
 
-        match result.context("Cannot check token table existance in database")? {
+        match result.context("Cannot check token table existence in database")? {
             true => {
                 // table exists, check if there are any keys in the table
                 let num_rows = sqlx::query!(r#"SELECT COUNT(id) FROM tokens"#)
@@ -153,13 +153,10 @@ impl Token {
                 token_table.id_token_iv,
             )?,
             expires_in: seconds_remaining(token_table.access_token_expires_at),
-            token_type: match token_table.token_type {
-                Some(t) => t,
-                None => {
-                    log::warn!("Received invalid token type from database");
-                    "".into()
-                }
-            },
+            token_type: token_table.token_type.unwrap_or_else(|| {
+                log::warn!("Received invalid token type from database");
+                "".into()
+            }),
         };
 
         Ok(token)
@@ -171,7 +168,7 @@ async fn test_key_retrieval() {
     dotenvy::dotenv().ok();
     let url = &env::var("TEST_DATABASE_URL")
         .expect("Cannot get test database URL from environment variable, Please set env `TEST_DATABASE_URL`");
-    let pool = initialize(url).await.expect("Error initializing databse");
+    let pool = initialize(url).await.expect("Error initializing database");
     let encryption_key = "secret password acbdefghijklmnop";
     Token::db_get_last(&pool, encryption_key)
         .await
@@ -183,7 +180,7 @@ async fn test_key_insertion() {
     dotenvy::dotenv().ok();
     let url = &env::var("TEST_DATABASE_URL")
         .expect("Cannot get test database URL from environment variable, Please set env `TEST_DATABASE_URL`");
-    let pool = initialize(url).await.expect("Error initializing databse");
+    let pool = initialize(url).await.expect("Error initializing database");
     let encryption_key = "secret password acbdefghijklmnop";
     let tokens = AuthResponse {
         access_token: "access_token".into(),

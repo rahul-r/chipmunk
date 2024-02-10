@@ -45,7 +45,7 @@ async fn test_driving_and_parking() {
     settings.logging_period_ms = 1;
     settings.db_insert(&pool).await.unwrap();
 
-    // Setup a pointer to send vehicle data to the mock server
+    // Set up a pointer to send vehicle data to the mock server
     let drive1_start_time = chrono::Utc::now().naive_utc();
     let data = test_data::data_with_shift(drive1_start_time, Some(D));
     let starting_odometer_mi = data.vehicle_state.as_ref().unwrap().odometer.unwrap();

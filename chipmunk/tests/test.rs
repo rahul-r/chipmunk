@@ -87,7 +87,7 @@ pub fn create_drive_from_gpx() -> (Vec<VehicleData>, usize, usize) {
     // Next index of the first parked point after the drive, this is also the last point of the drive
     let drive_end_index = data_points.len();
 
-    // Create few ploints in parked state after the drive
+    // Create few points in parked state after the drive
     let last_latitude = data_points.last().unwrap().drive_state.as_ref().unwrap().latitude;
     let last_longitude = data_points.last().unwrap().drive_state.as_ref().unwrap().longitude;
     for _ in 0..10 {

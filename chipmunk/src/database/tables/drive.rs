@@ -115,81 +115,6 @@ impl DBTable for Drive {
         "drives"
     }
 
-    async fn db_get_last(pool: &PgPool) -> sqlx::Result<Self> {
-        let cp = sqlx::query_as!(
-            Self,
-            r#"
-                SELECT
-                    id,
-                    start_date,
-                    end_date,
-                    outside_temp_avg,
-                    speed_max,
-                    power_max,
-                    power_min,
-                    start_ideal_range_km,
-                    end_ideal_range_km,
-                    start_km,
-                    end_km,
-                    distance,
-                    duration_min,
-                    car_id,
-                    inside_temp_avg,
-                    start_address_id,
-                    end_address_id,
-                    start_rated_range_km,
-                    end_rated_range_km,
-                    start_position_id,
-                    end_position_id,
-                    start_geofence_id,
-                    end_geofence_id,
-                    in_progress
-                FROM drives
-                ORDER BY start_date DESC LIMIT 1
-            "#
-        )
-        .fetch_one(pool)
-        .await?;
-        Ok(cp)
-    }
-
-    async fn db_get_all(pool: &PgPool) -> sqlx::Result<Vec<Self>> {
-        sqlx::query_as!(
-            Self,
-            r#"
-                SELECT
-                    id,
-                    in_progress,
-                    start_date,
-                    end_date,
-                    outside_temp_avg,
-                    speed_max,
-                    power_max,
-                    power_min,
-                    start_ideal_range_km,
-                    end_ideal_range_km,
-                    start_km,
-                    end_km,
-                    distance,
-                    duration_min,
-                    car_id,
-                    inside_temp_avg,
-                    start_address_id,
-                    end_address_id,
-                    start_rated_range_km,
-                    end_rated_range_km,
-                    start_position_id,
-                    end_position_id,
-                    start_geofence_id,
-                    end_geofence_id
-                FROM drives
-                ORDER BY id ASC
-            "#
-        )
-        .fetch_all(pool)
-        .await
-    }
-
     async fn db_insert(&self, pool: &PgPool) -> sqlx::Result<i64> {
         let id = sqlx::query!(
             r#"
@@ -309,6 +234,81 @@ impl DBTable for Drive {
         .execute(pool)
         .await?;
         Ok(())
+    }
+
+    async fn db_get_last(pool: &PgPool) -> sqlx::Result<Self> {
+        let cp = sqlx::query_as!(
+            Self,
+            r#"
+                SELECT
+                    id,
+                    start_date,
+                    end_date,
+                    outside_temp_avg,
+                    speed_max,
+                    power_max,
+                    power_min,
+                    start_ideal_range_km,
+                    end_ideal_range_km,
+                    start_km,
+                    end_km,
+                    distance,
+                    duration_min,
+                    car_id,
+                    inside_temp_avg,
+                    start_address_id,
+                    end_address_id,
+                    start_rated_range_km,
+                    end_rated_range_km,
+                    start_position_id,
+                    end_position_id,
+                    start_geofence_id,
+                    end_geofence_id,
+                    in_progress
+                FROM drives
+                ORDER BY start_date DESC LIMIT 1
+            "#
+        )
+        .fetch_one(pool)
+        .await?;
+        Ok(cp)
+    }
+
+    async fn db_get_all(pool: &PgPool) -> sqlx::Result<Vec<Self>> {
+        sqlx::query_as!(
+            Self,
+            r#"
+                SELECT
+                    id,
+                    in_progress,
+                    start_date,
+                    end_date,
+                    outside_temp_avg,
+                    speed_max,
+                    power_max,
+                    power_min,
+                    start_ideal_range_km,
+                    end_ideal_range_km,
+                    start_km,
+                    end_km,
+                    distance,
+                    duration_min,
+                    car_id,
+                    inside_temp_avg,
+                    start_address_id,
+                    end_address_id,
+                    start_rated_range_km,
+                    end_rated_range_km,
+                    start_position_id,
+                    end_position_id,
+                    start_geofence_id,
+                    end_geofence_id
+                FROM drives
+                ORDER BY id ASC
+            "#
+        )
+        .fetch_all(pool)
+        .await
     }
 
     // async fn db_update_last(&self, pool: &PgPool) -> sqlx::Result<()> {

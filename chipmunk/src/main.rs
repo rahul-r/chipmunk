@@ -3,7 +3,7 @@
 #![feature(stmt_expr_attributes)]
 #![feature(async_fn_in_trait)]
 
-use std::{thread, time};
+use std::time;
 
 use backend::{get_default_wsmsg, server::TeslaServer};
 use chipmunk::{
@@ -80,7 +80,7 @@ async fn main() -> anyhow::Result<()> {
                         .broadcast(get_default_wsmsg(counter))
                         .await;
                     counter += 1;
-                    thread::sleep(time::Duration::from_secs(1));
+                    tokio::time::sleep(time::Duration::from_secs(1)).await;
                 }
             }
             "log" => logger::log(&pool, &env).await?,

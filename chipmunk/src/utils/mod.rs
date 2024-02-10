@@ -31,10 +31,10 @@ pub fn time_diff_minutes_i16(
 }
 
 pub fn time_diff(start: Option<NaiveDateTime>, end: Option<NaiveDateTime>) -> Option<Duration> {
-    start.zip(end).map(|(st, en)| (en - st))
+    start.zip(end).map(|(st, en)| en - st)
 }
 
-pub fn max_option<T: std::cmp::PartialOrd>(a: Option<T>, b: Option<T>) -> Option<T> {
+pub fn max_option<T: PartialOrd>(a: Option<T>, b: Option<T>) -> Option<T> {
     if let Some(a) = a {
         if let Some(b) = b {
             Some(if a > b { a } else { b })
@@ -46,7 +46,7 @@ pub fn max_option<T: std::cmp::PartialOrd>(a: Option<T>, b: Option<T>) -> Option
     }
 }
 
-pub fn min_option<T: std::cmp::PartialOrd>(a: Option<T>, b: Option<T>) -> Option<T> {
+pub fn min_option<T: PartialOrd>(a: Option<T>, b: Option<T>) -> Option<T> {
     if let Some(a) = a {
         if let Some(b) = b {
             Some(if a < b { a } else { b })

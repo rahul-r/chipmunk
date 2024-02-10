@@ -22,7 +22,7 @@ pub async fn initialize(url: &str) -> anyhow::Result<PgPool> {
     Ok(pool)
 }
 
-pub async fn initilize_car_data(url: &str) -> anyhow::Result<PgPool> {
+pub async fn initialize_car_data(url: &str) -> anyhow::Result<PgPool> {
     let pool = PgPool::connect(url).await?;
 
     Ok(pool)

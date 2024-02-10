@@ -63,7 +63,7 @@ impl TeslaResponseCode {
         Ok(code)
     }
 
-    /// Converts a u16 to a status code.
+    /// Converts an u16 to a status code.
     ///
     /// The function validates the correctness of the supplied u16. It must be
     /// greater or equal to 100 and less than 1000.

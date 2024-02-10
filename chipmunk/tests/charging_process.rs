@@ -67,7 +67,7 @@ async fn test_hidden_charging_detection() {
 
     assert_eq!(State::db_num_rows(&pool).await.unwrap(), 1);
     let state = State::db_get_last(&pool).await.unwrap();
-    assert_eq!(state.state, StateStatus::Driving);
+    assert_eq!(state.state, Driving);
 
     // Update the driving data point
     let ts_before_delayed_data = chrono::Utc::now().naive_utc();
@@ -85,13 +85,13 @@ async fn test_hidden_charging_detection() {
 
     assert_eq!(State::db_num_rows(&pool).await.unwrap(), 1);
     let state = State::db_get_last(&pool).await.unwrap();
-    assert_eq!(state.state, StateStatus::Driving);
+    assert_eq!(state.state, Driving);
     let num_positions = Position::db_num_rows(&pool).await.unwrap();
 
     // Simulate charging without any recorded data point
     // 1. Create a driving data point after more than delayed data point threshold with the same odometer value
     // 2. Have battery level more than what it was in the previous data point. This will trigger a charging process
-    // After this, a new charging process should be created and we should be in driving state (ends
+    // After this, a new charging process should be created, and we should be in driving state (ends
     // current drive, create and finalize a charging state, and start a new drive)
     let ts_after_delayed_data = ts_before_delayed_data + chrono::Duration::seconds(DELAYED_DATAPOINT_TIME_SEC + 1);
     let mut vehicle_data = test_data::data_with_shift(ts_after_delayed_data, Some(D));
@@ -176,7 +176,7 @@ async fn test_charging_process() {
     settings.logging_period_ms = 1;
     settings.db_insert(&pool).await.unwrap();
 
-    // Setup a pointer to send vehicle data to the mock server
+    // Set up a pointer to send vehicle data to the mock server
     let charging_start_time = chrono::Utc::now().naive_utc();
     let data = test_data::data_charging(charging_start_time, 25);
     let charge_state = data.charge_state.clone();

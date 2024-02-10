@@ -197,7 +197,7 @@ pub fn create_drive_from_positions(positions: &[Position]) -> Option<Drive> {
         speed_max: positions.iter().filter_map(|p| p.speed).map(|v| v as i32).max().map(|speed| speed as f32),
         power_max: positions.iter().filter_map(|p| p.power).map(|v| v as i32).max().map(|power| power as f32),
         power_min: positions.iter().filter_map(|p| p.power).map(|v| v as i32).min().map(|power| power as f32),
-        start_ideal_range_km: positions.iter().filter_map(|p| p.ideal_battery_range_km).next(), // Take the first non None value
+        start_ideal_range_km: positions.iter().find_map(|p| p.ideal_battery_range_km), // Take the first non None value
         end_ideal_range_km: positions.iter().filter_map(|p| p.ideal_battery_range_km).last(), // Take the last non None value
         start_km: start_position.odometer,
         end_km: end_position.odometer,
@@ -207,7 +207,7 @@ pub fn create_drive_from_positions(positions: &[Position]) -> Option<Drive> {
         inside_temp_avg: Some(filtered_inside_temp.iter().sum::<f32>() / filtered_inside_temp.len() as f32),
         start_address_id: None,
         end_address_id: None,
-        start_rated_range_km: positions.iter().filter_map(|p| p.rated_battery_range_km).next(), // Take the first non None value
+        start_rated_range_km: positions.iter().find_map(|p| p.rated_battery_range_km), // Take the first non None value
         end_rated_range_km: positions.iter().filter_map(|p| p.rated_battery_range_km).last(), // Take the last non None value
         start_position_id: start_position.id,
         end_position_id: end_position.id,

@@ -153,42 +153,6 @@ impl DBTable for State {
         "states"
     }
 
-    async fn db_get_last(pool: &PgPool) -> sqlx::Result<Self> {
-        sqlx::query_as!(
-            Self,
-            r#"
-                SELECT
-                    id,
-                    state AS "state!: StateStatus",
-                    start_date,
-                    end_date,
-                    car_id
-                FROM states
-                ORDER BY start_date DESC LIMIT 1
-            "#
-        )
-        .fetch_one(pool)
-        .await
-    }
-
-    async fn db_get_all(pool: &PgPool) -> sqlx::Result<Vec<Self>> {
-        sqlx::query_as!(
-            Self,
-            r#"
-                SELECT
-                    id,
-                    state AS "state!: StateStatus",
-                    start_date,
-                    end_date,
-                    car_id
-                FROM states
-                ORDER BY id ASC
-            "#
-        )
-        .fetch_all(pool)
-        .await
-    }
-
     async fn db_insert(&self, pool: &PgPool) -> sqlx::Result<i64> {
         let id = sqlx::query!(
             r#"
@@ -223,6 +187,42 @@ impl DBTable for State {
         .await?;
 
         Ok(())
+    }
+
+    async fn db_get_last(pool: &PgPool) -> sqlx::Result<Self> {
+        sqlx::query_as!(
+            Self,
+            r#"
+                SELECT
+                    id,
+                    state AS "state!: StateStatus",
+                    start_date,
+                    end_date,
+                    car_id
+                FROM states
+                ORDER BY start_date DESC LIMIT 1
+            "#
+        )
+        .fetch_one(pool)
+        .await
+    }
+
+    async fn db_get_all(pool: &PgPool) -> sqlx::Result<Vec<Self>> {
+        sqlx::query_as!(
+            Self,
+            r#"
+                SELECT
+                    id,
+                    state AS "state!: StateStatus",
+                    start_date,
+                    end_date,
+                    car_id
+                FROM states
+                ORDER BY id ASC
+            "#
+        )
+        .fetch_all(pool)
+        .await
     }
 }
 

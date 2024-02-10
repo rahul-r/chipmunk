@@ -92,17 +92,6 @@ impl DBTable for VehicleData {
         "car_data"
     }
 
-    async fn db_get_last(pool: &PgPool) -> sqlx::Result<VehicleData> {
-        // TODO: filter car_data by car_id
-        sqlx::query_as!(
-            VehicleDataRow,
-            r#"SELECT data as "data!:sqlx::types::Json<VehicleData>" FROM car_data ORDER BY timestamp DESC LIMIT 1"#,
-        )
-        .fetch_one(pool)
-        .await
-        .map(|d| d.get_data())
-    }
-
     async fn db_insert(&self, pool: &PgPool) -> sqlx::Result<i64> {
         let Some(timestamp) = self.timestamp_epoch() else {
             return Err(sqlx::Error::Protocol("No timestamp found in vehicle data".into()));
@@ -123,6 +112,17 @@ impl DBTable for VehicleData {
 
         Ok(0i64) // TODO: return the row ID
     }
+
+    async fn db_get_last(pool: &PgPool) -> sqlx::Result<VehicleData> {
+        // TODO: filter car_data by car_id
+        sqlx::query_as!(
+            VehicleDataRow,
+            r#"SELECT data as "data!:sqlx::types::Json<VehicleData>" FROM car_data ORDER BY timestamp DESC LIMIT 1"#,
+        )
+        .fetch_one(pool)
+        .await
+        .map(|d| d.get_data())
+    }
 }
 
 #[tokio::test]
@@ -132,7 +132,7 @@ async fn test_vehicle_data_insertion() {
         .expect("Cannot get test database URL from environment variable, Please set env `TEST_DATABASE_URL`");
     let pool = crate::database::initialize(url)
         .await
-        .expect("Error initializing databse");
+        .expect("Error initializing database");
 
     let vehicle_state = tesla_api::vehicle_data::VehicleState {
         timestamp: Some(78645),

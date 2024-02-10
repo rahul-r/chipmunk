@@ -35,7 +35,7 @@ use crate::{
 };
 
 pub async fn log(pool: &sqlx::PgPool, env: &EnvVars) -> anyhow::Result<()> {
-    let (server_tx, mut server_rx) = tokio::sync::mpsc::unbounded_channel();
+    let (server_tx, mut server_rx) = unbounded_channel();
     let ui_server = TeslaServer::start(env.http_port, server_tx);
 
     let (logger_tx, logger_rx) = tokio::sync::mpsc::unbounded_channel();
@@ -188,7 +188,7 @@ async fn get_vehicle_data_task(
                     TeslaError::JsonDecodeError(e) => log::error!("Error: `{e}`"),
                     TeslaError::RequestTimeout => {
                         log::info!("Timeout");
-                        // Wait for for a bit before trying again
+                        // Wait for a bit before trying again
                         sleep(Duration::from_secs(2)).await;
                         continue;
                     }
@@ -671,7 +671,7 @@ async fn check_hidden_process(
     }
 
     // Since the vehicle has not moved, previous and current positions will give the same address
-    // Using current position so we don't need to deal with Option<>
+    // Using current position, so we don't need to deal with Option<>
     let address = Address::from_opt(curr_position.latitude, curr_position.longitude)
         .await
         .map_err(|e| log::error!("Error getting address: {e}"))

@@ -86,7 +86,7 @@ impl Tables {
         }
     }
 
-    pub async fn db_insert(&self, pool: &sqlx::PgPool) -> sqlx::Result<Self> {
+    pub async fn db_insert(&self, pool: &PgPool) -> sqlx::Result<Self> {
         let mut tables = self.clone();
 
         // Insert state table

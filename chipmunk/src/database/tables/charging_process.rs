@@ -125,39 +125,6 @@ impl DBTable for ChargingProcess {
         "charging_processes"
     }
 
-    async fn db_get_last(pool: &PgPool) -> sqlx::Result<Self> {
-        let cp = sqlx::query_as!(
-            Self,
-            r#"
-                SELECT
-                    id,
-                    start_date,
-                    end_date,
-                    charge_energy_added,
-                    start_ideal_range_km,
-                    end_ideal_range_km,
-                    start_battery_level,
-                    end_battery_level,
-                    duration_min,
-                    outside_temp_avg,
-                    car_id,
-                    position_id,
-                    address_id,
-                    start_rated_range_km,
-                    end_rated_range_km,
-                    geofence_id,
-                    charge_energy_used,
-                    cost,
-                    charging_status AS "charging_status!: ChargeStat"
-                FROM charging_processes
-                ORDER BY start_date DESC LIMIT 1
-            "#
-        )
-        .fetch_one(pool)
-        .await?;
-        Ok(cp)
-    }
-
     async fn db_insert(&self, pool: &PgPool) -> sqlx::Result<i64> {
         let id = sqlx::query!(
             r#"
@@ -256,5 +223,38 @@ impl DBTable for ChargingProcess {
         .execute(pool)
         .await?;
         Ok(())
+    }
+
+    async fn db_get_last(pool: &PgPool) -> sqlx::Result<Self> {
+        let cp = sqlx::query_as!(
+            Self,
+            r#"
+                SELECT
+                    id,
+                    start_date,
+                    end_date,
+                    charge_energy_added,
+                    start_ideal_range_km,
+                    end_ideal_range_km,
+                    start_battery_level,
+                    end_battery_level,
+                    duration_min,
+                    outside_temp_avg,
+                    car_id,
+                    position_id,
+                    address_id,
+                    start_rated_range_km,
+                    end_rated_range_km,
+                    geofence_id,
+                    charge_energy_used,
+                    cost,
+                    charging_status AS "charging_status!: ChargeStat"
+                FROM charging_processes
+                ORDER BY start_date DESC LIMIT 1
+            "#
+        )
+        .fetch_one(pool)
+        .await?;
+        Ok(cp)
     }
 }

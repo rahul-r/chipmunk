@@ -26,14 +26,11 @@ pub fn load_env_vars() -> anyhow::Result<EnvVars> {
 
     const DEFAULT_PORT: u16 = 3072;
     let http_port = match env::var("HTTP_PORT") {
-        Ok(port) => match port.parse() {
-            Ok(p) => p,
-            Err(e) => {
-                log::error!("Invalid HTTP_PORT `{port}`: {e}");
-                log::info!("Using default port {DEFAULT_PORT}");
-                DEFAULT_PORT
-            }
-        },
+        Ok(port) => port.parse().unwrap_or_else(|e| {
+            log::error!("Invalid HTTP_PORT `{port}`: {e}");
+            log::info!("Using default port {DEFAULT_PORT}");
+            DEFAULT_PORT
+        }),
         Err(e) => {
             log::warn!("Error reading HTTP_PORT from environment: {e}");
             log::info!("Using default port {DEFAULT_PORT}");

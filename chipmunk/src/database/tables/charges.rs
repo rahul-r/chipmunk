@@ -206,12 +206,6 @@ impl DBTable for Charges {
         Ok(id as i64)
     }
 
-    async fn db_get_all(pool: &PgPool) -> sqlx::Result<Vec<Self>> {
-        sqlx::query_as!(Self, r#"SELECT * FROM charges ORDER BY id ASC"#)
-            .fetch_all(pool)
-            .await
-    }
-
     async fn db_get_last(pool: &PgPool) -> sqlx::Result<Self> {
         sqlx::query_as!(Self, r#"SELECT * FROM charges ORDER BY id DESC LIMIT 1"#)
         .fetch_one(pool)
@@ -220,5 +214,11 @@ impl DBTable for Charges {
             log::error!("Error getting last row from table `{}`: {}", Self::table_name(), e);
             e
         })
+    }
+
+    async fn db_get_all(pool: &PgPool) -> sqlx::Result<Vec<Self>> {
+        sqlx::query_as!(Self, r#"SELECT * FROM charges ORDER BY id ASC"#)
+            .fetch_all(pool)
+            .await
     }
 }

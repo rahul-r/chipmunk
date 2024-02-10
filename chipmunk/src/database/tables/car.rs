@@ -166,13 +166,6 @@ impl DBTable for Car {
         Ok(id as i64)
     }
 
-    /// Get the list of cars from the database.
-    async fn db_get_all(pool: &PgPool) -> sqlx::Result<Vec<Self>> {
-        sqlx::query_as!(Self, r#"SELECT * FROM cars ORDER BY id ASC"#)
-            .fetch_all(pool)
-            .await
-    }
-
     async fn db_get_last(pool: &PgPool) -> sqlx::Result<Self> {
         sqlx::query_as!(Self, r#"SELECT * FROM cars ORDER BY id DESC LIMIT 1"#)
             .fetch_one(pool)
@@ -185,6 +178,13 @@ impl DBTable for Car {
                 );
                 e
             })
+    }
+
+    /// Get the list of cars from the database.
+    async fn db_get_all(pool: &PgPool) -> sqlx::Result<Vec<Self>> {
+        sqlx::query_as!(Self, r#"SELECT * FROM cars ORDER BY id ASC"#)
+            .fetch_all(pool)
+            .await
     }
 }
 
@@ -219,7 +219,7 @@ pub async fn db_get_or_insert_car(
     }
 
     if car_id == -1 {
-        // Car not found in the databse, insert it
+        // Car not found in the database, insert it
         let car_settings_id = CarSettings::default().db_insert(pool).await?;
         let car = Car::from(vehicle_data, car_settings_id)?;
         car_id = car.db_insert(pool).await? as i16;
@@ -233,7 +233,7 @@ pub async fn db_get_or_insert_car(
 /// Get a map of VINs to car IDs from the database
 // Read the list of cars from the database, we will check which car the vehicle_data response from the API belongs to
 // It is more efficient to store the list of cars in memory and check against it instead of querying the database for each vehicle_data response
-pub async fn get_vin_id_map(pool: &sqlx::PgPool) -> HashMap<String, i16> {
+pub async fn get_vin_id_map(pool: &PgPool) -> HashMap<String, i16> {
     #[rustfmt::skip]
     let vin_id_map = if let Ok(cars) = Car::db_get_all(pool).await {
         cars
@@ -251,7 +251,7 @@ pub async fn get_vin_id_map(pool: &sqlx::PgPool) -> HashMap<String, i16> {
 
 /// Check if the vehicle_data response belongs to a car in the database, if not, insert a new entry and update `vin_id_map`
 pub async fn get_car_id_from_vin(
-    pool: &sqlx::PgPool,
+    pool: &PgPool,
     data: &VehicleData,
     vin_id_map: HashMap<String, i16>,
     vin: &String,
