@@ -38,7 +38,7 @@ pub async fn log(pool: &sqlx::PgPool, env: &EnvVars) -> anyhow::Result<()> {
     let (server_tx, mut server_rx) = unbounded_channel();
     let ui_server = TeslaServer::start(env.http_port, server_tx);
 
-    let (logger_tx, logger_rx) = tokio::sync::mpsc::unbounded_channel();
+    let (logger_tx, logger_rx) = unbounded_channel();
 
     // Make copies so that we can move these into the future without causing borrow errors
     let encryption_key = env.encryption_key.clone();

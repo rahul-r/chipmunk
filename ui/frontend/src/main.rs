@@ -115,13 +115,10 @@ fn ws() -> Html {
         })
     };
 
-    let stylesheet = match Style::new(STYLE_SHEET) {
-        Ok(v) => v,
-        Err(e) => {
-            log::error!("{e}");
-            Style::new("").expect("Cannot load style")
-        }
-    };
+    let stylesheet = Style::new(STYLE_SHEET).unwrap_or_else(|e| {
+        log::error!("{e}");
+        Style::new("").expect("Cannot load style")
+    });
 
     let msg = (*ws_context).clone().msg;
     match msg.topic {

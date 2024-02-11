@@ -2,7 +2,7 @@ use std::sync::mpsc::Sender;
 
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
-use tungstenite::{connect, Message, WebSocket, stream::MaybeTlsStream};
+use tungstenite::{connect, stream::MaybeTlsStream, Message, WebSocket};
 use url::Url;
 
 use crate::{utils::timestamp_to_naivedatetime, TeslaError, STREAMING_URL};
@@ -176,7 +176,7 @@ pub fn start(
             }}"
         );
 
-            if let Err(e) = socket.write_message(Message::Text(subscrib_message_oauth)) {
+            if let Err(e) = socket.send(Message::Text(subscrib_message_oauth)) {
                 log::error!("{e}");
                 return Err(TeslaError::WebSocketError(e));
             }
@@ -188,7 +188,7 @@ pub fn start(
     init_streaming(&mut socket)?;
 
     loop {
-        let msg: WebSocketResponse = match socket.read_message() {
+        let msg: WebSocketResponse = match socket.read() {
             Ok(v) => {
                 if v.is_close() {
                     log::warn!("WebSocket is closing");
