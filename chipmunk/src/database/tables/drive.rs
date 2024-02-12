@@ -96,9 +96,9 @@ impl Drive {
         Self {
             inside_temp_avg: avg_option(self.inside_temp_avg, position.inside_temp),
             outside_temp_avg: avg_option(self.outside_temp_avg, position.outside_temp),
-            speed_max: max_option(self.speed_max, position.speed),
-            power_min: min_option(self.power_min, position.power),
-            power_max: max_option(self.power_max, position.power),
+            speed_max: max_option(self.speed_max, position.speed).map(|v| v.floor()), // the .floor() is to make the values compatible with teslamate
+            power_min: min_option(self.power_min, position.power).map(|v| v.floor()), // the .floor() is to make the values compatible with teslamate
+            power_max: max_option(self.power_max, position.power).map(|v| v.floor()), // the .floor() is to make the values compatible with teslamate
             end_ideal_range_km: position.ideal_battery_range_km,
             end_km: position.odometer,
             distance: sub_option(position.odometer, self.start_km),

@@ -217,7 +217,7 @@ async fn test_driving_and_parking() {
     assert_eq!(drive1.end_date, Some(ts_no_nanos(drive1_end_time)));
     assert_eq!(drive1.start_address_id, Some(drive1_start_address.id as i32));
     assert_eq!(drive1.end_address_id, Some(drive2_start_address.id as i32));
-    assert_eq!(drive1.in_progress, false);
+    assert!(!drive1.in_progress);
     assert_eq!(drive1.end_km, last_driving_position.odometer);
     approx_eq!(drive1.distance, miles_to_km(&Some(odometer_mi - starting_odometer_mi)));
     assert_eq!(drive1.start_position_id, Some(1));
@@ -230,7 +230,7 @@ async fn test_driving_and_parking() {
     assert_eq!(drive2.end_date, None);
     assert_eq!(drive2.start_address_id, Some(drive2_start_address.id as i32));
     assert_eq!(drive2.end_address_id, None);
-    assert_eq!(drive2.in_progress, true);
+    assert!(drive2.in_progress);
     assert_eq!(drive2.end_km, last_driving_position.odometer);
     approx_eq!(drive2.distance, miles_to_km(&Some(odometer_mi - starting_odometer_mi)));
     assert_eq!(drive2.start_position_id, Some(drive1_num_positions as i32 + 1));

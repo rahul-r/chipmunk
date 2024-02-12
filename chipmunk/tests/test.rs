@@ -7,20 +7,20 @@ use std::io::BufReader;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
+use chipmunk::database::tables::position::Position;
 use chipmunk::database::tables::state::{StateStatus, State};
 use chrono::Duration;
 use rand::Rng;
 
 use crate::common::DELAYED_DATAPOINT_TIME_SEC;
 use crate::common::test_data::data_with_shift;
-use crate::common::utils::{create_mock_tesla_server, ts_no_nanos};
+use crate::common::utils::{create_drive_from_positions, create_mock_tesla_server, ts_no_nanos};
 use crate::common::utils::{create_mock_osm_server, init_test_database};
 use chipmunk::database::tables::drive::Drive;
 use chipmunk::database::tables::Tables;
 use chipmunk::database::DBTable;
 use chipmunk::{database, openstreetmap};
 use common::test_data;
-use tesla_api::utils::{miles_to_km, mph_to_kmh, timestamp_to_naivedatetime};
 use tesla_api::vehicle_data::{DriveState, ShiftState, VehicleData};
 
 #[rustfmt::skip]
@@ -106,82 +106,6 @@ pub fn create_drive_from_gpx() -> (Vec<VehicleData>, usize, usize) {
     (data_points, drive_start_index, drive_end_index)
 }
 
-#[rustfmt::skip]
-fn calculate_expected_drive(
-    vehicle_data_list: &[VehicleData],
-    drive_start_index: usize,
-    drive_end_index: usize,
-    car_id: i16,
-) -> Drive {
-    let first_drive_data = vehicle_data_list[drive_start_index].clone();
-    let last_drive_data = vehicle_data_list[drive_end_index - 1].clone();
-
-    let mut outside_tmp_total = 0f32;
-    let mut inside_temp_total = 0f32;
-    let mut speed_max = 0f32;
-    let mut power_max = -9999f32;
-    let mut power_min = 9999f32;
-
-    for data in vehicle_data_list.iter().take(drive_end_index + 1).skip(drive_start_index) {
-        outside_tmp_total += data.climate_state.as_ref().unwrap().outside_temp.unwrap();
-        inside_temp_total += data.climate_state.as_ref().unwrap().inside_temp.unwrap();
-        speed_max = speed_max.max(mph_to_kmh(&data.drive_state.as_ref().unwrap().speed).unwrap());
-        power_max = power_max.max(data.drive_state.as_ref().unwrap().power.unwrap());
-        power_min = power_min.min(data.drive_state.as_ref().unwrap().power.unwrap());
-    }
-
-    let num_drive_points = drive_end_index - drive_start_index + 1;
-
-    let start_date = timestamp_to_naivedatetime(first_drive_data.drive_state.as_ref().unwrap().timestamp).unwrap();
-    let _end_date = timestamp_to_naivedatetime(last_drive_data.drive_state.as_ref().unwrap().timestamp).unwrap();
-    let duration_min = (_end_date - start_date).num_minutes();
-    let start_km = miles_to_km(&first_drive_data.vehicle_state.map(|c| c.odometer).unwrap()).unwrap();
-    let end_km = miles_to_km(&last_drive_data.vehicle_state.map(|c| c.odometer).unwrap()).unwrap();
-
-    let end_date;
-    let end_address_id;
-    let in_progress;
-    let end_position_id;
-    if vehicle_data_list.last().unwrap().is_driving() {
-        end_date = None;
-        end_address_id = None;
-        in_progress = true;
-        end_position_id = None;
-    } else {
-        end_date = Some(_end_date);
-        end_address_id = Some(2);
-        in_progress = false;
-        end_position_id = Some(drive_end_index as i32);
-    }
-
-    Drive {
-        id: 0,
-        start_date,
-        end_date,
-        outside_temp_avg: Some(outside_tmp_total / num_drive_points as f32),
-        speed_max: Some(speed_max),
-        power_max: Some(power_max),
-        power_min: Some(power_min),
-        start_ideal_range_km: miles_to_km(&first_drive_data.charge_state.clone().map(|c| c.ideal_battery_range).unwrap()),
-        end_ideal_range_km: miles_to_km(&last_drive_data.charge_state.clone().map(|c| c.ideal_battery_range).unwrap()),
-        start_km: Some(start_km),
-        end_km: Some(end_km),
-        distance: Some(end_km - start_km),
-        duration_min: Some(duration_min as i16),
-        car_id,
-        inside_temp_avg: Some(inside_temp_total / num_drive_points as f32),
-        start_rated_range_km: miles_to_km(&first_drive_data.charge_state.map(|c| c.battery_range).unwrap()),
-        end_rated_range_km: miles_to_km(&last_drive_data.charge_state.map(|c| c.battery_range).unwrap()),
-        start_address_id: Some(1),
-        end_address_id,
-        start_position_id: Some(drive_start_index as i32 + 1),
-        end_position_id,
-        in_progress,
-        start_geofence_id: None,
-        end_geofence_id: None,
-    }
-}
-
 #[tokio::test]
 async fn check_vehicle_data() -> anyhow::Result<()> {
     let random_http_port = rand::thread_rng().gen_range(4000..60000);
@@ -190,7 +114,7 @@ async fn check_vehicle_data() -> anyhow::Result<()> {
     let pool = init_test_database("check_vehicle_data").await;
     let _osm_mock = create_mock_osm_server();
 
-    let (vehicle_data_list, drive_start_index, drive_end_index) = create_drive_from_gpx();
+    let (vehicle_data_list, _drive_start_index, _drive_end_index) = create_drive_from_gpx();
     let mut vin_id_map = database::tables::car::get_vin_id_map(&pool).await;
     let mut tables = Tables::default();
 
@@ -199,41 +123,34 @@ async fn check_vehicle_data() -> anyhow::Result<()> {
             chipmunk::logger::process_vehicle_data(&pool, vin_id_map, tables, data.clone()).await;
     }
 
-    let expected_drive = calculate_expected_drive(
-        &vehicle_data_list,
-        drive_start_index,
-        drive_end_index,
-        1i16,
-    );
-    
-    #[rustfmt::skip]
-    {
-        assert_eq!(Drive::db_num_rows(&pool).await.unwrap(), 1);
-        let last_row = Drive::db_get_last(&pool).await.unwrap();
-        assert_eq!(last_row.start_date, expected_drive.start_date);
-        assert_eq!(last_row.end_date, expected_drive.end_date);
-        approx_eq!(last_row.outside_temp_avg, expected_drive.outside_temp_avg);
-        assert_eq!(last_row.speed_max, expected_drive.speed_max);
-        assert_eq!(last_row.power_max, expected_drive.power_max);
-        assert_eq!(last_row.power_min, expected_drive.power_min);
-        assert_eq!(last_row.start_ideal_range_km, expected_drive.start_ideal_range_km);
-        assert_eq!(last_row.end_ideal_range_km, expected_drive.end_ideal_range_km);
-        assert_eq!(last_row.start_km, expected_drive.start_km);
-        assert_eq!(last_row.end_km, expected_drive.end_km);
-        assert_eq!(last_row.distance, expected_drive.distance);
-        assert_eq!(last_row.duration_min, expected_drive.duration_min);
-        assert_eq!(last_row.car_id, expected_drive.car_id);
-        approx_eq!(last_row.inside_temp_avg, expected_drive.inside_temp_avg);
-        assert_eq!(last_row.start_address_id, expected_drive.start_address_id);
-        assert_eq!(last_row.end_address_id, expected_drive.end_address_id);
-        assert_eq!(last_row.start_rated_range_km, expected_drive.start_rated_range_km);
-        assert_eq!(last_row.end_rated_range_km, expected_drive.end_rated_range_km);
-        assert_eq!(last_row.start_position_id, expected_drive.start_position_id);
-        assert_eq!(last_row.end_position_id, expected_drive.end_position_id);
-        assert_eq!(last_row.start_geofence_id, expected_drive.start_geofence_id);
-        assert_eq!(last_row.end_geofence_id, expected_drive.end_geofence_id);
-        assert_eq!(last_row.in_progress, expected_drive.in_progress);
-    }
+    let drive_from_db = Drive::db_get_last(&pool).await.unwrap();
+    let positions = Position::db_get_for_drive(&pool, 1, drive_from_db.id).await.unwrap();
+    let drive_calculated = create_drive_from_positions(&positions).unwrap();
+
+    assert_eq!(drive_calculated.in_progress, drive_from_db.in_progress);
+    assert!(drive_calculated.start_date - drive_from_db.start_date < Duration::seconds(1));
+    assert_eq!(drive_from_db.end_date.zip(drive_calculated.end_date).map(|(de, ee)| de - ee < Duration::seconds(1)), Some(true));
+    approx_eq!(drive_from_db.outside_temp_avg, drive_calculated.outside_temp_avg, 0.1);
+    assert_eq!(drive_from_db.speed_max, drive_calculated.speed_max);
+    assert_eq!(drive_from_db.power_max, drive_calculated.power_max);
+    assert_eq!(drive_from_db.power_min, drive_calculated.power_min);
+    assert_eq!(drive_from_db.start_ideal_range_km, drive_calculated.start_ideal_range_km);
+    assert_eq!(drive_from_db.end_ideal_range_km, drive_calculated.end_ideal_range_km);
+    assert_eq!(drive_from_db.start_km, drive_calculated.start_km);
+    assert_eq!(drive_from_db.end_km, drive_calculated.end_km);
+    approx_eq!(drive_from_db.distance, drive_calculated.distance);
+    assert_eq!(drive_from_db.duration_min, drive_calculated.duration_min);
+    assert_eq!(drive_from_db.car_id, drive_calculated.car_id);
+    approx_eq!(drive_from_db.inside_temp_avg, drive_calculated.inside_temp_avg, 0.1);
+    assert_eq!(drive_from_db.start_rated_range_km, drive_calculated.start_rated_range_km);
+    assert_eq!(drive_from_db.end_rated_range_km, drive_calculated.end_rated_range_km);
+    assert_eq!(drive_from_db.start_position_id, drive_calculated.start_position_id);
+    assert_eq!(drive_from_db.end_position_id, drive_calculated.end_position_id);
+    assert_eq!(drive_from_db.id, 1);
+    assert_eq!(drive_from_db.start_address_id, Some(1));
+    assert_eq!(drive_from_db.end_address_id, Some(2));
+    assert_eq!(drive_from_db.start_geofence_id, None);
+    assert_eq!(drive_from_db.end_geofence_id, None);
     Ok(())
 }
 

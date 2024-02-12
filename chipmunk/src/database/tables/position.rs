@@ -59,11 +59,19 @@ impl Position {
                 None => {
                     log::error!("Value of `drive_state.timestamp` is None, using current time instead");
                     Some(chrono::Utc::now().naive_utc())
-                },
+                }
                 time => time,
             },
-            latitude: drive_state.latitude.or(drive_state.latitude).or(drive_state.active_route_latitude).or(drive_state.native_latitude),
-            longitude: drive_state.longitude.or(drive_state.longitude).or(drive_state.active_route_longitude).or(drive_state.native_longitude),
+            latitude: drive_state
+                .latitude
+                .or(drive_state.latitude)
+                .or(drive_state.active_route_latitude)
+                .or(drive_state.native_latitude),
+            longitude: drive_state
+                .longitude
+                .or(drive_state.longitude)
+                .or(drive_state.active_route_longitude)
+                .or(drive_state.native_longitude),
             speed: mph_to_kmh(&drive_state.speed),
             power: drive_state.power,
             odometer: miles_to_km(&vehicle_state.odometer),
@@ -102,6 +110,52 @@ impl Position {
         .execute(pool)
         .await?;
         Ok(())
+    }
+
+    pub async fn db_get_for_drive(
+        pool: &sqlx::PgPool,
+        car_id: i16,
+        drive_id: i32,
+    ) -> sqlx::Result<Vec<Self>> {
+        sqlx::query_as!(Self, r#"
+                SELECT
+                    id,
+                    date,
+                    latitude,
+                    longitude,
+                    speed,
+                    power,
+                    odometer,
+                    ideal_battery_range_km,
+                    battery_level,
+                    outside_temp,
+                    elevation,
+                    fan_status,
+                    driver_temp_setting,
+                    passenger_temp_setting,
+                    is_climate_on,
+                    is_rear_defroster_on,
+                    is_front_defroster_on,
+                    car_id,
+                    drive_id,
+                    inside_temp,
+                    battery_heater,
+                    battery_heater_on,
+                    battery_heater_no_power,
+                    est_battery_range_km,
+                    rated_battery_range_km,
+                    usable_battery_level,
+                    tpms_pressure_fl,
+                    tpms_pressure_fr,
+                    tpms_pressure_rl,
+                    tpms_pressure_rr
+                FROM positions WHERE drive_id = $1 AND car_id = $2
+                ORDER BY date ASC"#,
+            drive_id,
+            car_id
+        )
+        .fetch_all(pool)
+        .await
     }
 }
 
@@ -195,12 +249,12 @@ impl DBTable for Position {
 
     async fn db_get_last(pool: &PgPool) -> sqlx::Result<Self> {
         sqlx::query_as!(Self, r#"SELECT * FROM positions ORDER BY id DESC LIMIT 1"#)
-        .fetch_one(pool)
-        .await
-        .map_err(|e| {
-            log::error!("Error getting last row from table `{}`: {}", Self::table_name(), e);
-            e
-        })
+            .fetch_one(pool)
+            .await
+            .map_err(|e| {
+                log::error!("Error getting last row from table `{}`: {}", Self::table_name(), e);
+                e
+            })
     }
 }
 

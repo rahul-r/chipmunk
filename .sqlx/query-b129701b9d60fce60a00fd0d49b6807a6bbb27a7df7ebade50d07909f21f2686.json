@@ -1,0 +1,197 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                SELECT\n                    id,\n                    date,\n                    latitude,\n                    longitude,\n                    speed,\n                    power,\n                    odometer,\n                    ideal_battery_range_km,\n                    battery_level,\n                    outside_temp,\n                    elevation,\n                    fan_status,\n                    driver_temp_setting,\n                    passenger_temp_setting,\n                    is_climate_on,\n                    is_rear_defroster_on,\n                    is_front_defroster_on,\n                    car_id,\n                    drive_id,\n                    inside_temp,\n                    battery_heater,\n                    battery_heater_on,\n                    battery_heater_no_power,\n                    est_battery_range_km,\n                    rated_battery_range_km,\n                    usable_battery_level,\n                    tpms_pressure_fl,\n                    tpms_pressure_fr,\n                    tpms_pressure_rl,\n                    tpms_pressure_rr\n                FROM positions WHERE drive_id = $1 AND car_id = $2\n                ORDER BY date ASC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "date",
+        "type_info": "Timestamp"
+      },
+      {
+        "ordinal": 2,
+        "name": "latitude",
+        "type_info": "Float4"
+      },
+      {
+        "ordinal": 3,
+        "name": "longitude",
+        "type_info": "Float4"
+      },
+      {
+        "ordinal": 4,
+        "name": "speed",
+        "type_info": "Float4"
+      },
+      {
+        "ordinal": 5,
+        "name": "power",
+        "type_info": "Float4"
+      },
+      {
+        "ordinal": 6,
+        "name": "odometer",
+        "type_info": "Float4"
+      },
+      {
+        "ordinal": 7,
+        "name": "ideal_battery_range_km",
+        "type_info": "Float4"
+      },
+      {
+        "ordinal": 8,
+        "name": "battery_level",
+        "type_info": "Int2"
+      },
+      {
+        "ordinal": 9,
+        "name": "outside_temp",
+        "type_info": "Float4"
+      },
+      {
+        "ordinal": 10,
+        "name": "elevation",
+        "type_info": "Float4"
+      },
+      {
+        "ordinal": 11,
+        "name": "fan_status",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 12,
+        "name": "driver_temp_setting",
+        "type_info": "Float4"
+      },
+      {
+        "ordinal": 13,
+        "name": "passenger_temp_setting",
+        "type_info": "Float4"
+      },
+      {
+        "ordinal": 14,
+        "name": "is_climate_on",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 15,
+        "name": "is_rear_defroster_on",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 16,
+        "name": "is_front_defroster_on",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 17,
+        "name": "car_id",
+        "type_info": "Int2"
+      },
+      {
+        "ordinal": 18,
+        "name": "drive_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 19,
+        "name": "inside_temp",
+        "type_info": "Float4"
+      },
+      {
+        "ordinal": 20,
+        "name": "battery_heater",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 21,
+        "name": "battery_heater_on",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 22,
+        "name": "battery_heater_no_power",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 23,
+        "name": "est_battery_range_km",
+        "type_info": "Float4"
+      },
+      {
+        "ordinal": 24,
+        "name": "rated_battery_range_km",
+        "type_info": "Float4"
+      },
+      {
+        "ordinal": 25,
+        "name": "usable_battery_level",
+        "type_info": "Int2"
+      },
+      {
+        "ordinal": 26,
+        "name": "tpms_pressure_fl",
+        "type_info": "Float4"
+      },
+      {
+        "ordinal": 27,
+        "name": "tpms_pressure_fr",
+        "type_info": "Float4"
+      },
+      {
+        "ordinal": 28,
+        "name": "tpms_pressure_rl",
+        "type_info": "Float4"
+      },
+      {
+        "ordinal": 29,
+        "name": "tpms_pressure_rr",
+        "type_info": "Float4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int2"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "b129701b9d60fce60a00fd0d49b6807a6bbb27a7df7ebade50d07909f21f2686"
+}

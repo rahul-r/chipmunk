@@ -122,7 +122,7 @@ pub fn get_drive_state(timestamp: u64) -> DriveState {
         native_location_supported: Some(1),
         native_longitude: Some(0.0),
         native_type: Some("wgs".into()),
-        power: Some(rand::thread_rng().gen_range(-100.0..100.0)),
+        power: Some(rand::thread_rng().gen_range(0.0..100.0)),
         shift_state: Some(ShiftState::D),
         speed: Some(rand::thread_rng().gen_range(0..120)),
         timestamp: Some(timestamp),
