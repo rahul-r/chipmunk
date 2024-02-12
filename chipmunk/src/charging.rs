@@ -2,6 +2,7 @@ use chrono::{Duration, NaiveDateTime};
 
 use crate::database::tables::charges::Charges;
 
+// FIXME: This function produces a different result than Teslamate. Need to figure out why.
 pub fn calculate_energy_used(charges: &[Charges]) -> Option<f32> {
     let phases = determine_phases(charges);
     let mut total_energy_used = 0.0;
