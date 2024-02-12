@@ -6,6 +6,7 @@ use chipmunk::{database::{self, tables::{charges::Charges, charging_process::Cha
 use chrono::NaiveDateTime;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
+use chipmunk::charging::calculate_energy_used;
 use tesla_api::{auth::AuthResponse, Vehicles, vehicle_data::VehicleData};
 
 /// Asserts that two floats are approximately equal.
@@ -184,7 +185,7 @@ pub fn ts_no_nanos(ts: NaiveDateTime) -> NaiveDateTime {
 pub fn create_drive_from_positions(positions: &[Position]) -> Option<Drive> {
     let start_position = positions.first()?;
     let end_position = positions.last()?;
-    
+
     let filtered_outside_temp = positions.iter().filter_map(|p| p.outside_temp).collect::<Vec<_>>();
     let filtered_inside_temp = positions.iter().filter_map(|p| p.inside_temp).collect::<Vec<_>>();
 
@@ -223,7 +224,11 @@ pub fn create_charging_from_charges(charges: &[Charges]) -> Option<ChargingProce
         id: 0,
         start_date: start_charge.date.unwrap_or_default(),
         end_date: end_charge.date,
-        charge_energy_added: end_charge.charge_energy_added,
+        charge_energy_added: charges
+            .iter()
+            .filter(|c| c.charge_energy_added != Some(0.0))
+            .last()
+            .and_then(|c| c.charge_energy_added),
         start_ideal_range_km: start_charge.ideal_battery_range_km,
         end_ideal_range_km: end_charge.ideal_battery_range_km,
         start_battery_level: start_charge.battery_level,
@@ -232,7 +237,7 @@ pub fn create_charging_from_charges(charges: &[Charges]) -> Option<ChargingProce
         outside_temp_avg: Some(charges.iter().filter_map(|c| c.outside_temp).sum::<f32>() / charges.len() as f32),
         start_rated_range_km: start_charge.rated_battery_range_km,
         end_rated_range_km: end_charge.rated_battery_range_km,
-        charge_energy_used: None,
+        charge_energy_used: calculate_energy_used(charges),
         cost: None,
         car_id: 1,
         position_id: 0,

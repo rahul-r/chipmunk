@@ -1,34 +1,41 @@
-use chrono::NaiveDateTime;
+use chrono::{Duration, NaiveDateTime};
 
 use crate::database::tables::charges::Charges;
 
-pub fn calculate_energy_used(charges: &Vec<Charges>) -> Option<f32> {
+pub fn calculate_energy_used(charges: &[Charges]) -> Option<f32> {
     let phases = determine_phases(charges);
     let mut total_energy_used = 0.0;
     let mut previous_date: Option<NaiveDateTime> = None;
 
     for charge in charges {
-        let energy_used = match charge.charger_phases {
-            Some(_) => {
-                (charge.charger_actual_current.unwrap_or(0) * charge.charger_voltage.unwrap_or(0))
-                    as f32
-                    * phases.unwrap_or(0f32)
-                    / 1000.0
-            }
-            None => charge.charger_power.unwrap_or(0) as f32,
+        let energy_used = if charge.charger_phases.is_some() {
+            charge
+                .charger_actual_current
+                .zip(charge.charger_voltage)
+                .zip(phases)
+                .map(|((current, voltage), phases)| (current * voltage) as f32 * phases / 1000.0)
+                .unwrap_or(0.0)
+        } else {
+            charge.charger_power.unwrap_or(0) as f32
         };
-        println!("energy_used = {:?}", charge.charger_power);
 
-        let time_diff =
-            crate::utils::time_diff(charge.date, previous_date).unwrap_or(chrono::Duration::zero());
-        total_energy_used += energy_used * (time_diff.num_seconds() as f32) / 3600.0;
+        let time_diff = charge
+            .date
+            .zip(previous_date)
+            .map(|(c, p)| c - p)
+            .unwrap_or_else(|| {
+                log::warn!("Invalid charge timestamp");
+                Duration::seconds(0)
+            })
+            .num_seconds();
+        total_energy_used += energy_used * (time_diff as f32) / 3600.0;
         previous_date = charge.date;
     }
 
     Some(total_energy_used)
 }
 
-fn determine_phases(charges: &Vec<Charges>) -> Option<f32> {
+fn determine_phases(charges: &[Charges]) -> Option<f32> {
     let mut total_power: f32 = 0.0;
     let mut total_phases: i32 = 0;
     let mut total_voltage: i32 = 0;

@@ -92,6 +92,7 @@ fn test_max_option() {
     assert_eq!(max_option(Some(3.2), Some(3.2)), Some(3.2));
     assert_eq!(max_option(Some(13.2), None), Some(13.2));
     assert_eq!(max_option(None, Some(3.42)), Some(3.42));
+    assert_eq!(max_option::<f32>(None, None), None);
 }
 
 #[test]
@@ -101,4 +102,5 @@ fn test_min_option() {
     assert_eq!(min_option(Some(3.2), Some(3.2)), Some(3.2));
     assert_eq!(min_option(Some(13.2), None), Some(13.2));
     assert_eq!(min_option(None, Some(3.42)), Some(3.42));
+    assert_eq!(min_option::<f32>(None, None), None);
 }

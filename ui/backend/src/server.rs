@@ -163,22 +163,20 @@ impl TeslaServer {
         Ok(())
     }
 
-    /**
-     * Clients send commands in the following format
-     * {
-     *  "id": "<some id to connect the commands and responses>",
-     *  "type": "command",
-     *  "command": "<command>",
-     *  "params": ["<param1>", "<param2>"]
-     * }
-     *
-     * The server will send responses in the following format
-     * {
-     *   "id": "<same id as the command>",
-     *   "type": "response",
-     *   "response": <response to the command>
-     * }
-     */
+    /// Clients send commands in the following format
+    /// {
+    ///  "id": "<some id to connect the commands and responses>",
+    ///  "type": "command",
+    ///  "command": "<command>",
+    ///  "params": ["<param1>", "<param2>"]
+    /// }
+    ///
+    /// The server will send responses in the following format
+    /// {
+    ///   "id": "<same id as the command>",
+    ///   "type": "response",
+    ///   "response": <response to the command>
+    /// }
     async fn handle_messages(
         client: &mpsc::UnboundedSender<Message>,
         msg: Message,
@@ -251,35 +249,33 @@ impl TeslaServer {
         Ok(())
     }
 
-    /**
-     * Handle start logging
-     * Command:
-     * {
-     *  "id": "<some id to connect the commands and responses>",
-     *  "type": "command",
-     *  "command": "start",
-     *  "params": []
-     * }
-     *
-     * Response on success:
-     * {
-     *   "id": "<same id as the command>",
-     *   "type": "response",
-     *   "response": {
-     *     "status": true
-     *   }
-     * }
-     *
-     * Response on failure:
-     * {
-     *   "id": "<same id as the command>",
-     *   "type": "response",
-     *   "response": {
-     *     "status": false,
-     *     "message": "error message or reason for failure"
-     *   }
-     * }
-     */
+    /// Handle start logging
+    /// Command:
+    /// {
+    ///  "id": "<some id to connect the commands and responses>",
+    ///  "type": "command",
+    ///  "command": "start",
+    ///  "params": []
+    /// }
+    ///
+    /// Response on success:
+    /// {
+    ///   "id": "<same id as the command>",
+    ///   "type": "response",
+    ///   "response": {
+    ///     "status": true
+    ///   }
+    /// }
+    ///
+    /// Response on failure:
+    /// {
+    ///   "id": "<same id as the command>",
+    ///   "type": "response",
+    ///   "response": {
+    ///     "status": false,
+    ///     "message": "error message or reason for failure"
+    ///   }
+    /// }
     fn _handle_start(
         client: &mpsc::UnboundedSender<Message>,
         cmd: WsMessage,
