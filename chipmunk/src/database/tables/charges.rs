@@ -71,13 +71,13 @@ impl Charges {
     }
 
     /// Get the list of charges associated with a charging process
-    pub async fn for_charging_process(
+    pub async fn db_get_for_charging_process(
         pool: &PgPool,
         charging_process_id: i32,
     ) -> sqlx::Result<Vec<Self>> {
         sqlx::query_as!(
             Charges,
-            r#"SELECT * FROM charges WHERE charging_process_id = $1"#,
+            r#"SELECT * FROM charges WHERE charging_process_id = $1 ORDER BY date ASC"#,
             charging_process_id
         )
         .fetch_all(pool)

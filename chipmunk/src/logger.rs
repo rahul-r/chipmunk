@@ -14,8 +14,7 @@ use tokio::time::{sleep, Duration};
 
 use crate::{
     database::{
-        self,
-        tables::{
+        self, tables::{
             address::Address,
             car::Car,
             car_settings::CarSettings,
@@ -27,8 +26,7 @@ use crate::{
             state::{State, StateStatus},
             token::Token,
             Tables,
-        },
-        DBTable,
+        }, types::ChargeStat, DBTable
     },
     utils::sub_option,
     EnvVars,
@@ -564,7 +562,8 @@ async fn end_logging_for_state(
                 .charging_process
                 .as_ref()
                 .zip(curr_charge.as_ref())
-                .map(|(cp, c)| cp.update(c));
+                .map(|(cp, c)| cp.update(c))
+                .map(|mut cp| {cp.charging_status = ChargeStat::Done; cp});
             if charging_process.is_some() {
                 charges = curr_charge;
             }

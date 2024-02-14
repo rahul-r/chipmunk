@@ -1,7 +1,7 @@
 use sqlx::PgPool;
 use chrono::NaiveDateTime;
 
-use crate::{database::types::ChargeStat, utils::time_diff_minutes_i64};
+use crate::{charging::calculate_energy_used, database::types::ChargeStat, utils::time_diff_minutes_i64};
 use super::{charges::Charges, DBTable};
 use crate::charging::calculate_cost;
 
@@ -56,7 +56,7 @@ impl ChargingProcess {
             start_rated_range_km: charge_start.rated_battery_range_km,
             end_rated_range_km: charge_end.rated_battery_range_km,
             geofence_id,
-            charge_energy_used: None,
+            charge_energy_used: Some(0.0),
             cost: calculate_cost(charge_start),
             car_id,
             position_id,
@@ -94,7 +94,6 @@ impl ChargingProcess {
 
     pub fn update(&self, charges: &Charges) -> Self {
         Self {
-            charge_energy_added: charges.charge_energy_added,
             duration_min: time_diff_minutes_i64(Some(self.start_date), charges.date)
                 .map(|x| x as i16),
             outside_temp_avg: self
@@ -116,6 +115,84 @@ impl ChargingProcess {
             id: self.id,
             charging_status: ChargeStat::Done,
             ..Self::default()
+        }
+    }
+
+    async fn db_get_last_id(pool: &PgPool) -> sqlx::Result<i32> {
+        let id = sqlx::query!(
+            r#"
+            SELECT id
+            FROM charging_processes
+            ORDER BY start_date DESC LIMIT 1
+            "#
+        )
+        .fetch_one(pool)
+        .await?
+        .id;
+        Ok(id)
+    }
+
+    /// Recalculate the last charging process using the list of charges associated with thie charging process
+    pub async fn db_recalculate(pool: &PgPool, charge: Option<&Charges>) -> sqlx::Result<()> {
+        let id = ChargingProcess::db_get_last_id(pool).await?;
+        let charges = Charges::db_get_for_charging_process(pool, id).await?;
+        let cost: Option<f32> = charge.and_then(calculate_cost);
+        let energy_used = calculate_energy_used(&charges);
+
+        let res = sqlx::query!(
+            r#"
+            WITH charge_summary AS (
+                SELECT 
+                    FIRST_VALUE(date) OVER w AS start_date,
+                    LAST_VALUE(date) OVER w AS end_date,
+                    FIRST_VALUE(battery_level) OVER w AS start_battery_level,
+                    LAST_VALUE(battery_level) OVER w AS end_battery_level,
+                    FIRST_VALUE(charge_energy_added) OVER w AS start_charge_energy_added,
+                    LAST_VALUE(charge_energy_added) OVER w AS end_charge_energy_added,
+                    LAST_VALUE(ideal_battery_range_km) OVER w AS end_ideal_range_km,
+                    LAST_VALUE(rated_battery_range_km) OVER w AS end_rated_range_km,
+                    COALESCE(
+                        NULLIF(LAST_VALUE(charge_energy_added) OVER w, 0),
+                        MAX(charge_energy_added) OVER w
+                    ) - FIRST_VALUE(charge_energy_added) OVER w AS charge_energy_added
+                FROM charges
+                WHERE charging_process_id = $1
+                WINDOW w AS (ORDER BY date RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING)
+            ),
+            charges_summary AS (
+                SELECT 
+                    AVG(outside_temp) AS outside_temp_avg
+                FROM charges
+                WHERE charging_process_id = $1
+            )
+            UPDATE charging_processes
+            SET 
+                charge_energy_added = charge_summary.charge_energy_added, 
+                end_date = charge_summary.end_date, 
+                end_battery_level = charge_summary.end_battery_level, 
+                end_rated_range_km = charge_summary.end_rated_range_km,
+                end_ideal_range_km = charge_summary.end_ideal_range_km,
+                outside_temp_avg = charges_summary.outside_temp_avg,
+                duration_min = EXTRACT(EPOCH FROM (charge_summary.end_date - charge_summary.start_date))/60,
+                charging_status = $2,
+                cost = $3,
+                charge_energy_used = $4
+            FROM charge_summary CROSS JOIN charges_summary
+            WHERE charging_processes.id = $1
+            "#,
+            id,
+            ChargeStat::Done as ChargeStat,
+            cost,
+            energy_used
+        )
+        .execute(pool)
+        .await?;
+
+        if res.rows_affected() == 1 {
+            log::error!("Error updating charging process. Expected to update 1 row, but updated {} rows", res.rows_affected());
+            Err(sqlx::Error::RowNotFound)
+        } else {
+            Ok(())
         }
     }
 }
@@ -252,6 +329,40 @@ impl DBTable for ChargingProcess {
                 FROM charging_processes
                 ORDER BY start_date DESC LIMIT 1
             "#
+        )
+        .fetch_one(pool)
+        .await?;
+        Ok(cp)
+    }
+
+    async fn db_get_id(pool: &PgPool, id: i64) -> sqlx::Result<Self> {
+        let cp = sqlx::query_as!(
+            Self,
+            r#"
+                SELECT
+                    id,
+                    start_date,
+                    end_date,
+                    charge_energy_added,
+                    start_ideal_range_km,
+                    end_ideal_range_km,
+                    start_battery_level,
+                    end_battery_level,
+                    duration_min,
+                    outside_temp_avg,
+                    car_id,
+                    position_id,
+                    address_id,
+                    start_rated_range_km,
+                    end_rated_range_km,
+                    geofence_id,
+                    charge_energy_used,
+                    cost,
+                    charging_status AS "charging_status!: ChargeStat"
+                FROM charging_processes
+                WHERE id = $1
+            "#,
+            id as i32
         )
         .fetch_one(pool)
         .await?;

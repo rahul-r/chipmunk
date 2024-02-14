@@ -1,0 +1,30 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            WITH charge_summary AS (\n                SELECT \n                    FIRST_VALUE(date) OVER w AS start_date,\n                    LAST_VALUE(date) OVER w AS end_date,\n                    FIRST_VALUE(battery_level) OVER w AS start_battery_level,\n                    LAST_VALUE(battery_level) OVER w AS end_battery_level,\n                    FIRST_VALUE(charge_energy_added) OVER w AS start_charge_energy_added,\n                    LAST_VALUE(charge_energy_added) OVER w AS end_charge_energy_added,\n                    LAST_VALUE(ideal_battery_range_km) OVER w AS end_ideal_range_km,\n                    LAST_VALUE(rated_battery_range_km) OVER w AS end_rated_range_km,\n                    COALESCE(\n                        NULLIF(LAST_VALUE(charge_energy_added) OVER w, 0),\n                        MAX(charge_energy_added) OVER w\n                    ) - FIRST_VALUE(charge_energy_added) OVER w AS charge_energy_added\n                FROM charges\n                WHERE charging_process_id = $1\n                WINDOW w AS (ORDER BY date RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING)\n            ),\n            charges_summary AS (\n                SELECT \n                    AVG(outside_temp) AS outside_temp_avg\n                FROM charges\n                WHERE charging_process_id = $1\n            )\n            UPDATE charging_processes\n            SET \n                charge_energy_added = charge_summary.charge_energy_added, \n                end_date = charge_summary.end_date, \n                end_battery_level = charge_summary.end_battery_level, \n                end_rated_range_km = charge_summary.end_rated_range_km,\n                end_ideal_range_km = charge_summary.end_ideal_range_km,\n                outside_temp_avg = charges_summary.outside_temp_avg,\n                duration_min = EXTRACT(EPOCH FROM (charge_summary.end_date - charge_summary.start_date))/60,\n                charging_status = $2,\n                cost = $3,\n                charge_energy_used = $4\n            FROM charge_summary CROSS JOIN charges_summary\n            WHERE charging_processes.id = $1\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        {
+          "Custom": {
+            "name": "charge_stat",
+            "kind": {
+              "Enum": [
+                "start",
+                "stop",
+                "charging",
+                "done",
+                "idle"
+              ]
+            }
+          }
+        },
+        "Float4",
+        "Float4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "e6b14576a1648d9d121e37a3e8ca61c81baad88992f22a9f877a9834fa80f29d"
+}

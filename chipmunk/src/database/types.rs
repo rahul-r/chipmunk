@@ -42,10 +42,8 @@ pub enum Range {
 #[derive(Debug, PartialEq, Clone, Default, sqlx::Type)]
 #[sqlx(type_name = "charge_stat", rename_all = "snake_case")]
 pub enum ChargeStat {
+    #[default]
     Start,
-    Stop,
     Charging,
     Done,
-    #[default]
-    Unknown,
 }

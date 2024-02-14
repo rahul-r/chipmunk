@@ -2,7 +2,7 @@ use std::sync::{Arc, Mutex};
 
 use rand::Rng;
 
-use chipmunk::{database::{self, tables::{charges::Charges, charging_process::ChargingProcess, drive::Drive, position::Position, token::Token}, types::ChargeStat}};
+use chipmunk::database::{self, tables::{charges::Charges, charging_process::ChargingProcess, drive::Drive, position::Position, token::Token}, types::ChargeStat};
 use chrono::NaiveDateTime;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
@@ -13,20 +13,18 @@ use tesla_api::{auth::AuthResponse, Vehicles, vehicle_data::VehicleData};
 #[macro_export]
 macro_rules! approx_eq {
     ($x:expr, $y:expr) => {{
-        if $x.zip($y).map(|(a, b)| a.abs() - b.abs()) > Some(0.01) {
-            panic!(
-                "assertion failed: `(left == right)`\n  left: `{:?}`,\n right: `{:?}`",
-                $x, $y
-            );
-        }
+        approx_eq!($x, $y, 0.01);
     }};
 
     ($x:expr, $y:expr, $accuracy:expr) => {{
-        if $x.zip($y).map(|(a, b)| a.abs() - b.abs()) > Some($accuracy) {
-            panic!(
-                "assertion failed: `(left == right)`\n  left: `{:?}`,\n right: `{:?}`",
-                $x, $y
-            );
+        if !($x.is_none() && $y.is_none()) { // Don't panic if both values are None
+            let res = $x.zip($y).map(|(a, b)| a.abs() - b.abs());
+            if res.is_none() || res > Some($accuracy) {
+                panic!(
+                    "assertion failed: `(left == right)`\n  left: `{:?}`,\n right: `{:?}`",
+                    $x, $y
+                );
+            }
         }
     }};
 }
@@ -220,15 +218,31 @@ pub fn create_drive_from_positions(positions: &[Position]) -> Option<Drive> {
 pub fn create_charging_from_charges(charges: &[Charges]) -> Option<ChargingProcess> {
     let start_charge = charges.first()?;
     let end_charge = charges.last()?;
+
+    let first_energy_val = charges.iter().find_map(|c| c.charge_energy_added);
+    let last_energy_val = if end_charge.charge_energy_added.is_none() || end_charge.charge_energy_added == Some(0.0) {
+        let x = charges
+            .iter()
+            .filter_map(|c| c.charge_energy_added)
+            .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        x
+    } else {
+        end_charge.charge_energy_added
+    };
+    let charge_energy_added = {
+        let e = first_energy_val.zip(last_energy_val).map(|(f, l)| l - f);
+        if e < Some(0.0) {
+            None
+        } else {
+            e
+        }
+    };
+
     Some(ChargingProcess {
         id: 0,
         start_date: start_charge.date.unwrap_or_default(),
         end_date: end_charge.date,
-        charge_energy_added: charges
-            .iter()
-            .filter(|c| c.charge_energy_added != Some(0.0))
-            .last()
-            .and_then(|c| c.charge_energy_added),
+        charge_energy_added,
         start_ideal_range_km: start_charge.ideal_battery_range_km,
         end_ideal_range_km: end_charge.ideal_battery_range_km,
         start_battery_level: start_charge.battery_level,

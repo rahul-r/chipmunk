@@ -32,26 +32,26 @@ fn validate_drive(drive: &Drive, expected: &Drive) {
     // IGNORE THIS assert_eq!(drive.end_geofence_id, expected.end_geofence_id);
 }
 
-fn validate_charging(charging: &ChargingProcess, expected: &ChargingProcess) {
-    assert!(charging.start_date - expected.start_date < Duration::seconds(1));
-    assert_eq!(charging.end_date.zip(expected.end_date).map(|(de, ee)| de - ee < Duration::seconds(1)), Some(true));
-    assert_eq!(charging.end_date, expected.end_date);
-    approx_eq!(charging.charge_energy_added, expected.charge_energy_added);
-    approx_eq!(charging.start_ideal_range_km, expected.start_ideal_range_km);
-    approx_eq!(charging.end_ideal_range_km, expected.end_ideal_range_km);
-    assert_eq!(charging.start_battery_level, expected.start_battery_level);
-    assert_eq!(charging.end_battery_level, expected.end_battery_level);
-    assert_eq!(charging.duration_min, expected.duration_min);
-    approx_eq!(charging.outside_temp_avg, expected.outside_temp_avg, 0.1);
-    assert_eq!(charging.car_id, expected.car_id);
-    approx_eq!(charging.start_rated_range_km, expected.start_rated_range_km);
-    approx_eq!(charging.end_rated_range_km, expected.end_rated_range_km);
-    approx_eq!(charging.charge_energy_used, expected.charge_energy_used, 5.0); // FIXME: Using lower precision to make this test pass, need to fix energy used calculation to match teslamate
-    assert_eq!(charging.cost, expected.cost);
-    // IGNORE THIS assert_eq!(charging.position_id, expected.position_id);
-    // IGNORE THIS assert_eq!(charging.id, expected.id);
-    // IGNORE THIS assert_eq!(charging.address_id, expected.address_id);
-    // IGNORE THIS assert_eq!(charging.geofence_id, expected.geofence_id);
+fn validate_charging(charging_from_db: &ChargingProcess, charging_calculated: &ChargingProcess) {
+    assert!(charging_from_db.start_date - charging_calculated.start_date < Duration::seconds(1));
+    assert_eq!(charging_from_db.end_date.zip(charging_calculated.end_date).map(|(de, ee)| de - ee < Duration::seconds(1)), Some(true));
+    assert_eq!(charging_from_db.end_date, charging_calculated.end_date);
+    approx_eq!(charging_from_db.charge_energy_added, charging_calculated.charge_energy_added);
+    approx_eq!(charging_from_db.start_ideal_range_km, charging_calculated.start_ideal_range_km);
+    approx_eq!(charging_from_db.end_ideal_range_km, charging_calculated.end_ideal_range_km);
+    assert_eq!(charging_from_db.start_battery_level, charging_calculated.start_battery_level);
+    assert_eq!(charging_from_db.end_battery_level, charging_calculated.end_battery_level);
+    assert_eq!(charging_from_db.duration_min, charging_calculated.duration_min);
+    approx_eq!(charging_from_db.outside_temp_avg, charging_calculated.outside_temp_avg, 0.1);
+    assert_eq!(charging_from_db.car_id, charging_calculated.car_id);
+    approx_eq!(charging_from_db.start_rated_range_km, charging_calculated.start_rated_range_km);
+    approx_eq!(charging_from_db.end_rated_range_km, charging_calculated.end_rated_range_km);
+    approx_eq!(charging_from_db.charge_energy_used, charging_calculated.charge_energy_used, 5.0); // FIXME: Using lower precision to make this test pass, need to fix energy used calculation to match teslamate
+    assert_eq!(charging_from_db.cost, charging_calculated.cost);
+    // IGNORE THIS assert_eq!(charging_from_db.position_id, charging_calculated.position_id);
+    // IGNORE THIS assert_eq!(charging_from_db.id, charging_calculated.id);
+    // IGNORE THIS assert_eq!(charging_from_db.address_id, charging_calculated.address_id);
+    // IGNORE THIS assert_eq!(charging_from_db.geofence_id, charging_calculated.geofence_id);
 }
 
 #[tokio::test]
@@ -112,7 +112,7 @@ async fn test_teslamate_charging() {
         _ => 0
     };
     for id in first_cp_id_to_test..=last_cp_id {
-        // println!("::> Testing charging id: {}", id);
+        println!("::> Testing charging id: {}", id);
         let tm_charging = match ChargingProcess::tm_get_id(&pool, id).await {
             Ok(d) => d,
             Err(e) => {
@@ -125,8 +125,8 @@ async fn test_teslamate_charging() {
             continue;
         }
         let charges = Charges::tm_get_for_charging(&pool, tm_charging.id as i64).await.unwrap();
-        let cp = create_charging_from_charges(&charges);
-        assert!(cp.is_some());
-        validate_charging(&tm_charging, &cp.unwrap());
+        let calculated_charging = create_charging_from_charges(&charges);
+        assert!(calculated_charging.is_some());
+        validate_charging(&tm_charging, &calculated_charging.unwrap());
     }
 }

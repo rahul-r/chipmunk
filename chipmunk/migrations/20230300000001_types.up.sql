@@ -33,4 +33,4 @@ CREATE TYPE public.states_status AS ENUM
     ('offline', 'asleep', 'unknown', 'parked', 'driving', 'charging');
 
 CREATE TYPE public.charge_stat AS ENUM
-    ('start', 'stop', 'charging', 'done', 'idle');
+    ('start', 'charging', 'done');

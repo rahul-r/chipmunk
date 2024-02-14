@@ -33,6 +33,14 @@ pub trait DBTable {
         #[rustfmt::skip]
         panic!("{}", format!("`db_get_last` is not implemented for `{}` table!", Self::table_name()))
     }
+
+    async fn db_get_id(_pool: &PgPool, _id: i64) -> sqlx::Result<Self>
+    where
+        Self: Sized,
+    {
+        #[rustfmt::skip]
+        panic!("{}", format!("`db_get_id` is not implemented for `{}` table!", Self::table_name()))
+    }
     async fn db_get_all(_pool: &PgPool) -> sqlx::Result<Vec<Self>>
     where
         Self: Sized,

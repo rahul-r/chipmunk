@@ -172,16 +172,16 @@ impl Tables {
                     .db_insert(pool)
                     .await
                     .map(|id| charging_process.id = id as i32)?;
-            } else {
-                charging_process.db_update(pool).await?;
             }
         }
 
+        // Insert charges and update the charging process
         if let Some(ref mut charges) = tables.charges {
             charges
                 .db_insert_for_last_charging_process(pool)
                 .await
                 .map(|id| charges.id = id as i32)?;
+            ChargingProcess::db_recalculate(pool, tables.charges.as_ref()).await?;
         }
 
         Ok(tables)

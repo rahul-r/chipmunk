@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT * FROM charges WHERE charging_process_id = $1",
+  "query": "SELECT * FROM charges WHERE charging_process_id = $1 ORDER BY date ASC",
   "describe": {
     "columns": [
       {
@@ -144,5 +144,5 @@
       true
     ]
   },
-  "hash": "274c5718b31111cbd9292e44459157719ff0a5226deaec88cee5e3d0484dfc32"
+  "hash": "fb08cd0dd0486477cb67108f4dfbeb110bd379e1c99a1365b50caf3179e1a22f"
 }
