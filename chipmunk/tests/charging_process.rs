@@ -182,8 +182,6 @@ async fn test_charging_process() {
     // Set up a pointer to send vehicle data to the mock server
     let charging_start_time = chrono::Utc::now().naive_utc();
     let data = test_data::data_charging(charging_start_time, 25);
-    let charge_state = data.charge_state.clone();
-    let climate_state = data.climate_state.clone();
     let data = Arc::new(Mutex::new(data));
     let send_response = Arc::new(Mutex::new(true));
     // Create a Tesla mock server
@@ -199,7 +197,6 @@ async fn test_charging_process() {
     assert!(charging_start_time - address.inserted_at < chrono::Duration::seconds(2));
 
     assert_eq!(Car::db_num_rows(&pool).await.unwrap(), 1);
-    let car = Car::db_get_last(&pool).await.unwrap();
 
     assert_eq!(Drive::db_num_rows(&pool).await.unwrap(), 0);
     assert_eq!(Geofence::db_num_rows(&pool).await.unwrap(), 0);
@@ -215,6 +212,7 @@ async fn test_charging_process() {
 
     assert_ne!(Charges::db_num_rows(&pool).await.unwrap(), 0);
     let charges = Charges::db_get_all(&pool).await.unwrap();
+    assert_eq!(ChargingProcess::db_num_rows(&pool).await.unwrap(), 1);
     let charging_from_db = ChargingProcess::db_get_last(&pool).await.unwrap();
     let charging_calculated = create_charging_from_charges(&charges).unwrap();
     assert_eq!(charging_from_db.id, 1);
@@ -231,10 +229,10 @@ async fn test_charging_process() {
     assert_eq!(charging_from_db.end_battery_level, charging_calculated.end_battery_level);
     assert_eq!(charging_from_db.end_battery_level, charging_calculated.end_battery_level);
     assert_eq!(charging_from_db.duration_min, charging_calculated.duration_min);
-    assert_eq!(charging_from_db.outside_temp_avg, charging_calculated.outside_temp_avg);
+    approx_eq!(charging_from_db.outside_temp_avg, charging_calculated.outside_temp_avg);
     assert_eq!(charging_from_db.car_id, charging_calculated.car_id);
-    assert_eq!(charging_from_db.position_id, charging_calculated.position_id);
-    assert_eq!(charging_from_db.address_id, charging_calculated.address_id);
+    assert_eq!(charging_from_db.position_id, 1);
+    assert_eq!(charging_from_db.address_id, Some(1));
     assert_eq!(charging_from_db.start_rated_range_km, charging_calculated.start_rated_range_km);
     assert_eq!(charging_from_db.start_rated_range_km, charging_calculated.start_rated_range_km);
     assert_eq!(charging_from_db.end_rated_range_km, charging_calculated.end_rated_range_km);

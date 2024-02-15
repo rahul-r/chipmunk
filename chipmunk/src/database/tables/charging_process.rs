@@ -188,7 +188,7 @@ impl ChargingProcess {
         .execute(pool)
         .await?;
 
-        if res.rows_affected() == 1 {
+        if res.rows_affected() != 1 {
             log::error!("Error updating charging process. Expected to update 1 row, but updated {} rows", res.rows_affected());
             Err(sqlx::Error::RowNotFound)
         } else {
