@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use tesla_api::vehicle_data::VehicleData;
 
-use crate::utils::capitalize_string_option;
+use crate::{car::calculate_efficiency, database::types::Range, utils::capitalize_string_option};
 
 use super::{car_settings::CarSettings, DBTable};
 
@@ -17,7 +17,7 @@ pub struct Car {
     pub eid: i64,
     pub vid: i64,
     pub model: Option<String>,
-    pub efficiency: Option<f64>,
+    pub efficiency: Option<f32>,
     pub inserted_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
     pub vin: Option<String>,
@@ -43,7 +43,9 @@ impl Car {
             eid: Self::convert_id(data.id, "id")?,
             vid: Self::convert_id(data.vehicle_id, "vehicle_id")?,
             model: model_code.clone(),
-            efficiency: None, // TODO: Calculate efficiency. See teslamate code lib/teslamate/log.ex for details
+            efficiency: calculate_efficiency(&[], 1, Range::Rated) // TODO: use the correct charging_process list and car_id
+                .map_err(|e| log::error!("Error calculating efficiency: {e}"))
+                .ok(),
             inserted_at: Utc::now().naive_utc(),
             updated_at: Utc::now().naive_utc(),
             vin: data.vin.clone(),

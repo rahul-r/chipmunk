@@ -27,10 +27,8 @@
             "kind": {
               "Enum": [
                 "start",
-                "stop",
                 "charging",
-                "done",
-                "idle"
+                "done"
               ]
             }
           }

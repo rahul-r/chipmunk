@@ -8,6 +8,7 @@ use std::{env, io::Write};
 use anyhow::Context;
 
 pub mod charging;
+pub mod car;
 pub mod database;
 pub mod logger;
 pub mod openstreetmap;

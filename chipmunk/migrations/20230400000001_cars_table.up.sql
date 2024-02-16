@@ -3,7 +3,7 @@ CREATE TABLE public.cars (
     eid bigint NOT NULL UNIQUE,
     vid bigint NOT NULL UNIQUE,
     model character varying(255),
-    efficiency double precision,
+    efficiency FLOAT4,
     inserted_at timestamp(0) without time zone NOT NULL,
     updated_at timestamp(0) without time zone NOT NULL,
     vin text UNIQUE,
