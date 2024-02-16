@@ -4,7 +4,7 @@ use chipmunk::database::tables::{state::{StateStatus, State}, Tables};
 use chrono::Duration;
 use tesla_api::vehicle_data::ShiftState;
 
-use crate::common::{test_data::data_with_shift, DELAYED_DATAPOINT_TIME_SEC, utils::ts_no_nanos};
+use crate::common::{test_data::{data_charging, data_with_shift}, utils::ts_no_nanos, DELAYED_DATAPOINT_TIME_SEC};
 
 #[tokio::test]
 async fn startup_with_state() {
@@ -80,7 +80,18 @@ async fn startup_with_state() {
     assert!(t[0].sw_update.is_none());
     assert_eq!(*t[0].state.as_ref().unwrap(), State {car_id, id: 0, state: Driving, start_date: ts_no_nanos(ts), end_date: None });
 
-    // TODO: Test starting when a charging session is active
+    // Test starting when a charging session is active
+    let t = chipmunk::logger::create_tables(&data_charging(ts, 95), &blank_tables, car_id).await.unwrap();
+    assert_eq!(t.len(), 1);
+    assert!(t[0].address.is_some());
+    assert!(t[0].car.is_none());
+    assert!(t[0].charges.is_some());
+    assert!(t[0].charging_process.is_some());
+    assert!(t[0].drive.is_none());
+    assert!(t[0].position.is_some());
+    assert!(t[0].settings.is_none());
+    assert!(t[0].sw_update.is_none());
+    assert_eq!(*t[0].state.as_ref().unwrap(), State {car_id, id: 0, state: Charging, start_date: ts_no_nanos(ts), end_date: None });
 }
 
 // Test behavior of the logger when the data points are more thabn 10 minutes apart.
@@ -142,5 +153,5 @@ async fn state_transitions_with_time_gap() {
     // Check for start of new drive
     assert_eq!(*fourth_data_point[1].state.as_ref().unwrap(), State {car_id, id: 0, state: Driving, start_date: ts_no_nanos(fourth_ts), end_date: None });
 
-    // TODO: Create tests to check charging states
+    // See charging_process.rs for more tests on missing charging process detection when data is delayed
 }
