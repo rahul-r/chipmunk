@@ -263,5 +263,3 @@ async fn test_charged_and_driven_offline() {
     assert!(t[3].state.is_some());
     assert_eq!(*t[3].state.as_ref().unwrap(), State {car_id, id: 0, state: Driving, start_date: ts_no_nanos(driving_after_delay_time), end_date: None });
 }
-
-// TODO: test no new charging process is started when a delayed data point is received if the vehicle is already charging

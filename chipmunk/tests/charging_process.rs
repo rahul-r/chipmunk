@@ -27,7 +27,7 @@ use tokio::time::{sleep, Duration};
 use crate::common::{test_data, utils::{create_charging_from_charges, init_test_database, ts_no_nanos}, DELAYED_DATAPOINT_TIME_SEC};
 
 #[tokio::test]
-async fn test_hidden_charging_detection() {
+async fn test_missing_charging_detection() {
     use ShiftState::*;
     use StateStatus::*;
     // chipmunk::init_log();
@@ -36,7 +36,7 @@ async fn test_hidden_charging_detection() {
     std::env::set_var("HTTP_PORT", random_http_port.to_string());
 
     let _osm_mock = create_mock_osm_server();
-    let pool = init_test_database("test_hidden_charging_detection").await;
+    let pool = init_test_database("test_missing_charging_detection").await;
     let env = chipmunk::load_env_vars().unwrap();
 
     // Make the logging period faster to speed up the test
@@ -155,6 +155,90 @@ async fn test_hidden_charging_detection() {
     assert_eq!(drives[0].end_date, Some(ts_no_nanos(ts_before_delayed_data)));
     assert_eq!(drives[1].start_date, ts_no_nanos(ts_after_delayed_data));
     assert_eq!(drives[1].end_date, None);
+}
+
+// test no new charging process is started when a delayed data point is received if the vehicle is already charging
+#[tokio::test]
+async fn test_delayed_data_during_missing_charging_detection() {
+    // chipmunk::init_log();
+
+    let random_http_port = rand::thread_rng().gen_range(4000..60000);
+    std::env::set_var("HTTP_PORT", random_http_port.to_string());
+
+    let _osm_mock = create_mock_osm_server();
+    let pool = init_test_database("test_delayed_data_during_missing_charging_detection").await;
+    let env = chipmunk::load_env_vars().unwrap();
+
+    // Make the logging period faster to speed up the test
+    let mut settings = Settings::db_get_last(&pool).await.unwrap();
+    settings.logging_period_ms = 1;
+    settings.db_insert(&pool).await.unwrap();
+
+    let pool_clone = pool.clone();
+    let _logger_task = tokio::task::spawn(async move {
+        chipmunk::logger::log(&pool_clone, &env).await.unwrap();
+    });
+
+    // Set up a pointer to send vehicle data to the mock server
+    let charging_start_time = chrono::Utc::now().naive_utc();
+    let data = test_data::data_charging(charging_start_time, 25);
+    let data = Arc::new(Mutex::new(data));
+    let send_response = Arc::new(Mutex::new(true));
+    // Create a Tesla mock server
+    let _tesla_mock = create_mock_tesla_server(data.clone(), send_response.clone()); // Assign the return value to a variable to keep the server alive
+
+    // Start charging
+    sleep(Duration::from_secs(1)).await; // Run the logger for a second
+    *send_response.lock().unwrap() = false; // Tell the mock server to stop sending vehicle data
+    wait_for_db!(pool);
+
+    // Verify tables
+    assert_eq!(Address::db_num_rows(&pool).await.unwrap(), 1);
+    let address = Address::db_get_last(&pool).await.unwrap();
+    assert!(charging_start_time - address.inserted_at < chrono::Duration::seconds(2));
+    assert_eq!(Car::db_num_rows(&pool).await.unwrap(), 1);
+    assert_eq!(Drive::db_num_rows(&pool).await.unwrap(), 0);
+    assert_eq!(Geofence::db_num_rows(&pool).await.unwrap(), 0);
+    assert_eq!(SoftwareUpdate::db_num_rows(&pool).await.unwrap(), 0);
+    assert_eq!(Settings::db_num_rows(&pool).await.unwrap(), 1);
+    assert_eq!(State::db_num_rows(&pool).await.unwrap(), 1);
+    let state = State::db_get_last(&pool).await.unwrap();
+    assert_eq!(state.state, StateStatus::Charging);
+    assert_eq!(state.start_date, ts_no_nanos(charging_start_time));
+    assert_ne!(Position::db_num_rows(&pool).await.unwrap(), 0);
+    let num_positions_1 = Position::db_num_rows(&pool).await.unwrap();
+    assert_ne!(Charges::db_num_rows(&pool).await.unwrap(), 0);
+    let num_charges_1 = Charges::db_num_rows(&pool).await.unwrap();
+    assert_eq!(ChargingProcess::db_num_rows(&pool).await.unwrap(), 1);
+
+    // Stop charging and start parked state
+    let ts_after_delayed_data = charging_start_time + chrono::Duration::seconds(DELAYED_DATAPOINT_TIME_SEC + 1);
+    let charging_data_1 = test_data::data_charging(ts_after_delayed_data, 30);
+    **data.lock().as_mut().unwrap() = charging_data_1;
+    *send_response.lock().unwrap() = true;
+    sleep(Duration::from_secs(1)).await; // Run the logger for some time
+    *send_response.lock().unwrap() = false; // Tell the mock server to stop sending vehicle data
+    wait_for_db!(pool);
+
+    // Verify tables
+    assert_eq!(Address::db_num_rows(&pool).await.unwrap(), 1);
+    assert_eq!(Drive::db_num_rows(&pool).await.unwrap(), 0);
+    assert_eq!(Geofence::db_num_rows(&pool).await.unwrap(), 0);
+    assert_eq!(SoftwareUpdate::db_num_rows(&pool).await.unwrap(), 0);
+    assert_eq!(Settings::db_num_rows(&pool).await.unwrap(), 1);
+    assert_eq!(State::db_num_rows(&pool).await.unwrap(), 1);
+    let states = State::db_get_all(&pool).await.unwrap();
+    assert_eq!(states.len(), 1);
+    assert_eq!(states[0].state, StateStatus::Charging);
+    assert_eq!(states[0].start_date, ts_no_nanos(charging_start_time));
+    assert_eq!(states[0].end_date, Some(ts_no_nanos(ts_after_delayed_data)));
+    assert_ne!(Position::db_num_rows(&pool).await.unwrap(), 0);
+    let num_positions_2 = Position::db_num_rows(&pool).await.unwrap();
+    assert!(num_positions_2 > num_positions_1);
+    assert_ne!(Charges::db_num_rows(&pool).await.unwrap(), 0);
+    let num_charges_2 = Charges::db_num_rows(&pool).await.unwrap();
+    assert!(num_charges_2 > num_charges_1);
+    assert_eq!(ChargingProcess::db_num_rows(&pool).await.unwrap(), 1); // No new charging process should be created
 }
 
 #[tokio::test]
