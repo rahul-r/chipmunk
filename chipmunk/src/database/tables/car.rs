@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use tesla_api::vehicle_data::VehicleData;
 
-use crate::{car::calculate_efficiency, database::types::Range, utils::capitalize_string_option};
+use crate::utils::capitalize_string_option;
 
 use super::{car_settings::CarSettings, DBTable};
 
@@ -43,9 +43,7 @@ impl Car {
             eid: Self::convert_id(data.id, "id")?,
             vid: Self::convert_id(data.vehicle_id, "vehicle_id")?,
             model: model_code.clone(),
-            efficiency: calculate_efficiency(&[], 1, Range::Rated) // TODO: use the correct charging_process list and car_id
-                .map_err(|e| log::error!("Error calculating efficiency: {e}"))
-                .ok(),
+            efficiency: None,
             inserted_at: Utc::now().naive_utc(),
             updated_at: Utc::now().naive_utc(),
             vin: data.vin.clone(),
@@ -97,6 +95,83 @@ impl Car {
         } else {
             log::error!("No car found with id `{}`", id);
             Err(sqlx::Error::RowNotFound)
+        }
+    }
+
+    /// # Updates the efficiency of a car in the database.
+    ///
+    /// This function calculates the average efficiency of a car based on its charging processes and
+    /// updates the `efficiency` field in the `cars` table.
+    ///
+    /// The efficiency is calculated as the average of the ratio of `charge_energy_added` to the
+    /// difference between the start and end range (either `ideal` or `rated`), for all charging
+    /// processes of the car that last more than 10 minutes, end with a battery level of 95 or less,
+    /// and add more than 0.0 energy.
+    ///
+    /// The function uses a SQL query to perform the calculation and update operation in the database.
+    /// The query first calculates the efficiency for the selected car in the `charging_processes`
+    /// table and stores the results in a temporary table called `efficiency_data`. Then, it updates
+    /// the `efficiency` column in the `cars` table with the calculated efficiency values from the
+    /// temporary table.
+    ///
+    /// # Arguments
+    ///
+    /// * `pool` - A reference to the database connection pool.
+    /// * `car_id` - The ID of the car to update efficiency.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result` indicating the success or failure of the operation. If the operation is
+    /// successful, the function returns `Ok(()) and `Err(sqlx::Error)` on failure.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if the SQL query fails to execute, or if the number of
+    /// rows affected by the `UPDATE` operation is not 1.
+    pub async fn update_efficiency(pool: &PgPool, car_id: i16) -> sqlx::Result<()> {
+        let res = sqlx::query!(
+            r#"
+            WITH efficiency_data AS (
+                SELECT
+                    ROUND(
+                        AVG(charge_energy_added / NULLIF(
+                            CASE
+                                WHEN s.preferred_range = 'ideal' THEN cp.end_ideal_range_km
+                                WHEN s.preferred_range = 'rated' THEN cp.end_rated_range_km
+                                ELSE NULL
+                            END -
+                            CASE
+                                WHEN s.preferred_range = 'ideal' THEN cp.start_ideal_range_km
+                                WHEN s.preferred_range = 'rated' THEN cp.start_rated_range_km
+                                ELSE NULL
+                            END, 0))::numeric, 5
+                    )::FLOAT4 AS efficiency
+                FROM
+                    charging_processes cp,
+                    settings s
+                WHERE
+                    cp.car_id = $1
+                    AND cp.duration_min > 10
+                    AND cp.end_battery_level <= 95
+                    AND cp.charge_energy_added > 0.0
+                    AND s.id = 1
+            )
+            UPDATE cars
+            SET efficiency = efficiency_data.efficiency
+            FROM efficiency_data
+            WHERE cars.id = $1
+            "#,
+            car_id
+        )
+        .execute(pool)
+        .await?;
+
+        if res.rows_affected() != 1 {
+            let msg = format!("Error updating efficiency. Expected to update 1 row, but updated {} rows", res.rows_affected());
+            log::error!("{}", msg);
+            Err(sqlx::Error::Protocol(msg))
+        } else {
+            Ok(())
         }
     }
 }
@@ -286,3 +361,4 @@ pub async fn get_car_id_from_vin(
 
     (vin_id_map, Some(id))
 }
+

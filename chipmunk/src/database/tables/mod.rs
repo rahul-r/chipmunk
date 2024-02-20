@@ -64,6 +64,17 @@ impl Tables {
         self.is_state(StateStatus::Charging)
     }
 
+    pub fn car_id(&self) -> i16 {
+        self
+            .position
+            .as_ref()
+            .map(|p| p.car_id)
+            .unwrap_or_else(|| {
+                log::error!("No car_id found in position table");
+                0
+            })
+    }
+
     pub fn from_vehicle_data(data: &VehicleData, car_id: i16) -> Self {
         Self {
             address: None,
@@ -182,6 +193,7 @@ impl Tables {
                 .await
                 .map(|id| charges.id = id as i32)?;
             ChargingProcess::db_recalculate(pool, tables.charges.as_ref()).await?;
+            Car::update_efficiency(pool, tables.car_id()).await?;
         }
 
         Ok(tables)
