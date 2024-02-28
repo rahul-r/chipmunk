@@ -3,15 +3,11 @@
 #![feature(stmt_expr_attributes)]
 #![feature(async_fn_in_trait)]
 
-use std::time;
-
-use backend::{get_default_wsmsg, server::TeslaServer};
 use chipmunk::{
     database::{self, tables::token::Token},
     load_env_vars, logger,
 };
 use clap::Parser;
-use tokio::sync::mpsc;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -49,6 +45,13 @@ async fn main() -> anyhow::Result<()> {
     std::env::set_var("RUST_BACKTRACE", "1"); // Enable backtrace
     chipmunk::init_log();
 
+    let subscriber = tracing_subscriber::FmtSubscriber::new();
+    if let Err(e) = tracing::subscriber::set_global_default(subscriber) {
+        log::error!("Error configuring tracing: {e}");
+    }
+
+    // console_subscriber::init();
+
     let env = load_env_vars().unwrap_or_else(print_err_and_exit!());
 
     log::info!("Initializing database");
@@ -69,24 +72,13 @@ async fn main() -> anyhow::Result<()> {
 
     if let Some(option) = cli.option.as_deref() {
         match option {
-            "ws" => {
-                let (tx, _rx) = mpsc::unbounded_channel();
-                let server = TeslaServer::start(env.http_port, tx);
-                let mut counter = 0;
-                loop {
-                    server
-                        .lock()
-                        .await
-                        .broadcast(get_default_wsmsg(counter))
-                        .await;
-                    counter += 1;
-                    tokio::time::sleep(time::Duration::from_secs(1)).await;
-                }
-            }
             "log" => logger::log(&pool, &env).await?,
+            "tasks" => chipmunk::tasks::run(&env).await,
             unknown => eprintln!("Unknown option `{unknown}`"),
         };
     }
+
+    tracing::info!("exiting");
 
     Ok(())
 }

@@ -1,0 +1,318 @@
+use std::time::Duration;
+
+use crate::EnvVars;
+use crate::database::tables::Tables;
+use backend::server::{MpscTopic, TeslaServer};
+use tesla_api::stream::StreamingData;
+use tesla_api::vehicle_data::VehicleData;
+use tokio::sync::mpsc::{unbounded_channel, self};
+use tokio::sync::{broadcast, oneshot, watch};
+use tokio_util::sync::CancellationToken;
+use tokio_util::task::TaskTracker;
+
+#[derive(Debug, Clone)]
+enum DataTypes {
+    VehicleData(VehicleData),
+    StreamingData(StreamingData),
+}
+
+#[derive(Debug, Clone)]
+enum Config<'a> {
+    Frequency(i32),
+    Key(&'a str),
+}
+
+impl Default for Config<'_> {
+    fn default() -> Self {
+        Config::Key("default_key")
+    }
+}
+
+async fn data_processor_task(
+    mut vehicle_data_rx: mpsc::Receiver<DataTypes>,
+    processed_data_tx: broadcast::Sender<Tables>,
+    _config_rx: watch::Receiver<Config<'_>>,
+    cancellation_token: CancellationToken,
+) {
+    use mpsc::error::*;
+    let name = "data_processor_task";
+    loop {
+        match vehicle_data_rx.try_recv() {
+            Ok(v) => match v {
+                DataTypes::VehicleData(_data) => {
+                    if let Err(e) = processed_data_tx.send(Tables::default()) {
+                        log::error!("{name}: cannot send data over data_tx: {e}");
+                    }
+                }
+                DataTypes::StreamingData(_data) => {
+                    if let Err(e) = processed_data_tx.send(Tables::default()) {
+                        log::error!("{name}: cannot send data over data_tx: {e}");
+                    }
+                }
+            },
+            Err(TryRecvError::Empty) => (),
+            Err(TryRecvError::Disconnected) => {
+                // don't log error message if the channel was disconnected because of cancellation request
+                if !cancellation_token.is_cancelled() {
+                    log::error!("vehicle_data_rx channel disconnected, exiting {name}");
+                }
+                break;
+            }
+        }
+        if cancellation_token.is_cancelled() {
+            break;
+        }
+        tokio::task::yield_now().await;
+    }
+    tracing::warn!("exiting {name}");
+}
+
+async fn data_stream_task(
+    data_tx: mpsc::Sender<DataTypes>,
+    _config_rx: watch::Receiver<Config<'_>>,
+    cancellation_token: CancellationToken,
+) {
+    let name = "data_stream_task";
+    loop {
+        if let Err(e) = data_tx.send(DataTypes::StreamingData(StreamingData::default())).await {
+            // don't log error message if the channel was closed because of a cancellation request
+            if !cancellation_token.is_cancelled() {
+                log::error!("{name}: cannot send data over data_tx: {e}");
+            }
+        }
+        if cancellation_token.is_cancelled() {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        tokio::task::yield_now().await;
+    }
+    tracing::warn!("exiting {name}");
+}
+
+async fn data_polling_task(
+    data_tx: mpsc::Sender<DataTypes>,
+    _config_rx: watch::Receiver<Config<'_>>,
+    cancellation_token: CancellationToken,
+) {
+    let name = "data_polling_task";
+    loop {
+        if let Err(e) = data_tx.send(DataTypes::VehicleData(VehicleData::default())).await {
+            // don't log error message if the channel was closed because of a cancellation request
+            if !cancellation_token.is_cancelled() {
+                log::error!("{name}: cannot send data over data_tx: {e}");
+            }
+        }
+        // log::info!("{name} {:?}! ", *config_rx.borrow());
+        if cancellation_token.is_cancelled() {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(800)).await;
+        tokio::task::yield_now().await;
+    }
+    tracing::warn!("exiting {name}");
+}
+
+async fn database_task(
+    mut data_rx: broadcast::Receiver<Tables>,
+    _config_rx: watch::Receiver<Config<'_>>,
+    cancellation_token: CancellationToken,
+) {
+    use broadcast::error::*;
+    let name = "database_task";
+    loop {
+        match data_rx.try_recv() {
+            Ok(_data) => (),//println!("Inserting data into database"),
+            Err(TryRecvError::Closed) => {
+                // don't log error message if the channel was closed because of a cancellation request
+                if !cancellation_token.is_cancelled() {
+                    log::error!("data_rx channel closed, exiting {name}");
+                }
+                break;
+            }
+            Err(TryRecvError::Empty) => (),
+            Err(TryRecvError::Lagged(n)) => {
+                log::warn!("{name} lagged too far behind; {n} messages skipped")
+            }
+        }
+        if cancellation_token.is_cancelled() {
+            break;
+        }
+        tokio::task::yield_now().await;
+    }
+    tracing::warn!("exiting {name}");
+}
+
+async fn web_server_task(
+    mut data_rx: broadcast::Receiver<Tables>,
+    _config_rx: watch::Receiver<Config<'_>>,
+    cancellation_token: CancellationToken,
+    http_port: u16,
+) {
+    use broadcast::error::*;
+    let name = "web_server_task";
+
+    let (data_from_server_tx, mut data_from_server_rx) = unbounded_channel();
+    let (server_exit_signal_tx, server_exit_signal_rx) = oneshot::channel();
+    let (data_to_server_tx, data_to_server_rx) = broadcast::channel::<i32>(1); // TODO: remove this channel and directly use data_rx to send data to web server
+
+    let message_handler_task = tokio::task::spawn(async move {
+        let name = format!("{name}::message_handler_task");
+        loop {
+            match data_from_server_rx.try_recv() {
+                Ok(value) => match value {
+                    MpscTopic::Logging(value) => {
+                        println!("Sending loging control command: {value}"); // TODO: Send log start command to logger task
+                        // if let Err(e) = logger_tx.send(value) {
+                        //     log::error!("{e}");
+                        // }
+                    }
+                    MpscTopic::RefreshToken(refresh_token) => {
+                        println!("Inserting tokens");
+                        let _tokens =
+                            match tesla_api::auth::refresh_access_token(refresh_token.as_str())
+                                .await
+                            {
+                                Ok(t) => t,
+                                Err(e) => {
+                                    log::error!("{e}");
+                                    continue;
+                                }
+                            };
+
+                        // TODO: Send token to database task
+                        // let encryption_key = env.encryption_key.clone();
+                        // if let Err(e) = Token::db_insert(&pool, tokens, encryption_key.as_str()).await
+                        // {
+                        //     log::error!("{e}");
+                        // }
+                    }
+                },
+                Err(e) => match e {
+                    tokio::sync::mpsc::error::TryRecvError::Disconnected => {
+                        log::error!("server_rx channel closed, exiting {name}");
+                        break;
+                    }
+                    tokio::sync::mpsc::error::TryRecvError::Empty => (),
+                }
+            }
+
+            match data_rx.try_recv() {
+                Ok(_data) => if let Err(e) = data_to_server_tx.send(1234) { // TODO: Send data to web server
+                    log::error!("Error sending data to web server: {e}");
+                },
+                Err(TryRecvError::Closed) => {
+                    // don't log error message if the channel was closed because of a cancellation request
+                    if !cancellation_token.is_cancelled() {
+                        log::error!("data_rx channel closed, exiting {name}");
+                    }
+                    break;
+                }
+                Err(TryRecvError::Empty) => (),
+                Err(TryRecvError::Lagged(n)) => {
+                    log::warn!("{name} lagged too far behind; {n} messages skipped")
+                }
+            }
+            if cancellation_token.is_cancelled() {
+                if let Err(e) = server_exit_signal_tx.send(()) {
+                    log::error!("Error sending exit signal to server: {e:?}")
+                }
+                break;
+            }
+            tokio::task::yield_now().await;
+        }
+    });
+
+    tokio::select! {
+        _ = TeslaServer::start(http_port, data_from_server_tx, data_to_server_rx, server_exit_signal_rx) => log::warn!("web server exited"),
+        status = message_handler_task => log::warn!("message handler task exited: {status:?}"),
+    }
+    tracing::warn!("exiting {name}");
+}
+
+pub async fn run(env: &EnvVars) {
+    // channel to pass around system settings
+    let (config_tx, config_rx) = watch::channel::<Config>(Config::default());
+    // Channel for vehicle data and streaming data
+    let (vehicle_data_tx, vehicle_data_rx) = mpsc::channel::<DataTypes>(1);
+    // channel for parsed data
+    let (processed_data_tx, data_rx) = broadcast::channel::<Tables>(1);
+
+    let cancellation_token = CancellationToken::new();
+    let task_tracker = TaskTracker::new();
+
+    // Transmits streaming data
+    let data_stream_task_handle = {
+        let vehicle_data_tx = vehicle_data_tx.clone();
+        let config_rx = config_tx.subscribe();
+        let cancellation_token = cancellation_token.clone();
+        task_tracker.spawn(async move {
+            data_stream_task(vehicle_data_tx, config_rx, cancellation_token).await;
+        })
+    };
+
+    // Transmits polling data
+    let data_polling_task_handle = {
+        let vehicle_data_tx = vehicle_data_tx.clone();
+        let cancellation_token = cancellation_token.clone();
+        task_tracker.spawn(async move {
+            data_polling_task(vehicle_data_tx, config_rx, cancellation_token).await;
+        })
+    };
+
+    // Receives polling and streaming data, parse the data and transmits the processed data
+    let data_processor_task_handle = {
+        let cancellation_token = cancellation_token.clone();
+        let config_rx = config_tx.subscribe();
+        let data_tx = processed_data_tx.clone();
+        task_tracker.spawn(async move {
+            data_processor_task(vehicle_data_rx, data_tx, config_rx, cancellation_token).await;
+        })
+    };
+
+    let database_task_handle = {
+        let data_rx = processed_data_tx.subscribe();
+        let config_rx = config_tx.subscribe();
+        let cancellation_token = cancellation_token.clone();
+        task_tracker.spawn(async move {
+            database_task(data_rx, config_rx, cancellation_token).await;
+        })
+    };
+
+    // Starts web server and use the processed data to show logging status to the user
+    let web_server_task_handle = {
+        let config_rx = config_tx.subscribe();
+        let cancellation_token = cancellation_token.clone();
+        let http_port = env.http_port;
+        task_tracker.spawn(async move {
+            web_server_task(data_rx, config_rx, cancellation_token, http_port).await;
+        })
+    };
+
+    // Task to periodically refresh access token
+
+    // After spawning all the tasks, close the tracker
+    task_tracker.close();
+
+    if let Err(e) = config_tx.send(Config::Key("new configuration key")) {
+        log::error!("Error sending configuration: {e}");
+    }
+    if let Err(e) = config_tx.send(Config::Frequency(4321)) {
+        log::error!("Error sending configuration: {e}");
+    }
+
+    // Wait for any one of the tasks to exit
+    tokio::select! {
+        status = data_processor_task_handle => tracing::info!("logger task done: {:?}", status),
+        status = data_stream_task_handle => tracing::info!("data stream task done: {:?}", status),
+        status = data_polling_task_handle => tracing::info!("data polling task done: {:?}", status),
+        status = database_task_handle => tracing::info!("database task done: {:?}", status),
+        status = web_server_task_handle => tracing::info!("web server task done: {:?}", status),
+        _ = tokio::signal::ctrl_c() => tracing::info!("Ctrl+C received"),
+    }
+
+    tracing::info!("stopping tasks and exiting...");
+    // One or more tasks exited, tell the remaining tasks to exit
+    cancellation_token.cancel();
+    // Wait for all tasks to exit
+    task_tracker.wait().await;
+}

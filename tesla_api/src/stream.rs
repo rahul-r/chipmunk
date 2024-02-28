@@ -7,7 +7,7 @@ use url::Url;
 
 use crate::{utils::timestamp_to_naivedatetime, TeslaError, STREAMING_URL};
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 #[allow(dead_code)]
 pub struct StreamingData {
     pub timestamp: Option<NaiveDateTime>,

@@ -1,7 +1,6 @@
 use std::{collections::HashMap, sync::mpsc};
 
 use anyhow::Context;
-use backend::server::{MpscTopic, TeslaServer};
 use tesla_api::{
     auth::AuthResponse,
     get_tesla_client, get_vehicle_data, get_vehicles,
@@ -33,58 +32,8 @@ use crate::{
 };
 
 pub async fn log(pool: &sqlx::PgPool, env: &EnvVars) -> anyhow::Result<()> {
-    let (server_tx, mut server_rx) = unbounded_channel();
-    let ui_server = TeslaServer::start(env.http_port, server_tx);
-
-    let (logger_tx, logger_rx) = unbounded_channel();
-
-    // Make copies so that we can move these into the future without causing borrow errors
-    let encryption_key = env.encryption_key.clone();
-    let pool1 = pool.clone();
-    let pool2 = pool.clone();
-
-    let cmd_handler = tokio::task::spawn(async move {
-        while let Some(topic) = server_rx.recv().await {
-            match topic {
-                MpscTopic::Logging(value) => {
-                    if let Err(e) = logger_tx.send(value) {
-                        log::error!("{e}");
-                    }
-                }
-                MpscTopic::RefreshToken(refresh_token) => {
-                    let tokens =
-                        match tesla_api::auth::refresh_access_token(refresh_token.as_str()).await {
-                            Ok(t) => t,
-                            Err(e) => {
-                                log::error!("{e}");
-                                continue;
-                            }
-                        };
-                    if let Err(e) = Token::db_insert(&pool1, tokens, encryption_key.as_str()).await
-                    {
-                        log::error!("{e}");
-                    }
-                }
-            }
-        }
-    });
-
-    let status_reporter = tokio::task::spawn(async move {
-        loop {
-            let srv = ui_server.lock().await;
-            let msg = srv.get_status_str();
-            srv.broadcast(msg).await;
-            sleep(Duration::from_secs(1)).await;
-        }
-    });
-
-    tokio::select! {
-        res = cmd_handler => res?,
-        res = status_reporter => res?,
-        res = start(&pool2, &env.encryption_key, logger_rx) => res?,
-    }
-
-    Ok(())
+    let (_logger_tx, logger_rx) = unbounded_channel();
+    start(pool, &env.encryption_key, logger_rx).await
 }
 
 async fn start(

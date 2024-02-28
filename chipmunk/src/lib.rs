@@ -12,6 +12,7 @@ pub mod database;
 pub mod logger;
 pub mod openstreetmap;
 pub mod utils;
+pub mod tasks;
 
 pub struct EnvVars {
     pub encryption_key: String,

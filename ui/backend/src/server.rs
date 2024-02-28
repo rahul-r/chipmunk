@@ -9,12 +9,12 @@ use std::{
 
 use futures_util::{SinkExt, StreamExt, TryFutureExt};
 use serde_json::json;
-use tokio::sync::{mpsc, RwLock};
+use tokio::sync::Mutex;
+use tokio::sync::{broadcast, mpsc, oneshot, RwLock};
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use uuid::Uuid;
 use warp::ws::{Message, WebSocket};
 use warp::Filter;
-use tokio::sync::Mutex;
 
 use ui_common::{Json, LoggingStatus, MessageType, Topic, WsMessage, WsMessageToken};
 
@@ -46,7 +46,12 @@ pub struct TeslaServer {
 }
 
 impl TeslaServer {
-    pub fn start(port: u16, tx: mpsc::UnboundedSender<MpscTopic>) -> Arc<Mutex<TeslaServer>> {
+    pub async fn start(
+        port: u16,
+        data_from_srv_tx: mpsc::UnboundedSender<MpscTopic>,
+        mut data_to_srv_rx: broadcast::Receiver<i32>,
+        exit_signal_rx: oneshot::Receiver<()>,
+    ) -> Arc<Mutex<TeslaServer>> {
         let clients = Clients::default(); // Keep track of all connected clients
         let clients_copy = clients.clone();
         let with_clients = warp::any().map(move || clients_copy.clone());
@@ -55,7 +60,7 @@ impl TeslaServer {
             .and(warp::ws())
             .and(with_clients)
             .map(move |ws: warp::ws::Ws, clients: Clients| {
-                let tx = tx.clone();
+                let tx = data_from_srv_tx.clone();
                 ws.on_upgrade(move |socket| TeslaServer::client_connected(socket, clients, tx))
             });
 
@@ -83,12 +88,39 @@ impl TeslaServer {
         // let routes = index.or(static_dir).or(websocket).with(cors);
         let routes = index.or(static_dir).or(websocket);
 
-        tokio::spawn(async move {
-            let address = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), port);
-            log::info!("Listening on http://{}", address);
-            warp::serve(routes).run(address).await;
-            log::error!("Server exited");
+        let address = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), port);
+        log::info!("Listening on http://{}", address);
+        let (_addr, server) = warp::serve(routes).bind_with_graceful_shutdown(address, async {
+            exit_signal_rx.await.ok();
         });
+
+        let message_handler_task = {
+            let clients = clients.clone();
+            tokio::task::spawn(async move {
+                loop {
+                    match data_to_srv_rx.recv().await {
+                        Ok(v) => {
+                            for (&_client_id, tx) in clients.read().await.iter() {
+                                if let Err(_disconnected) = tx.send(Message::text(v.to_string())) {
+                                    log::error!("Error {_disconnected}");
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            log::warn!("{e}");
+                            break;
+                        }
+                    }
+                }
+            })
+        };
+
+        tokio::select! {
+            _ = server => log::error!("Server exited"),
+            status = message_handler_task => log::error!("Message handler exited: {status:?}"),
+        }
+
+        tracing::error!("Exiting server task");
 
         Arc::new(Mutex::new(TeslaServer {
             clients,
@@ -225,21 +257,22 @@ impl TeslaServer {
                     TeslaServer::send(client, &resp)?;
                     anyhow::bail!("No token provided");
                 };
-        
+
                 let token = match WsMessageToken::from_value(token_value) {
                     Ok(t) => t.token,
                     Err(e) => {
-                        let resp = ws_msg.response_with_data(json!({"status": false, "reason": e.to_string()}));
+                        let resp = ws_msg
+                            .response_with_data(json!({"status": false, "reason": e.to_string()}));
                         TeslaServer::send(client, &resp)?;
                         anyhow::bail!("Cannot parse token");
                     }
                 };
-                
+
                 let response = match tx.send(MpscTopic::RefreshToken(token)) {
                     Ok(()) => json!({"status": true}),
                     Err(e) => json!({"status": false, "reason": e.to_string()}),
                 };
-                
+
                 let resp = ws_msg.response_with_data(response);
                 TeslaServer::send(client, &resp)?;
             }
