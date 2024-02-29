@@ -168,13 +168,13 @@ pub fn start(
     let init_streaming =
         |socket: &mut WebSocket<MaybeTlsStream<std::net::TcpStream>>| -> Result<(), TeslaError> {
             let subscrib_message_oauth = format!(
-            "{{
-                \"msg_type\": \"data:subscribe_oauth\",
-                \"token\": \"{access_token}\",
-                \"value\": \"speed,odometer,soc,elevation,est_heading,est_lat,est_lng,power,shift_state,range,est_range,heading\",
-                \"tag\": \"{vehicle_id}\"
-            }}"
-        );
+                "{{
+                    \"msg_type\": \"data:subscribe_oauth\",
+                    \"token\": \"{access_token}\",
+                    \"value\": \"speed,odometer,soc,elevation,est_heading,est_lat,est_lng,power,shift_state,range,est_range,heading\",
+                    \"tag\": \"{vehicle_id}\"
+                }}"
+            );
 
             if let Err(e) = socket.send(Message::Text(subscrib_message_oauth)) {
                 log::error!("{e}");

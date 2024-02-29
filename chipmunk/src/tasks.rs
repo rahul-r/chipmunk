@@ -1,23 +1,27 @@
 use std::time::Duration;
 
-use crate::EnvVars;
 use crate::database::tables::Tables;
+use crate::EnvVars;
+use crate::database::tables::token::Token;
+use anyhow::Context;
 use backend::server::{MpscTopic, TeslaServer};
 use tesla_api::stream::StreamingData;
-use tesla_api::vehicle_data::VehicleData;
-use tokio::sync::mpsc::{unbounded_channel, self};
+use tesla_api::{TeslaClient, TeslaError};
+use tokio::sync::mpsc::{self, unbounded_channel};
 use tokio::sync::{broadcast, oneshot, watch};
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::TaskTracker;
 
 #[derive(Debug, Clone)]
 enum DataTypes {
-    VehicleData(VehicleData),
+    VehicleData(String),
     StreamingData(StreamingData),
 }
 
 #[derive(Debug, Clone)]
 enum Config<'a> {
+    AccessToken(&'a str),
+    LoggingPeriodMs(i32),
     Frequency(i32),
     Key(&'a str),
 }
@@ -67,14 +71,39 @@ async fn data_processor_task(
     tracing::warn!("exiting {name}");
 }
 
-async fn data_stream_task(
+async fn data_streaming_task(
     data_tx: mpsc::Sender<DataTypes>,
-    _config_rx: watch::Receiver<Config<'_>>,
+    mut config_rx: watch::Receiver<Config<'_>>,
     cancellation_token: CancellationToken,
+    vehicle_id: u64,
 ) {
     let name = "data_stream_task";
+    let (streaming_data_tx, streaming_data_rx) = std::sync::mpsc::channel::<StreamingData>();
+        let mut access_token = "";
+        // TODO: Use the default access token if the config_rx is not available instead of
+        // throwing error and breaking out of the loop
+        if let Ok(true) = config_rx.has_changed() {
+            access_token = match *config_rx.borrow_and_update() {
+                Config::AccessToken(at) => at,
+                _ => "",
+            }
+        }
+
     loop {
-        if let Err(e) = data_tx.send(DataTypes::StreamingData(StreamingData::default())).await {
+        let access_token = access_token.clone().to_string();
+        let vehicle_id = vehicle_id.clone();
+        let streaming_data_tx = streaming_data_tx.clone();
+        let streaming_task = tokio::task::spawn_blocking(move || {
+            tesla_api::stream::start(&access_token, vehicle_id, streaming_data_tx)
+                .map_err(|e| log::error!("Error streaming: {e}"))
+                .ok();
+            log::warn!("Vehicle data streaming stopped");
+        });
+
+        if let Err(e) = data_tx
+            .send(DataTypes::StreamingData(StreamingData::default()))
+            .await
+        {
             // don't log error message if the channel was closed because of a cancellation request
             if !cancellation_token.is_cancelled() {
                 log::error!("{name}: cannot send data over data_tx: {e}");
@@ -91,24 +120,68 @@ async fn data_stream_task(
 
 async fn data_polling_task(
     data_tx: mpsc::Sender<DataTypes>,
-    _config_rx: watch::Receiver<Config<'_>>,
+    config_rx: watch::Receiver<Config<'_>>,
     cancellation_token: CancellationToken,
+    tesla_client: TeslaClient,
+    car_id: u64,
 ) {
     let name = "data_polling_task";
+    let mut _num_data_points = 0;
     loop {
-        if let Err(e) = data_tx.send(DataTypes::VehicleData(VehicleData::default())).await {
-            // don't log error message if the channel was closed because of a cancellation request
-            if !cancellation_token.is_cancelled() {
-                log::error!("{name}: cannot send data over data_tx: {e}");
-            }
-        }
-        // log::info!("{name} {:?}! ", *config_rx.borrow());
         if cancellation_token.is_cancelled() {
             break;
         }
-        tokio::time::sleep(Duration::from_millis(800)).await;
+
+        // TODO: Use the default logging period if the config_rx is not available instead of
+        // throwing error and breaking out of the loop
+        let Config::LoggingPeriodMs(logging_period_ms) = *config_rx.borrow() else {
+            log::error!("Error: cannot get logging period from config_rx");
+            break;
+        };
+
+        match tesla_api::get_vehicle_data(&tesla_client, car_id).await {
+            Ok(data) => {
+                if let Err(e) = data_tx.send(DataTypes::VehicleData(data)).await {
+                    // don't log error message if the channel was closed because of a cancellation request
+                    if !cancellation_token.is_cancelled() {
+                        log::error!("{name}: cannot send data over data_tx: {e}");
+                    }
+                }
+            }
+            Err(e) => {
+                match e {
+                    TeslaError::Connection(e) => log::error!("Error: `{e}`"),
+                    TeslaError::Request(e) => log::error!("Error: `{e}`"),
+                    TeslaError::ApiError(e) => log::error!("Error: `{e}`"), // TODO: Error: `429 - Account or server is rate limited. This happens when too many requests are made by an account.
+                    // • Check the 'Retry-After' request header (in seconds); to determine when to make the next request.`
+                    TeslaError::NotOnline => {
+                        // TODO: Is there a way to wait for the vehicle to come online?
+                        log::info!("Vehicle is not online");
+                        tokio::time::sleep(Duration::from_millis(logging_period_ms as u64)).await;
+                        continue;
+                    }
+                    TeslaError::InvalidHeader(e) => log::error!("Error: `{e}`"),
+                    TeslaError::ParseError(e) => log::error!("Error: `{e}`"),
+                    TeslaError::WebSocketError(e) => log::error!("Error: `{e}`"),
+                    TeslaError::TokenExpired(e) => log::error!("Error: `{e}`"),
+                    TeslaError::JsonDecodeError(e) => log::error!("Error: `{e}`"),
+                    TeslaError::RequestTimeout => {
+                        log::info!("Timeout");
+                        // Wait for a bit before trying again
+                        tokio::time::sleep(Duration::from_secs(2)).await;
+                        continue;
+                    }
+                    TeslaError::InvalidResponse => log::error!("Error: `{e}`"),
+                }
+            }
+        };
+
+        _num_data_points += 1;
+
+        tokio::time::sleep(Duration::from_millis(logging_period_ms as u64)).await;
         tokio::task::yield_now().await;
     }
+
     tracing::warn!("exiting {name}");
 }
 
@@ -121,7 +194,7 @@ async fn database_task(
     let name = "database_task";
     loop {
         match data_rx.try_recv() {
-            Ok(_data) => (),//println!("Inserting data into database"),
+            Ok(_data) => (), //println!("Inserting data into database"),
             Err(TryRecvError::Closed) => {
                 // don't log error message if the channel was closed because of a cancellation request
                 if !cancellation_token.is_cancelled() {
@@ -162,9 +235,9 @@ async fn web_server_task(
                 Ok(value) => match value {
                     MpscTopic::Logging(value) => {
                         println!("Sending loging control command: {value}"); // TODO: Send log start command to logger task
-                        // if let Err(e) = logger_tx.send(value) {
-                        //     log::error!("{e}");
-                        // }
+                                                                             // if let Err(e) = logger_tx.send(value) {
+                                                                             //     log::error!("{e}");
+                                                                             // }
                     }
                     MpscTopic::RefreshToken(refresh_token) => {
                         println!("Inserting tokens");
@@ -193,13 +266,16 @@ async fn web_server_task(
                         break;
                     }
                     tokio::sync::mpsc::error::TryRecvError::Empty => (),
-                }
+                },
             }
 
             match data_rx.try_recv() {
-                Ok(_data) => if let Err(e) = data_to_server_tx.send(1234) { // TODO: Send data to web server
-                    log::error!("Error sending data to web server: {e}");
-                },
+                Ok(_data) => {
+                    if let Err(e) = data_to_server_tx.send(1234) {
+                        // TODO: Send data to web server
+                        log::error!("Error sending data to web server: {e}");
+                    }
+                }
                 Err(TryRecvError::Closed) => {
                     // don't log error message if the channel was closed because of a cancellation request
                     if !cancellation_token.is_cancelled() {
@@ -229,7 +305,7 @@ async fn web_server_task(
     tracing::warn!("exiting {name}");
 }
 
-pub async fn run(env: &EnvVars) {
+pub async fn run(env: &EnvVars, pool: &sqlx::PgPool) -> anyhow::Result<()> {
     // channel to pass around system settings
     let (config_tx, config_rx) = watch::channel::<Config>(Config::default());
     // Channel for vehicle data and streaming data
@@ -240,13 +316,28 @@ pub async fn run(env: &EnvVars) {
     let cancellation_token = CancellationToken::new();
     let task_tracker = TaskTracker::new();
 
+    let tokens = Token::db_get_last(pool, &env.encryption_key).await?;
+    let tesla_client = tesla_api::get_tesla_client(&tokens.access_token)?;
+
+    let vehicles = tesla_api::get_vehicles(&tesla_client).await?;
+    let vehicle = vehicles.get(0); // TODO: Use the first vehicle for now
+    let car_id = vehicle
+        .context("Invalid vehicle data")?
+        .id
+        .context("Invalid ID")?;
+
+    let vehicle_id = vehicle
+        .context("Invalid vehicle data")?
+        .vehicle_id
+        .context("Invalid vehicle ID")?;
+
     // Transmits streaming data
     let data_stream_task_handle = {
         let vehicle_data_tx = vehicle_data_tx.clone();
         let config_rx = config_tx.subscribe();
         let cancellation_token = cancellation_token.clone();
         task_tracker.spawn(async move {
-            data_stream_task(vehicle_data_tx, config_rx, cancellation_token).await;
+            data_streaming_task(vehicle_data_tx, config_rx, cancellation_token, vehicle_id).await;
         })
     };
 
@@ -255,7 +346,14 @@ pub async fn run(env: &EnvVars) {
         let vehicle_data_tx = vehicle_data_tx.clone();
         let cancellation_token = cancellation_token.clone();
         task_tracker.spawn(async move {
-            data_polling_task(vehicle_data_tx, config_rx, cancellation_token).await;
+            data_polling_task(
+                vehicle_data_tx,
+                config_rx,
+                cancellation_token,
+                tesla_client,
+                car_id,
+            )
+            .await;
         })
     };
 
@@ -315,4 +413,6 @@ pub async fn run(env: &EnvVars) {
     cancellation_token.cancel();
     // Wait for all tasks to exit
     task_tracker.wait().await;
+
+    Ok(())
 }
