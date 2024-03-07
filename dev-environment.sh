@@ -2,6 +2,14 @@
 
 set -e
 
+USE_PODMAN=1
+
+if USE_PODMAN -eq 1; then
+  CONTAINER=podman
+else
+  CONTAINER=docker
+fi
+
 start_dev_env() {
   echo "Starting development environment"
   HOST_UID=$(id -u)
@@ -13,18 +21,26 @@ start_dev_env() {
   mkdir -p chipmunk_docker/pgadmin
   mkdir -p chipmunk_docker/grafana
 
-  sudo chown -R 472:0 chipmunk_docker/grafana
-  sudo chown -R 5050:5050 chipmunk_docker/pgadmin
+  # sudo chown -R 472:0 chipmunk_docker/grafana
+  # sudo chown -R 5050:5050 chipmunk_docker/pgadmin
 
   set +e
   # https://docs.docker.com/engine/reference/commandline/compose_run/
-  podman compose -f docker-compose-dev.yml run \
-                    --rm \
-                    --service-ports \
-                    --name chipmunk-dev \
-                    chipmunk-dev
-
-  podman-compose -f docker-compose-dev.yml down
+  if USE_PODMAN -eq 1; then
+    podman compose -f docker-compose-dev.yml run \
+                      --rm \
+                      --remove-orphans \
+                      --service-ports \
+                      --name chipmunk-dev \
+                      chipmunk-dev
+  else
+    docker compose -f docker-compose-dev.yml run \
+                      --rm \
+                      --service-ports \
+                      --name chipmunk-dev \
+                      chipmunk-dev
+  fi
+  $CONTAINER compose -f docker-compose-dev.yml down
 }
 
 build_dev_env() {
@@ -34,8 +50,8 @@ build_dev_env() {
   export HOST_UID
   export HOST_GID
 
-  podman-compose -f docker-compose-dev.yml down
-  podman-compose -f docker-compose-dev.yml build --no-cache
+  $CONTAINER compose -f docker-compose-dev.yml down
+  $CONTAINER compose -f docker-compose-dev.yml build --no-cache
 }
 
 redo_migration() {

@@ -8,6 +8,8 @@ services:
     restart: unless-stopped
     ports:
       - "5432:5432"
+    security_opt:
+      - "label=disable"
     volumes:
       - ./chipmunk_docker/postgres:/var/lib/postgresql/data:rw
     environment:
@@ -35,6 +37,8 @@ services:
       - db_car_data
     ports:
       - "8080:80"
+    security_opt:
+      - "label=disable"
     volumes:
       # NOTE: Set the pgadmin directory owner to uid 5050
       - ./chipmunk_docker/pgadmin/config:/var/lib/pgadmin:Z
@@ -81,6 +85,9 @@ services:
       - "3073:3000"
     depends_on:
       - db
+    userns_mode: "keep-id"
+    security_opt:
+      - "label=disable"
     volumes:
       # NOTE: Set the grafana directory owner to 472:0
       - ./chipmunk_docker/grafana:/var/lib/grafana:Z
@@ -108,16 +115,19 @@ services:
       - db
       - db_car_data
       - grafana
-      - pgadmin
+      # - pgadmin
+    userns_mode: "keep-id"
+    security_opt:
+      - "label=disable"
     volumes:
-      - .:/chipmunk:rw
+      - .:/chipmunk:U
     working_dir: /chipmunk
     ports:
       - "${HTTP_PORT}:${HTTP_PORT}" # This comes from the .env file
     stdin_open: true
     tty: true
     environment:
-      CARGO_TARGET_DIR: target_docker # This tells cargo to use the specified directory as build directory
+      CARGO_TARGET_DIR: target_container # This tells cargo to use the specified directory as build directory
       TOKEN_ENCRYPTION_KEY: ${TOKEN_ENCRYPTION_KEY} # This comes from the .env file
       # Postgres URL format: postgres://[user[:password]@][netloc][:port][/dbname][?param1=value1&...]
       DATABASE_URL: "postgres://chipmunk:${DATABASE_PASSWORD}@db:5432/chipmunk"
