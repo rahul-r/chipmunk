@@ -188,7 +188,7 @@ pub struct Vehicles {
 
 pub async fn get_vehicles(client: &reqwest::Client) -> Result<Vec<Vehicles>, TeslaError> {
     log::debug!("Getting list of vehicles");
-    let res = client.get(format!("{}/vehicles", get_base_url())).send().await?;
+    let res = client.get(format!("{}/products", get_base_url())).send().await?;
     log::debug!("Received response: {:?}", res);
     read_response_json!(res, Vec<Vehicles>)
 }

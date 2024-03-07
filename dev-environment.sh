@@ -18,14 +18,13 @@ start_dev_env() {
 
   set +e
   # https://docs.docker.com/engine/reference/commandline/compose_run/
-  docker-compose -f docker-compose-dev.yml run \
+  podman compose -f docker-compose-dev.yml run \
                     --rm \
-                    --remove-orphans \
                     --service-ports \
                     --name chipmunk-dev \
                     chipmunk-dev
 
-  docker-compose -f docker-compose-dev.yml down
+  podman-compose -f docker-compose-dev.yml down
 }
 
 build_dev_env() {
@@ -35,8 +34,8 @@ build_dev_env() {
   export HOST_UID
   export HOST_GID
 
-  docker-compose -f docker-compose-dev.yml down
-  docker-compose -f docker-compose-dev.yml build --no-cache
+  podman-compose -f docker-compose-dev.yml down
+  podman-compose -f docker-compose-dev.yml build --no-cache
 }
 
 redo_migration() {
