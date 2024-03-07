@@ -91,7 +91,6 @@ async fn data_streaming_task(
 
     loop {
         let access_token = access_token.clone().to_string();
-        let vehicle_id = vehicle_id.clone();
         let streaming_data_tx = streaming_data_tx.clone();
         let streaming_task = tokio::task::spawn_blocking(move || {
             tesla_api::stream::start(&access_token, vehicle_id, streaming_data_tx)
@@ -113,7 +112,6 @@ async fn data_streaming_task(
             break;
         }
         tokio::time::sleep(Duration::from_millis(100)).await;
-        tokio::task::yield_now().await;
     }
     tracing::warn!("exiting {name}");
 }
@@ -331,6 +329,16 @@ pub async fn run(env: &EnvVars, pool: &sqlx::PgPool) -> anyhow::Result<()> {
         .vehicle_id
         .context("Invalid vehicle ID")?;
 
+    if let Err(e) = config_tx.send(Config::Key("new configuration key")) {
+        log::error!("Error sending configuration: {e}");
+    }
+    if let Err(e) = config_tx.send(Config::Frequency(4321)) {
+        log::error!("Error sending configuration: {e}");
+    }
+    if let Err(e) = config_tx.send(Config::LoggingPeriodMs(10000)) {
+        log::error!("Error sending configuration: {e}");
+    }
+
     // Transmits streaming data
     let data_stream_task_handle = {
         let vehicle_data_tx = vehicle_data_tx.clone();
@@ -390,13 +398,6 @@ pub async fn run(env: &EnvVars, pool: &sqlx::PgPool) -> anyhow::Result<()> {
 
     // After spawning all the tasks, close the tracker
     task_tracker.close();
-
-    if let Err(e) = config_tx.send(Config::Key("new configuration key")) {
-        log::error!("Error sending configuration: {e}");
-    }
-    if let Err(e) = config_tx.send(Config::Frequency(4321)) {
-        log::error!("Error sending configuration: {e}");
-    }
 
     // Wait for any one of the tasks to exit
     tokio::select! {

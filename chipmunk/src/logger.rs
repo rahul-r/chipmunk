@@ -77,33 +77,15 @@ async fn logging_process(
     let vehicles = get_vehicles(client).await?;
     let vehicle = vehicles.get(0); // TODO: Use the first vehicle for now
 
-    let vehicle_id = vehicle
-        .context("Invalid vehicle data")?
-        .vehicle_id
-        .context("Invalid vehicle ID")?;
-
     let settings = Settings::db_get_last(pool).await?;
-
-    let access_token = tokens.access_token.clone();
 
     let (start_logger_signal_tx, _start_logger_signal_rx) = unbounded_channel::<bool>();
 
     let (_vehicle_data_tx, mut vehicle_data_rx) = unbounded_channel::<String>();
     let (streaming_data_tx, streaming_data_rx) = mpsc::channel::<StreamingData>();
 
-    let enable_streaming = false;
 
     // Start a thread to handle streaming data
-    if enable_streaming {
-        std::thread::Builder::new()
-            .name("data_streaming".to_string())
-            .spawn(move || {
-                stream::start(&access_token, vehicle_id, streaming_data_tx)
-                    .map_err(|e| log::error!("Error streaming: {e}"))
-                    .ok();
-                log::warn!("Vehicle data streaming stopped");
-            })?;
-    }
 
     // Start a task to collect vehicle data
 
