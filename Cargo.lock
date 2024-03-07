@@ -2806,6 +2806,8 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
+ "tokio",
+ "tokio-util",
  "tungstenite 0.21.0",
  "url",
 ]

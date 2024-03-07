@@ -10,6 +10,8 @@ serde_json.workspace = true
 chrono.workspace = true
 log.workspace = true
 reqwest.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
 
 thiserror = "1.0.40"
 tungstenite = { version = "0.21.0", features = ["native-tls"] }

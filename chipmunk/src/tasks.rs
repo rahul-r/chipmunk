@@ -77,8 +77,9 @@ async fn data_streaming_task(
     cancellation_token: CancellationToken,
     vehicle_id: u64,
 ) {
+    use mpsc::error::*;
     let name = "data_stream_task";
-    let (streaming_data_tx, streaming_data_rx) = std::sync::mpsc::channel::<StreamingData>();
+    let (streaming_data_tx, mut streaming_data_rx) = tokio::sync::mpsc::channel::<StreamingData>(1);
         let mut access_token = "";
         // TODO: Use the default access token if the config_rx is not available instead of
         // throwing error and breaking out of the loop
@@ -89,30 +90,49 @@ async fn data_streaming_task(
             }
         }
 
-    loop {
-        let access_token = access_token.clone().to_string();
-        let streaming_data_tx = streaming_data_tx.clone();
-        let streaming_task = tokio::task::spawn_blocking(move || {
-            tesla_api::stream::start(&access_token, vehicle_id, streaming_data_tx)
-                .map_err(|e| log::error!("Error streaming: {e}"))
-                .ok();
-            log::warn!("Vehicle data streaming stopped");
-        });
-
-        if let Err(e) = data_tx
-            .send(DataTypes::StreamingData(StreamingData::default()))
+    let access_token = access_token.clone().to_string();
+    let streaming_data_tx = streaming_data_tx.clone();
+    let cancellation_token_clone = cancellation_token.clone();
+    let streaming_task = tokio::task::spawn_blocking(async move || {
+        tesla_api::stream::start(&access_token, vehicle_id, streaming_data_tx, cancellation_token_clone)
             .await
-        {
-            // don't log error message if the channel was closed because of a cancellation request
-            if !cancellation_token.is_cancelled() {
-                log::error!("{name}: cannot send data over data_tx: {e}");
+            .map_err(|e| log::error!("Error streaming: {e}"))
+            .ok();
+        log::warn!("Vehicle data streaming stopped");
+    });
+
+    loop {
+        match streaming_data_rx.try_recv() {
+            Ok(data) => {
+                if let Err(e) = data_tx
+                    .send(DataTypes::StreamingData(data))
+                    .await
+                {
+                    // don't log error message if the channel was closed because of a cancellation request
+                    if !cancellation_token.is_cancelled() {
+                        log::error!("{name}: cannot send data over data_tx: {e}");
+                    }
+                }
+            }
+            Err(TryRecvError::Empty) => (),
+            Err(TryRecvError::Disconnected) => {
+                // don't log error message if the channel was disconnected because of cancellation request
+                if !cancellation_token.is_cancelled() {
+                    log::error!("streaming_data_rx channel disconnected, exiting {name}");
+                }
+                break;
             }
         }
         if cancellation_token.is_cancelled() {
             break;
         }
-        tokio::time::sleep(Duration::from_millis(100)).await;
+        tokio::task::yield_now().await;
     }
+
+    if let Err(e) = streaming_task.await {
+        log::error!("Error waiting for streaming task: {e}");
+    }
+
     tracing::warn!("exiting {name}");
 }
 

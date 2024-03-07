@@ -1,9 +1,8 @@
-use std::sync::mpsc::Sender;
-
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 use tungstenite::{connect, stream::MaybeTlsStream, Message, WebSocket};
 use url::Url;
+use tokio::sync::mpsc;
 
 use crate::{utils::timestamp_to_naivedatetime, TeslaError, STREAMING_URL};
 
@@ -147,10 +146,11 @@ impl WebSocketResponse {
 /*
  * vehicle_id: value of `get_vehicles().vehicle_id` field and not the `id` field
  */
-pub fn start(
+pub async fn start(
     access_token: &str,
     vehicle_id: u64,
-    data_tx: Sender<StreamingData>,
+    data_tx: mpsc::Sender<StreamingData>,
+    cancellation_token: tokio_util::sync::CancellationToken,
 ) -> Result<(), TeslaError> {
     let create_websocket =
         || -> Result<WebSocket<MaybeTlsStream<std::net::TcpStream>>, TeslaError> {
@@ -188,6 +188,10 @@ pub fn start(
     init_streaming(&mut socket)?;
 
     loop {
+        if cancellation_token.is_cancelled() {
+            break;
+        }
+
         let msg: WebSocketResponse = match socket.read() {
             Ok(v) => {
                 if v.is_close() {
@@ -210,7 +214,7 @@ pub fn start(
             MessageType::Start => log::info!("TODO: handle Streaming started"),
             MessageType::Data(data) => {
                 if let Some(d) = data {
-                    if let Err(e) = data_tx.send(d) {
+                    if let Err(e) = data_tx.send(d).await {
                         log::error!("Error sending streaming data over mpsc: {e}");
                     };
                 }
@@ -234,5 +238,7 @@ pub fn start(
                 log::warn!("TODO: handle Unknown message from WebSocket: {msg}")
             }
         };
+        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
     }
+     Ok(())
 }
