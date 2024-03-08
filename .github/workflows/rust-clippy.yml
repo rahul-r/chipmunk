@@ -18,6 +18,10 @@ on:
   schedule:
     - cron: '25 4 * * 1'
 
+# Make sure CI fails on all warnings, including Clippy lints
+env:
+  RUSTFLAGS: "-Dwarnings"
+
 jobs:
   rust-clippy-analyze:
     name: Run rust-clippy analyzing
