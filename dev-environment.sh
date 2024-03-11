@@ -4,7 +4,7 @@ set -e
 
 USE_PODMAN=1
 
-if USE_PODMAN -eq 1; then
+if [ -n "$USE_PODMAN" ]; then
   CONTAINER=podman
 else
   CONTAINER=docker
@@ -26,7 +26,7 @@ start_dev_env() {
 
   set +e
   # https://docs.docker.com/engine/reference/commandline/compose_run/
-  if USE_PODMAN -eq 1; then
+  if [ -n "$USE_PODMAN" ]; then
     podman compose -f docker-compose-dev.yml run \
                       --rm \
                       --remove-orphans \

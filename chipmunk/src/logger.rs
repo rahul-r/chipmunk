@@ -1,19 +1,10 @@
-use std::{collections::HashMap, sync::mpsc};
+use std::collections::HashMap;
 
-use anyhow::Context;
-use tesla_api::{
-    auth::AuthResponse,
-    get_tesla_client, get_vehicles,
-    stream::{self, StreamingData},
-    vehicle_data::VehicleData,
-    TeslaClient,
-};
-use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver};
-use tokio::time::{sleep, Duration};
+use tesla_api::vehicle_data::VehicleData;
 
 use crate::{
     database::{
-        self, tables::{
+        tables::{
             address::Address,
             car::Car,
             car_settings::CarSettings,
@@ -21,115 +12,15 @@ use crate::{
             charging_process::ChargingProcess,
             drive::Drive,
             position::Position,
-            settings::Settings,
             state::{State, StateStatus},
-            token::Token,
             Tables,
         }, types::ChargeStat, DBTable
     },
-    utils::sub_option,
-    EnvVars,
+    utils::sub_option, tasks,
 };
 
-pub async fn log(
-    pool: &sqlx::PgPool,
-    env: &EnvVars,
-) -> anyhow::Result<()> {
-    let encryption_key = &env.encryption_key;
-    let (_tx, mut rx) = unbounded_channel();
-
-    let mut message_shown = false;
-    loop {
-        if !Token::exists(pool).await? {
-            if !message_shown {
-                log::info!(
-                    "Cannot find Tesla auth tokens in database, waiting for token from user"
-                );
-                message_shown = true;
-            }
-            sleep(Duration::from_secs(2)).await;
-            continue;
-        };
-
-        let tokens = Token::db_get_last(pool, encryption_key).await?;
-
-        let tesla_client = get_tesla_client(&tokens.access_token)?;
-
-        if let Err(e) = logging_process(pool, &tesla_client, &tokens, &mut rx).await {
-            log::error!("Error logging vehicle data: {e}, restarting the logger...");
-        } else {
-            log::error!("Logging stopped");
-            break;
-        }
-
-        sleep(Duration::from_secs(2)).await;
-    }
-
-    Ok(())
-}
-
-async fn logging_process(
-    pool: &sqlx::PgPool,
-    client: &TeslaClient,
-    tokens: &AuthResponse,
-    rx: &mut UnboundedReceiver<bool>,
-) -> anyhow::Result<()> {
-    let vehicles = get_vehicles(client).await?;
-    let vehicle = vehicles.get(0); // TODO: Use the first vehicle for now
-
-    let settings = Settings::db_get_last(pool).await?;
-
-    let (start_logger_signal_tx, _start_logger_signal_rx) = unbounded_channel::<bool>();
-
-    let (_vehicle_data_tx, mut vehicle_data_rx) = unbounded_channel::<String>();
-    let (streaming_data_tx, streaming_data_rx) = mpsc::channel::<StreamingData>();
-
-
-    // Start a thread to handle streaming data
-
-    // Start a task to collect vehicle data
-
-    // Behavior of the logger at startup
-    // true  -> begin logging at startup
-    // false -> don't begin logging at startup; wait for the user to enable logging.
-    if let Err(e) = start_logger_signal_tx.send(settings.log_at_startup) {
-        log::error!("Error sending mpsc message to start vehicle data logger: {e}");
-    }
-
-    log::info!("Logging started");
-
-    let mut vin_id_map = database::tables::car::get_vin_id_map(pool).await;
-    let mut tables = Tables::default();
-
-    loop {
-        if let Ok(value) = rx.try_recv() {
-            if let Err(e) = start_logger_signal_tx.send(value) {
-                log::error!("Error sending mpsc message to start vehicle data logger: {e}");
-            }
-        }
-
-        if let Ok(_data) = streaming_data_rx.try_recv() {
-            // TODO: inert data into database, create database table for streaming data.
-        }
-
-        if let Ok(data) = vehicle_data_rx.try_recv() {
-            let data_json = VehicleData::from_response_json(&data);
-
-            if let Err(e) = database::tables::vehicle_data::db_insert_json(&data, pool).await {
-                log::error!("{e}");
-            };
-
-            match data_json {
-                Ok(data) => {
-                    (vin_id_map, tables) =
-                        process_vehicle_data(pool, vin_id_map, tables, data).await;
-                }
-                Err(e) => log::error!("Error parsing vehicle data to json: {e}"),
-            };
-        } else {
-            sleep(Duration::from_millis(1)).await; // Add a small delay to prevent hogging tokio runtime
-        }
-    }
+pub async fn log(pool: &sqlx::PgPool, env: &crate::EnvVars) -> anyhow::Result<()> {
+    tasks::run(&env, &pool).await
 }
 
 pub async fn process_vehicle_data(

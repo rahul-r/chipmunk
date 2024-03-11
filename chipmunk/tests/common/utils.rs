@@ -89,7 +89,7 @@ pub fn create_mock_tesla_server(vehicle_data: Arc<Mutex<VehicleData>>, send_resp
         .create();
 
     server
-        .mock("GET", "/vehicles")
+        .mock("GET", "/products")
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body(create_vehicles_response_json())

@@ -1,11 +1,13 @@
 use std::time::Duration;
 
-use crate::database::tables::Tables;
-use crate::EnvVars;
 use crate::database::tables::token::Token;
+use crate::database::tables::Tables;
+use crate::logger::process_vehicle_data;
+use crate::{database, EnvVars};
 use anyhow::Context;
 use backend::server::{MpscTopic, TeslaServer};
 use tesla_api::stream::StreamingData;
+use tesla_api::vehicle_data::VehicleData;
 use tesla_api::{TeslaClient, TeslaError};
 use tokio::sync::mpsc::{self, unbounded_channel};
 use tokio::sync::{broadcast, oneshot, watch};
@@ -16,6 +18,11 @@ use tokio_util::task::TaskTracker;
 enum DataTypes {
     VehicleData(String),
     StreamingData(StreamingData),
+}
+
+enum DatabaseDataType {
+    RawData(String),
+    Tables(Tables),
 }
 
 #[derive(Debug, Clone)]
@@ -35,15 +42,40 @@ impl Default for Config<'_> {
 async fn data_processor_task(
     mut vehicle_data_rx: mpsc::Receiver<DataTypes>,
     processed_data_tx: broadcast::Sender<Tables>,
+    database_tx: mpsc::Sender<DatabaseDataType>,
     _config_rx: watch::Receiver<Config<'_>>,
     cancellation_token: CancellationToken,
+    pool: &sqlx::PgPool,
 ) {
     use mpsc::error::*;
     let name = "data_processor_task";
+    let mut vin_id_map = database::tables::car::get_vin_id_map(pool).await;
+    let mut tables = Tables::default();
+
     loop {
+        tokio::task::yield_now().await;
+
         match vehicle_data_rx.try_recv() {
             Ok(v) => match v {
-                DataTypes::VehicleData(_data) => {
+                DataTypes::VehicleData(data) => {
+                    if let Err(e) = database_tx
+                        .send(DatabaseDataType::RawData(data.clone()))
+                        .await
+                    {
+                        log::error!("{name}: cannot send data over database_tx: {e}");
+                    }
+
+                    let vehicle_data = match VehicleData::from_response_json(&data) {
+                        Ok(data) => data,
+                        Err(e) => {
+                            log::error!("Error parsing vehicle data to json: {e}");
+                            continue;
+                        }
+                    };
+
+                    (vin_id_map, tables) =
+                        process_vehicle_data(pool, vin_id_map, tables, vehicle_data).await;
+
                     if let Err(e) = processed_data_tx.send(Tables::default()) {
                         log::error!("{name}: cannot send data over data_tx: {e}");
                     }
@@ -66,7 +98,6 @@ async fn data_processor_task(
         if cancellation_token.is_cancelled() {
             break;
         }
-        tokio::task::yield_now().await;
     }
     tracing::warn!("exiting {name}");
 }
@@ -80,34 +111,36 @@ async fn data_streaming_task(
     use mpsc::error::*;
     let name = "data_stream_task";
     let (streaming_data_tx, mut streaming_data_rx) = tokio::sync::mpsc::channel::<StreamingData>(1);
-        let mut access_token = "";
-        // TODO: Use the default access token if the config_rx is not available instead of
-        // throwing error and breaking out of the loop
-        if let Ok(true) = config_rx.has_changed() {
-            access_token = match *config_rx.borrow_and_update() {
-                Config::AccessToken(at) => at,
-                _ => "",
-            }
+    let mut access_token = "";
+    // TODO: Use the default access token if the config_rx is not available instead of
+    // throwing error and breaking out of the loop
+    if let Ok(true) = config_rx.has_changed() {
+        access_token = match *config_rx.borrow_and_update() {
+            Config::AccessToken(at) => at,
+            _ => "",
         }
+    }
 
     let access_token = access_token.clone().to_string();
     let streaming_data_tx = streaming_data_tx.clone();
     let cancellation_token_clone = cancellation_token.clone();
     let streaming_task = tokio::task::spawn_blocking(async move || {
-        tesla_api::stream::start(&access_token, vehicle_id, streaming_data_tx, cancellation_token_clone)
-            .await
-            .map_err(|e| log::error!("Error streaming: {e}"))
-            .ok();
+        tesla_api::stream::start(
+            &access_token,
+            vehicle_id,
+            streaming_data_tx,
+            cancellation_token_clone,
+        )
+        .await
+        .map_err(|e| log::error!("Error streaming: {e}"))
+        .ok();
         log::warn!("Vehicle data streaming stopped");
     });
 
     loop {
         match streaming_data_rx.try_recv() {
             Ok(data) => {
-                if let Err(e) = data_tx
-                    .send(DataTypes::StreamingData(data))
-                    .await
-                {
+                if let Err(e) = data_tx.send(DataTypes::StreamingData(data)).await {
                     // don't log error message if the channel was closed because of a cancellation request
                     if !cancellation_token.is_cancelled() {
                         log::error!("{name}: cannot send data over data_tx: {e}");
@@ -197,23 +230,30 @@ async fn data_polling_task(
         _num_data_points += 1;
 
         tokio::time::sleep(Duration::from_millis(logging_period_ms as u64)).await;
-        tokio::task::yield_now().await;
     }
 
     tracing::warn!("exiting {name}");
 }
 
 async fn database_task(
-    mut data_rx: broadcast::Receiver<Tables>,
+    mut data_rx: mpsc::Receiver<DatabaseDataType>,
     _config_rx: watch::Receiver<Config<'_>>,
     cancellation_token: CancellationToken,
+    pool: &sqlx::PgPool,
 ) {
-    use broadcast::error::*;
+    use mpsc::error::*;
     let name = "database_task";
     loop {
         match data_rx.try_recv() {
-            Ok(_data) => (), //println!("Inserting data into database"),
-            Err(TryRecvError::Closed) => {
+            Ok(data) => match data {
+                DatabaseDataType::RawData(d) => {
+                    if let Err(e) = database::tables::vehicle_data::db_insert_json(&d, pool).await {
+                        log::error!("{e}");
+                    };
+                }
+                DatabaseDataType::Tables(_) => todo!(),
+            }
+            Err(TryRecvError::Disconnected) => {
                 // don't log error message if the channel was closed because of a cancellation request
                 if !cancellation_token.is_cancelled() {
                     log::error!("data_rx channel closed, exiting {name}");
@@ -221,9 +261,6 @@ async fn database_task(
                 break;
             }
             Err(TryRecvError::Empty) => (),
-            Err(TryRecvError::Lagged(n)) => {
-                log::warn!("{name} lagged too far behind; {n} messages skipped")
-            }
         }
         if cancellation_token.is_cancelled() {
             break;
@@ -330,6 +367,8 @@ pub async fn run(env: &EnvVars, pool: &sqlx::PgPool) -> anyhow::Result<()> {
     let (vehicle_data_tx, vehicle_data_rx) = mpsc::channel::<DataTypes>(1);
     // channel for parsed data
     let (processed_data_tx, data_rx) = broadcast::channel::<Tables>(1);
+    // channel to send date to database task
+    let (database_tx, database_rx) = mpsc::channel::<DatabaseDataType>(1);
 
     let cancellation_token = CancellationToken::new();
     let task_tracker = TaskTracker::new();
@@ -355,7 +394,7 @@ pub async fn run(env: &EnvVars, pool: &sqlx::PgPool) -> anyhow::Result<()> {
     if let Err(e) = config_tx.send(Config::Frequency(4321)) {
         log::error!("Error sending configuration: {e}");
     }
-    if let Err(e) = config_tx.send(Config::LoggingPeriodMs(10000)) {
+    if let Err(e) = config_tx.send(Config::LoggingPeriodMs(1)) { // Get the logging period from the database
         log::error!("Error sending configuration: {e}");
     }
 
@@ -390,17 +429,27 @@ pub async fn run(env: &EnvVars, pool: &sqlx::PgPool) -> anyhow::Result<()> {
         let cancellation_token = cancellation_token.clone();
         let config_rx = config_tx.subscribe();
         let data_tx = processed_data_tx.clone();
+        let database_tx = database_tx.clone();
+        let pool = pool.clone();
         task_tracker.spawn(async move {
-            data_processor_task(vehicle_data_rx, data_tx, config_rx, cancellation_token).await;
+            data_processor_task(
+                vehicle_data_rx,
+                data_tx,
+                database_tx,
+                config_rx,
+                cancellation_token,
+                &pool,
+            )
+            .await;
         })
     };
 
     let database_task_handle = {
-        let data_rx = processed_data_tx.subscribe();
         let config_rx = config_tx.subscribe();
         let cancellation_token = cancellation_token.clone();
+        let pool = pool.clone();
         task_tracker.spawn(async move {
-            database_task(data_rx, config_rx, cancellation_token).await;
+            database_task(database_rx, config_rx, cancellation_token, &pool).await;
         })
     };
 

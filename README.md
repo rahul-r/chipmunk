@@ -99,5 +99,7 @@ To make this the default, add it to `.env` file. cargo sqlx prepare will still d
 
 Altranativels, we can use test frameworks like cargo-nextest to run the tests parallely without interferring with each other.
 
+```shell
 cargo install cargo-nextest
 cargo nextest run
+```

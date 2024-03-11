@@ -73,7 +73,6 @@ async fn main() -> anyhow::Result<()> {
 
     if let Some(option) = cli.option.as_deref() {
         match option {
-            "log" => logger::log(&pool, &env).await?,
             "tasks" => chipmunk::tasks::run(&env, &pool).await.inspect_err(|e| log::error!("{e}"))?,
             unknown => eprintln!("Unknown option `{unknown}`"),
         };
