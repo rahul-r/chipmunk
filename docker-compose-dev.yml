@@ -9,7 +9,7 @@ services:
     security_opt:
       - "label=disable"
     volumes:
-      - ./chipmunk_docker/postgres:/var/lib/postgresql/data:rw
+      - ./chipmunk_container/postgres:/var/lib/postgresql/data:rw
     environment:
       POSTGRES_USER: chipmunk
       POSTGRES_PASSWORD: chipmunk
@@ -39,7 +39,7 @@ services:
       - "label=disable"
     volumes:
       # NOTE: Set the pgadmin directory owner to uid 5050
-      - ./chipmunk_docker/pgadmin/config:/var/lib/pgadmin:Z
+      - ./chipmunk_container/pgadmin/config:/var/lib/pgadmin:Z
     environment:
       PGADMIN_DEFAULT_EMAIL: mail@example.com
       PGADMIN_DEFAULT_PASSWORD: chipmunk
@@ -88,7 +88,7 @@ services:
       - "label=disable"
     volumes:
       # NOTE: Set the grafana directory owner to 472:0
-      - ./chipmunk_docker/grafana:/var/lib/grafana:Z
+      - ./chipmunk_container/grafana:/var/lib/grafana:Z
     environment:
       TZ: America/Los_Angeles
       # GF_PATHS_CONFIG: /etc/grafana/grafana.ini
@@ -119,6 +119,7 @@ services:
       - "label=disable"
     volumes:
       - .:/chipmunk:U
+      - ./chipmunk_container/.bash_history:/home/rust/.bash_history
     working_dir: /chipmunk
     ports:
       - "${HTTP_PORT}:${HTTP_PORT}" # This comes from the .env file

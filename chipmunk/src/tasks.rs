@@ -1,5 +1,7 @@
 use std::time::Duration;
 
+use crate::database::DBTable;
+use crate::database::tables::settings::Settings;
 use crate::database::tables::token::Token;
 use crate::database::tables::Tables;
 use crate::logger::process_vehicle_data;
@@ -393,14 +395,15 @@ pub async fn run(env: &EnvVars, pool: &sqlx::PgPool) -> anyhow::Result<()> {
         .vehicle_id
         .context("Invalid vehicle ID")?;
 
+    let settings = Settings::db_get_last(pool).await?;
+
     if let Err(e) = config_tx.send(Config::Key("new configuration key")) {
         log::error!("Error sending configuration: {e}");
     }
     if let Err(e) = config_tx.send(Config::Frequency(4321)) {
         log::error!("Error sending configuration: {e}");
     }
-    if let Err(e) = config_tx.send(Config::LoggingPeriodMs(1)) {
-        // Get the logging period from the database
+    if let Err(e) = config_tx.send(Config::LoggingPeriodMs(settings.logging_period_ms)) {
         log::error!("Error sending configuration: {e}");
     }
 

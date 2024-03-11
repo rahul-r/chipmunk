@@ -10,6 +10,6 @@ target_mac/
 *.pdb
 
 .env
-chipmunk_docker
+chipmunk_container
 dist
 .idea

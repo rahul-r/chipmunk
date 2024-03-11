@@ -17,12 +17,13 @@ start_dev_env() {
   export HOST_UID
   export HOST_GID
 
-  mkdir -p chipmunk_docker/postgres
-  mkdir -p chipmunk_docker/pgadmin
-  mkdir -p chipmunk_docker/grafana
+  mkdir -p chipmunk_container/postgres
+  mkdir -p chipmunk_container/pgadmin
+  mkdir -p chipmunk_container/grafana
+  touch chipmunk_container/.bash_history
 
-  # sudo chown -R 472:0 chipmunk_docker/grafana
-  # sudo chown -R 5050:5050 chipmunk_docker/pgadmin
+  # sudo chown -R 472:0 chipmunk_container/grafana
+  # sudo chown -R 5050:5050 chipmunk_container/pgadmin
 
   set +e
   # https://docs.docker.com/engine/reference/commandline/compose_run/
