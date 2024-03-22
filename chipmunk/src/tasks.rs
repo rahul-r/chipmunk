@@ -121,7 +121,7 @@ async fn data_streaming_task(
         }
     }
 
-    let access_token = access_token.clone().to_string();
+    let access_token = access_token.to_string();
     let streaming_data_tx = streaming_data_tx.clone();
     let cancellation_token_clone = cancellation_token.clone();
     let streaming_task = tokio::task::spawn_blocking(async move || {
@@ -252,7 +252,7 @@ async fn database_task(
                     };
                 }
                 DatabaseDataType::Tables(_) => todo!(),
-            }
+            },
             Err(TryRecvError::Disconnected) => {
                 // don't log error message if the channel was closed because of a cancellation request
                 if !cancellation_token.is_cancelled() {
@@ -394,7 +394,8 @@ pub async fn run(env: &EnvVars, pool: &sqlx::PgPool) -> anyhow::Result<()> {
     if let Err(e) = config_tx.send(Config::Frequency(4321)) {
         log::error!("Error sending configuration: {e}");
     }
-    if let Err(e) = config_tx.send(Config::LoggingPeriodMs(1)) { // Get the logging period from the database
+    if let Err(e) = config_tx.send(Config::LoggingPeriodMs(1)) {
+        // Get the logging period from the database
         log::error!("Error sending configuration: {e}");
     }
 

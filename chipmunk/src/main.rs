@@ -1,12 +1,10 @@
 #![feature(async_closure)]
 #![feature(let_chains)]
 #![feature(stmt_expr_attributes)]
-#![feature(async_fn_in_trait)]
-#![feature(result_option_inspect)]
 
 use chipmunk::{
     database::{self, tables::token::Token},
-    load_env_vars, logger,
+    load_env_vars,
 };
 use clap::Parser;
 
@@ -73,7 +71,9 @@ async fn main() -> anyhow::Result<()> {
 
     if let Some(option) = cli.option.as_deref() {
         match option {
-            "tasks" => chipmunk::tasks::run(&env, &pool).await.inspect_err(|e| log::error!("{e}"))?,
+            "tasks" => chipmunk::tasks::run(&env, &pool)
+                .await
+                .inspect_err(|e| log::error!("{e}"))?,
             unknown => eprintln!("Unknown option `{unknown}`"),
         };
     }

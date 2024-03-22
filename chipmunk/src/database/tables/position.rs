@@ -57,7 +57,9 @@ impl Position {
             id: None,
             date: match timestamp_to_naivedatetime(drive_state.timestamp) {
                 None => {
-                    log::error!("Value of `drive_state.timestamp` is None, using current time instead");
+                    log::error!(
+                        "Value of `drive_state.timestamp` is None, using current time instead"
+                    );
                     Some(chrono::Utc::now().naive_utc())
                 }
                 time => time,
@@ -117,7 +119,9 @@ impl Position {
         car_id: i16,
         drive_id: i32,
     ) -> sqlx::Result<Vec<Self>> {
-        sqlx::query_as!(Self, r#"
+        sqlx::query_as!(
+            Self,
+            r#"
                 SELECT
                     id,
                     date,
@@ -252,7 +256,11 @@ impl DBTable for Position {
             .fetch_one(pool)
             .await
             .map_err(|e| {
-                log::error!("Error getting last row from table `{}`: {}", Self::table_name(), e);
+                log::error!(
+                    "Error getting last row from table `{}`: {}",
+                    Self::table_name(),
+                    e
+                );
                 e
             })
     }

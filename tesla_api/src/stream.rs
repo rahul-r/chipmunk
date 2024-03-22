@@ -1,8 +1,8 @@
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
+use tokio::sync::mpsc;
 use tungstenite::{connect, stream::MaybeTlsStream, Message, WebSocket};
 use url::Url;
-use tokio::sync::mpsc;
 
 use crate::{utils::timestamp_to_naivedatetime, TeslaError, STREAMING_URL};
 
@@ -240,5 +240,5 @@ pub async fn start(
         };
         tokio::time::sleep(std::time::Duration::from_secs(1)).await;
     }
-     Ok(())
+    Ok(())
 }

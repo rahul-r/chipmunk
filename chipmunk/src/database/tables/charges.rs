@@ -10,7 +10,6 @@ use tesla_api::{
     vehicle_data::VehicleData,
 };
 
-
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, sqlx::FromRow)]
 pub struct Charges {
     pub id: i32,
@@ -208,12 +207,16 @@ impl DBTable for Charges {
 
     async fn db_get_last(pool: &PgPool) -> sqlx::Result<Self> {
         sqlx::query_as!(Self, r#"SELECT * FROM charges ORDER BY id DESC LIMIT 1"#)
-        .fetch_one(pool)
-        .await
-        .map_err(|e| {
-            log::error!("Error getting last row from table `{}`: {}", Self::table_name(), e);
-            e
-        })
+            .fetch_one(pool)
+            .await
+            .map_err(|e| {
+                log::error!(
+                    "Error getting last row from table `{}`: {}",
+                    Self::table_name(),
+                    e
+                );
+                e
+            })
     }
 
     async fn db_get_all(pool: &PgPool) -> sqlx::Result<Vec<Self>> {

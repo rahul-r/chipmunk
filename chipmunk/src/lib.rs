@@ -1,7 +1,5 @@
 #![feature(async_closure)]
 #![feature(stmt_expr_attributes)]
-#![feature(async_fn_in_trait)]
-#![feature(result_option_inspect)]
 
 use std::{env, io::Write};
 
