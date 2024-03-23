@@ -1,4 +1,4 @@
-use chrono::{DateTime, NaiveDateTime};
+use chrono::NaiveDateTime;
 
 // Return string of format yyyy-mm-dd hh:mm:ss.sss
 // pub fn timestamp_to_string(timestamp: u64) -> Option<String> {
@@ -14,19 +14,11 @@ use chrono::{DateTime, NaiveDateTime};
 // }
 
 pub fn timestamp_to_naivedatetime(timestamp: Option<u64>) -> Option<NaiveDateTime> {
-    match timestamp {
-        Some(ts) => {
-            let secs = (ts / 1000) as i64;
-            let nsecs = (ts % 1000 * 1_000_000) as u32;
-            Some(NaiveDateTime::from_timestamp(secs, nsecs))
-        }
-        None => None,
-    }
-    // timestamp.and_then(|ts| {
-    //     let secs = (ts / 1000) as i64;
-    //     let nsecs = (ts % 1000 * 1_000_000) as u32;
-    //     NaiveDateTime::from_timestamp(secs, nsecs)
-    // })
+    timestamp.map(|ts| {
+        let secs = (ts / 1000) as i64;
+        let nsecs = (ts % 1000 * 1_000_000) as u32;
+        NaiveDateTime::from_timestamp(secs, nsecs)
+    })
 }
 
 pub fn miles_to_km(miles: &Option<f32>) -> Option<f32> {

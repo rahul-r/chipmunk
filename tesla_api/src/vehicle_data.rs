@@ -1,7 +1,7 @@
 use std::{fs::File, path::Path};
 
 use chrono::NaiveDateTime;
-use serde::{Deserialize, Serialize, Deserializer};
+use serde::{Deserialize, Deserializer, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ShiftState {
@@ -43,7 +43,10 @@ where
         "Starting" => ChargingState::Starting,
         "Disconnected" => ChargingState::Disconnected,
         unknown => {
-            log::warn!("Unknown charging state `{}`. Consider updating `ChargingState` enum", unknown);
+            log::warn!(
+                "Unknown charging state `{}`. Consider updating `ChargingState` enum",
+                unknown
+            );
             ChargingState::Unknown(unknown.to_string())
         }
     };
@@ -433,7 +436,7 @@ impl VehicleData {
 
         let secs = (timestamp / 1000) as i64;
         let nsecs = (timestamp % 1000 * 1_000_000) as u32;
-        NaiveDateTime::from_timestamp_opt(secs, nsecs)
+        Some(NaiveDateTime::from_timestamp(secs, nsecs))
     }
 
     pub fn location(&self) -> Option<(f32, f32)> {

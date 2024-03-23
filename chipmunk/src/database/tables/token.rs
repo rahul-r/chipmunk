@@ -63,7 +63,8 @@ impl Token {
 
         // Calculate the access token expiration time
         let time_now = Utc::now();
-        let expires_at = time_now + Duration::seconds(tokens.expires_in as i64);
+        let expires_at =
+            time_now + Duration::try_seconds(tokens.expires_in as i64).unwrap_or_default();
 
         log::info!("Inserting tokens into database");
         sqlx::query!(

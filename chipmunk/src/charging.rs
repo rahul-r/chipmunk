@@ -26,7 +26,7 @@ pub fn calculate_energy_used(charges: &[Charges]) -> Option<f32> {
             .map(|(c, p)| c - p)
             .unwrap_or_else(|| {
                 log::warn!("Invalid charge timestamp");
-                Duration::seconds(0)
+                Duration::zero()
             })
             .num_seconds();
         total_energy_used += energy_used * (time_diff as f32) / 3600.0;

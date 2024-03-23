@@ -14,9 +14,12 @@ use crate::{
             position::Position,
             state::{State, StateStatus},
             Tables,
-        }, types::ChargeStat, DBTable
+        },
+        types::ChargeStat,
+        DBTable,
     },
-    utils::sub_option, tasks,
+    tasks,
+    utils::sub_option,
 };
 
 pub async fn log(pool: &sqlx::PgPool, env: &crate::EnvVars) -> anyhow::Result<()> {
@@ -49,13 +52,17 @@ pub async fn process_vehicle_data(
                 return (vin_id_map, prev_tables);
             }
         };
-        let Ok(car) = Car::from(&data, car_settings_id).map_err(|e| log::error!("Error creating car: {e}")) else {
+        let Ok(car) =
+            Car::from(&data, car_settings_id).map_err(|e| log::error!("Error creating car: {e}"))
+        else {
             return (vin_id_map, prev_tables);
         };
         // TODO: move to the main db_insert function
-        let Ok(id) = car.db_insert(pool)
+        let Ok(id) = car
+            .db_insert(pool)
             .await
-            .map_err(|e| log::error!("{e}")).map(|id| id as i16)
+            .map_err(|e| log::error!("{e}"))
+            .map(|id| id as i16)
         else {
             return (vin_id_map, prev_tables);
         };
@@ -104,13 +111,25 @@ pub async fn create_tables(
             table_list.push(t);
         } else {
             if let Some(prev_state) = end_prev_state {
-                let t = end_logging_for_state(prev_state, prev_tables, &current_position, current_charge.clone(), None).await;
+                let t = end_logging_for_state(
+                    prev_state,
+                    prev_tables,
+                    &current_position,
+                    current_charge.clone(),
+                    None,
+                )
+                .await;
                 table_list.push(t);
             }
             if let Some(new_state) = start_new_state {
-                let t =
-                    start_logging_for_state(new_state, car_id, current_position, current_charge, None)
-                        .await;
+                let t = start_logging_for_state(
+                    new_state,
+                    car_id,
+                    current_position,
+                    current_charge,
+                    None,
+                )
+                .await;
                 table_list.push(t);
             }
         }
@@ -282,7 +301,10 @@ async fn end_logging_for_state(
                 .as_ref()
                 .zip(curr_charge.as_ref())
                 .map(|(cp, c)| cp.update(c))
-                .map(|mut cp| {cp.charging_status = ChargeStat::Done; cp});
+                .map(|mut cp| {
+                    cp.charging_status = ChargeStat::Done;
+                    cp
+                });
             if charging_process.is_some() {
                 charges = curr_charge;
             }
@@ -366,13 +388,14 @@ async fn check_hidden_process(
     if !prev_tables.is_driving() {
         return None;
     }
- 
+
     // End the previous state and start a new state if the previous data point was more than 10 minutes ago
     // and the vehicle has not moved since then.
-    if prev_tables.get_time()
+    if prev_tables
+        .get_time()
         .zip(curr_position.date)
         .map(|(prev, curr)| curr - prev)
-        .map(|diff| diff <= chrono::Duration::minutes(10))
+        .map(|diff| diff <= chrono::Duration::try_minutes(10).expect("This should always pass"))
         .unwrap_or(true)
     {
         return None;
@@ -419,7 +442,9 @@ async fn check_hidden_process(
             None
         }
         None => {
-            log::error!("`prev_tables.raw_data` is None, cannot create charges from `prev_tables.raw_data`");
+            log::error!(
+                "`prev_tables.raw_data` is None, cannot create charges from `prev_tables.raw_data`"
+            );
             None
         }
     };
@@ -473,7 +498,14 @@ async fn check_hidden_process(
     }
 
     // Start a new drive
-    let t = start_logging_for_state(StateStatus::Driving, car_id, curr_position.clone(), curr_charge.clone(), address).await;
+    let t = start_logging_for_state(
+        StateStatus::Driving,
+        car_id,
+        curr_position.clone(),
+        curr_charge.clone(),
+        address,
+    )
+    .await;
     table_list.push(t);
 
     Some(table_list)
