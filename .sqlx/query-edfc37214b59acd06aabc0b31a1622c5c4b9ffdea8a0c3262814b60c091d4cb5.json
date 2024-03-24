@@ -11,8 +11,8 @@
     ],
     "parameters": {
       "Left": [
-        "Timestamp",
-        "Timestamp",
+        "Timestamptz",
+        "Timestamptz",
         "Varchar",
         "Int2"
       ]

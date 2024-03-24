@@ -14,8 +14,8 @@ CREATE TABLE public.addresses (
     state_district character varying(255),
     country character varying(255),
     raw jsonb,
-    inserted_at timestamp(0) without time zone NOT NULL,
-    updated_at timestamp(0) without time zone NOT NULL,
+    inserted_at timestamp(0) with time zone NOT NULL,
+    updated_at timestamp(0) with time zone NOT NULL,
     osm_id bigint,
     osm_type text
 );

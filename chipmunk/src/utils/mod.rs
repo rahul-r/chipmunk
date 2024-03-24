@@ -3,10 +3,10 @@ pub mod location;
 
 use std::ops::{Add, Sub};
 
-use chrono::{DateTime, Duration, NaiveDateTime, Utc};
+use chrono::{DateTime, Duration, Utc};
 
-pub fn seconds_remaining(time: NaiveDateTime) -> i32 {
-    let duration = DateTime::from_naive_utc_and_offset(time, Utc) - Utc::now();
+pub fn seconds_remaining(time: DateTime<Utc>) -> i32 {
+    let duration = time - Utc::now();
     duration.num_seconds() as i32
 }
 
@@ -15,22 +15,22 @@ pub fn capitalize_string_option(string: Option<String>) -> Option<String> {
 }
 
 pub fn time_diff_minutes_i64(
-    start: Option<NaiveDateTime>,
-    end: Option<NaiveDateTime>,
+    start: Option<DateTime<Utc>>,
+    end: Option<DateTime<Utc>>,
 ) -> Option<i64> {
     start.zip(end).map(|(st, en)| (en - st).num_minutes())
 }
 
 pub fn time_diff_minutes_i16(
-    start: Option<NaiveDateTime>,
-    end: Option<NaiveDateTime>,
+    start: Option<DateTime<Utc>>,
+    end: Option<DateTime<Utc>>,
 ) -> Option<i16> {
     start
         .zip(end)
         .map(|(st, en)| (en - st).num_minutes() as i16)
 }
 
-pub fn time_diff(start: Option<NaiveDateTime>, end: Option<NaiveDateTime>) -> Option<Duration> {
+pub fn time_diff(start: Option<DateTime<Utc>>, end: Option<DateTime<Utc>>) -> Option<Duration> {
     start.zip(end).map(|(st, en)| en - st)
 }
 

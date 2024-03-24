@@ -1,7 +1,7 @@
 CREATE TABLE public.charging_processes (
     id SERIAL PRIMARY KEY,
-    start_date timestamp without time zone NOT NULL,
-    end_date timestamp without time zone,
+    start_date timestamp with time zone NOT NULL,
+    end_date timestamp with time zone,
     charge_energy_added FLOAT4,
     start_ideal_range_km FLOAT4,
     end_ideal_range_km FLOAT4,

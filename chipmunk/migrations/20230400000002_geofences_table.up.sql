@@ -4,8 +4,8 @@ CREATE TABLE public.geofences (
     latitude FLOAT4 NOT NULL,
     longitude FLOAT4 NOT NULL,
     radius smallint DEFAULT 25 NOT NULL,
-    inserted_at timestamp(0) without time zone NOT NULL,
-    updated_at timestamp(0) without time zone NOT NULL,
+    inserted_at timestamp(0) with time zone NOT NULL,
+    updated_at timestamp(0) with time zone NOT NULL,
     cost_per_unit FLOAT4,
     session_fee FLOAT4,
     billing_type public.billing_type DEFAULT 'per_kwh'::public.billing_type NOT NULL

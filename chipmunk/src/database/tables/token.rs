@@ -1,5 +1,5 @@
 use anyhow::Context;
-use chrono::{Duration, NaiveDateTime, Utc};
+use chrono::{Duration, DateTime, Utc};
 use sqlx::PgPool;
 use tesla_api::auth::AuthResponse;
 
@@ -23,9 +23,9 @@ pub struct Token {
     refresh_token_iv: Option<Vec<u8>>,
     id_token: Option<Vec<u8>>,
     id_token_iv: Option<Vec<u8>>,
-    access_token_expires_at: NaiveDateTime,
+    access_token_expires_at: DateTime<Utc>,
     token_type: Option<String>,
-    updated_at: NaiveDateTime,
+    updated_at: DateTime<Utc>,
 }
 
 impl Token {
@@ -98,11 +98,11 @@ impl Token {
             refresh_token_iv,
             access_token,
             access_token_iv,
-            expires_at.naive_utc(),
+            expires_at,
             id_token,
             id_token_iv,
             tokens.token_type,
-            time_now.naive_utc()
+            time_now
         )
         .execute(pool)
         .await?;

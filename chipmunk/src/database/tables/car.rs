@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use anyhow::Context;
-use chrono::{NaiveDateTime, Utc};
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 use sqlx::PgPool;
@@ -18,8 +18,8 @@ pub struct Car {
     pub vid: i64,
     pub model: Option<String>,
     pub efficiency: Option<f32>,
-    pub inserted_at: NaiveDateTime,
-    pub updated_at: NaiveDateTime,
+    pub inserted_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
     pub vin: Option<String>,
     pub name: Option<String>,
     pub trim_badging: Option<String>,
@@ -44,8 +44,8 @@ impl Car {
             vid: Self::convert_id(data.vehicle_id, "vehicle_id")?,
             model: model_code.clone(),
             efficiency: None,
-            inserted_at: Utc::now().naive_utc(),
-            updated_at: Utc::now().naive_utc(),
+            inserted_at: Utc::now(),
+            updated_at: Utc::now(),
             vin: data.vin.clone(),
             name: data
                 .vehicle_state
@@ -167,7 +167,10 @@ impl Car {
         .await?;
 
         if res.rows_affected() != 1 {
-            let msg = format!("Error updating efficiency. Expected to update 1 row, but updated {} rows", res.rows_affected());
+            let msg = format!(
+                "Error updating efficiency. Expected to update 1 row, but updated {} rows",
+                res.rows_affected()
+            );
             log::error!("{}", msg);
             Err(sqlx::Error::Protocol(msg))
         } else {
@@ -345,13 +348,17 @@ pub async fn get_car_id_from_vin(
             return (vin_id_map, None);
         }
     };
-    let Ok(car) = Car::from(data, car_settings_id).map_err(|e| log::error!("Error creating car: {e}")) else {
+    let Ok(car) =
+        Car::from(data, car_settings_id).map_err(|e| log::error!("Error creating car: {e}"))
+    else {
         return (vin_id_map, None);
     };
 
-    let Ok(id) = car.db_insert(pool)
+    let Ok(id) = car
+        .db_insert(pool)
         .await
-        .map_err(|e| log::error!("{e}")).map(|id| id as i16)
+        .map_err(|e| log::error!("{e}"))
+        .map(|id| id as i16)
     else {
         return (vin_id_map, None);
     };
@@ -361,4 +368,3 @@ pub async fn get_car_id_from_vin(
 
     (vin_id_map, Some(id))
 }
-

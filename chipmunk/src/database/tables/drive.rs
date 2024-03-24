@@ -1,7 +1,7 @@
 use crate::utils::{
     avg_option, max_option, min_option, sub_option, time_diff_minutes_i16,
 };
-use chrono::NaiveDateTime;
+use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 
 use super::{position::Position, DBTable};
@@ -10,8 +10,8 @@ use super::{position::Position, DBTable};
 pub struct Drive {
     pub id: i32,
     pub in_progress: bool, // This is used to track the current status of driving
-    pub start_date: NaiveDateTime,
-    pub end_date: Option<NaiveDateTime>,
+    pub start_date: DateTime<Utc>,
+    pub end_date: Option<DateTime<Utc>>,
     pub outside_temp_avg: Option<f32>,
     pub speed_max: Option<f32>,
     pub power_max: Option<f32>,
@@ -46,7 +46,7 @@ impl Drive {
             car_id: car_foreign_key,
             start_date: position.date.unwrap_or_else(|| {
                 log::warn!("Position date is None, using current system time");
-                chrono::Utc::now().naive_utc()
+                chrono::Utc::now()
             }),
             start_ideal_range_km: position.ideal_battery_range_km,
             start_km: position.odometer,

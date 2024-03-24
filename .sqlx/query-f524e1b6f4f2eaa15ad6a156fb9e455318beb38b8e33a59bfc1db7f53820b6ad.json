@@ -11,7 +11,7 @@
     ],
     "parameters": {
       "Left": [
-        "Timestamp",
+        "Timestamptz",
         "Float4",
         "Float4",
         "Float4",

@@ -1,15 +1,15 @@
-use chrono::NaiveDateTime;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 use tungstenite::{connect, stream::MaybeTlsStream, Message, WebSocket};
 use url::Url;
 
-use crate::{utils::timestamp_to_naivedatetime, TeslaError, STREAMING_URL};
+use crate::{utils::timestamp_to_datetime, TeslaError, STREAMING_URL};
 
 #[derive(Debug, Default, Clone)]
 #[allow(dead_code)]
 pub struct StreamingData {
-    pub timestamp: Option<NaiveDateTime>,
+    pub timestamp: Option<DateTime<Utc>>,
     pub speed: Option<f32>,
     pub odometer: Option<u32>,
     pub soc: Option<f32>,
@@ -40,7 +40,7 @@ impl StreamingData {
         }
 
         let streaming_data = StreamingData {
-            timestamp: timestamp_to_naivedatetime(parts[0].parse::<u64>().ok()),
+            timestamp: timestamp_to_datetime(parts[0].parse::<u64>().ok()),
             speed: parts[1].parse::<f32>().ok(),
             odometer: parts[2].parse::<u32>().ok(),
             soc: parts[3].parse::<f32>().ok(),

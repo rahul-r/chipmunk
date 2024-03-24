@@ -1,10 +1,17 @@
-use chrono::NaiveDateTime;
+use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use tesla_api::vehicle_data::VehicleData;
 
 use self::{
-    address::Address, car::Car, charges::Charges, charging_process::ChargingProcess, drive::Drive,
-    position::Position, settings::Settings, state::{State, StateStatus}, swupdate::SoftwareUpdate,
+    address::Address,
+    car::Car,
+    charges::Charges,
+    charging_process::ChargingProcess,
+    drive::Drive,
+    position::Position,
+    settings::Settings,
+    state::{State, StateStatus},
+    swupdate::SoftwareUpdate,
 };
 
 use super::DBTable;
@@ -39,21 +46,20 @@ pub struct Tables {
     pub settings: Option<Settings>,
     pub state: Option<State>,
     pub sw_update: Option<SoftwareUpdate>,
-    pub time: Option<NaiveDateTime>,
+    pub time: Option<DateTime<Utc>>,
     pub raw_data: Option<VehicleData>,
 }
 
 impl Tables {
-    pub fn get_time(&self) -> Option<NaiveDateTime> {
+    pub fn get_time(&self) -> Option<DateTime<Utc>> {
         self.time
     }
 
     fn is_state(&self, state: StateStatus) -> bool {
-        self
-        .state
-        .as_ref()
-        .map(|s| s.state == state)
-        .unwrap_or(false)
+        self.state
+            .as_ref()
+            .map(|s| s.state == state)
+            .unwrap_or(false)
     }
 
     pub fn is_driving(&self) -> bool {
@@ -65,14 +71,10 @@ impl Tables {
     }
 
     pub fn car_id(&self) -> i16 {
-        self
-            .position
-            .as_ref()
-            .map(|p| p.car_id)
-            .unwrap_or_else(|| {
-                log::error!("No car_id found in position table");
-                0
-            })
+        self.position.as_ref().map(|p| p.car_id).unwrap_or_else(|| {
+            log::error!("No car_id found in position table");
+            0
+        })
     }
 
     pub fn from_vehicle_data(data: &VehicleData, car_id: i16) -> Self {
@@ -126,7 +128,10 @@ impl Tables {
                     .db_insert(pool)
                     .await
                     .map_err(|e| log::error!("Error inserting address into database: {e}"))
-                    .map(|id| {address.id = id; id as i32})
+                    .map(|id| {
+                        address.id = id;
+                        id as i32
+                    })
                     .ok()
             }
         } else {

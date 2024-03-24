@@ -5,8 +5,8 @@
     "columns": [],
     "parameters": {
       "Left": [
-        "Timestamp",
-        "Timestamp",
+        "Timestamptz",
+        "Timestamptz",
         "Float4",
         "Float4",
         "Float4",

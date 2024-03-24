@@ -44,7 +44,7 @@ async fn test_missing_charging_detection() {
     settings.logging_period_ms = 1;
     settings.db_insert(&pool).await.unwrap();
 
-    let drive1_start_time = chrono::Utc::now().naive_utc();
+    let drive1_start_time = chrono::Utc::now();
     let data = test_data::data_with_shift(drive1_start_time, Some(D));
     let starting_odometer_mi = data.vehicle_state.as_ref().unwrap().odometer.unwrap();
     let data = Arc::new(Mutex::new(data));
@@ -68,7 +68,7 @@ async fn test_missing_charging_detection() {
     assert_eq!(state.state, Driving);
 
     // Update the driving data point
-    let ts_before_delayed_data = chrono::Utc::now().naive_utc();
+    let ts_before_delayed_data = chrono::Utc::now();
     let odometer_mi = starting_odometer_mi + 123.4;
     let mut vehicle_data = test_data::data_with_shift(ts_before_delayed_data, Some(D));
     vehicle_data.vehicle_state.as_mut().unwrap().odometer = Some(odometer_mi);
@@ -91,7 +91,7 @@ async fn test_missing_charging_detection() {
     // 2. Have battery level more than what it was in the previous data point. This will trigger a charging process
     // After this, a new charging process should be created, and we should be in driving state (ends
     // current drive, create and finalize a charging state, and start a new drive)
-    let ts_after_delayed_data = ts_before_delayed_data + chrono::Duration::seconds(DELAYED_DATAPOINT_TIME_SEC + 1);
+    let ts_after_delayed_data = ts_before_delayed_data + chrono::Duration::try_seconds(DELAYED_DATAPOINT_TIME_SEC + 1).unwrap();
     let mut vehicle_data = test_data::data_with_shift(ts_after_delayed_data, Some(D));
     vehicle_data.vehicle_state.as_mut().unwrap().odometer = Some(odometer_mi);
     vehicle_data.charge_state.as_mut().unwrap().battery_level = Some(55);
@@ -180,7 +180,7 @@ async fn test_delayed_data_during_missing_charging_detection() {
     });
 
     // Set up a pointer to send vehicle data to the mock server
-    let charging_start_time = chrono::Utc::now().naive_utc();
+    let charging_start_time = chrono::Utc::now();
     let data = test_data::data_charging(charging_start_time, 25);
     let data = Arc::new(Mutex::new(data));
     let send_response = Arc::new(Mutex::new(true));
@@ -195,7 +195,7 @@ async fn test_delayed_data_during_missing_charging_detection() {
     // Verify tables
     assert_eq!(Address::db_num_rows(&pool).await.unwrap(), 1);
     let address = Address::db_get_last(&pool).await.unwrap();
-    assert!(charging_start_time - address.inserted_at < chrono::Duration::seconds(2));
+    assert!(charging_start_time - address.inserted_at < chrono::Duration::try_seconds(2).unwrap());
     assert_eq!(Car::db_num_rows(&pool).await.unwrap(), 1);
     assert_eq!(Drive::db_num_rows(&pool).await.unwrap(), 0);
     assert_eq!(Geofence::db_num_rows(&pool).await.unwrap(), 0);
@@ -212,7 +212,7 @@ async fn test_delayed_data_during_missing_charging_detection() {
     assert_eq!(ChargingProcess::db_num_rows(&pool).await.unwrap(), 1);
 
     // Stop charging and start parked state
-    let ts_after_delayed_data = charging_start_time + chrono::Duration::seconds(DELAYED_DATAPOINT_TIME_SEC + 1);
+    let ts_after_delayed_data = charging_start_time + chrono::Duration::try_seconds(DELAYED_DATAPOINT_TIME_SEC + 1).unwrap();
     let charging_data_1 = test_data::data_charging(ts_after_delayed_data, 30);
     **data.lock().as_mut().unwrap() = charging_data_1;
     *send_response.lock().unwrap() = true;
@@ -264,7 +264,7 @@ async fn test_charging_process() {
     });
 
     // Set up a pointer to send vehicle data to the mock server
-    let charging_start_time = chrono::Utc::now().naive_utc();
+    let charging_start_time = chrono::Utc::now();
     let data = test_data::data_charging(charging_start_time, 25);
     let data = Arc::new(Mutex::new(data));
     let send_response = Arc::new(Mutex::new(true));
@@ -278,7 +278,7 @@ async fn test_charging_process() {
 
     assert_eq!(Address::db_num_rows(&pool).await.unwrap(), 1);
     let address = Address::db_get_last(&pool).await.unwrap();
-    assert!(charging_start_time - address.inserted_at < chrono::Duration::seconds(2));
+    assert!(charging_start_time - address.inserted_at < chrono::Duration::try_seconds(2).unwrap());
 
     assert_eq!(Car::db_num_rows(&pool).await.unwrap(), 1);
 
@@ -330,7 +330,7 @@ async fn test_charging_process() {
     let charging_end_time1 = Position::db_get_last(&pool).await.unwrap().date;
     let charging_end_time2 = Charges::db_get_last(&pool).await.unwrap().date;
     assert_eq!(charging_end_time1, charging_end_time2);
-    let parking_start_time = chrono::Utc::now().naive_utc();
+    let parking_start_time = chrono::Utc::now();
     let parked_data = test_data::data_with_shift(parking_start_time, Some(P));
     **data.lock().as_mut().unwrap() = parked_data;
     *send_response.lock().unwrap() = true;

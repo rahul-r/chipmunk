@@ -25,7 +25,7 @@ use tesla_api::vehicle_data::{DriveState, ShiftState, VehicleData};
 
 #[rustfmt::skip]
 pub fn create_drive_from_gpx() -> (Vec<VehicleData>, usize, usize) {
-    let data = test_data::get_data(chrono::Utc::now().naive_utc());
+    let data = test_data::get_data(chrono::Utc::now());
 
     // Load gpx file
     let path = Path::new("/chipmunk/chipmunk/tests/common/route.gpx");
@@ -128,8 +128,8 @@ async fn check_vehicle_data() -> anyhow::Result<()> {
     let drive_calculated = create_drive_from_positions(&positions).unwrap();
 
     assert_eq!(drive_calculated.in_progress, drive_from_db.in_progress);
-    assert!(drive_calculated.start_date - drive_from_db.start_date < Duration::seconds(1));
-    assert_eq!(drive_from_db.end_date.zip(drive_calculated.end_date).map(|(de, ee)| de - ee < Duration::seconds(1)), Some(true));
+    assert!(drive_calculated.start_date - drive_from_db.start_date < Duration::try_seconds(1).unwrap());
+    assert_eq!(drive_from_db.end_date.zip(drive_calculated.end_date).map(|(de, ee)| de - ee < Duration::try_seconds(1).unwrap()), Some(true));
     approx_eq!(drive_from_db.outside_temp_avg, drive_calculated.outside_temp_avg, 0.1);
     assert_eq!(drive_from_db.speed_max, drive_calculated.speed_max);
     assert_eq!(drive_from_db.power_max, drive_calculated.power_max);
@@ -167,7 +167,7 @@ async fn test_osm_mock() {
 // Test vehicle data can be changed after creating the mock server
 #[tokio::test]
 async fn test_tesla_mock() {
-    let data = test_data::get_data(chrono::Utc::now().naive_utc());
+    let data = test_data::get_data(chrono::Utc::now());
     let data = Arc::new(Mutex::new(data));
 
     let _tesla_mock = create_mock_tesla_server(data.clone(), Arc::new(Mutex::new(true))); // Assign the return value to a variable to keep the server alive
@@ -194,7 +194,7 @@ async fn test_charged_and_driven_offline() {
     chipmunk::init_log();
     
     // Start from driving state
-    let driving_start_time = chrono::Utc::now().naive_utc();
+    let driving_start_time = chrono::Utc::now();
     let t = chipmunk::logger::create_tables(&data_with_shift(driving_start_time, Some(D)), &Tables::default(), car_id).await.unwrap();
     assert_eq!(t.len(), 1);
     let drive_start_tables = &t[0];
@@ -209,13 +209,13 @@ async fn test_charged_and_driven_offline() {
     assert!(t[0].state.is_some());
     assert_eq!(*t[0].state.as_ref().unwrap(), State {car_id, id: 0, state: Driving, start_date: ts_no_nanos(driving_start_time), end_date: None });
 
-    let driving_intermediate_time = driving_start_time + Duration::seconds(5);
+    let driving_intermediate_time = driving_start_time + Duration::try_seconds(5).unwrap();
     let t = chipmunk::logger::create_tables(&data_with_shift(driving_intermediate_time, Some(D)), drive_start_tables, car_id).await.unwrap();
     assert_eq!(t.len(), 1);
     let drive_tables = &t[0];
 
     // Create a data point after a delay with drive and charge data
-    let driving_after_delay_time = driving_intermediate_time + Duration::seconds(DELAYED_DATAPOINT_TIME_SEC + 1);
+    let driving_after_delay_time = driving_intermediate_time + Duration::try_seconds(DELAYED_DATAPOINT_TIME_SEC + 1).unwrap();
     let mut charged_and_driven_data = data_with_shift(driving_after_delay_time, Some(D));
     charged_and_driven_data.charge_state.as_mut().unwrap().battery_level = charged_and_driven_data.charge_state.as_ref().unwrap().battery_level.map(|mut c| {c += 10; c});
     let t = chipmunk::logger::create_tables(&charged_and_driven_data, drive_tables, car_id).await.unwrap();

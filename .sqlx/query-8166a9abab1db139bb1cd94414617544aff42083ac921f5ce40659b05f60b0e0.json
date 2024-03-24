@@ -9,11 +9,11 @@
         "Bytea",
         "Bytea",
         "Bytea",
-        "Timestamp",
+        "Timestamptz",
         "Bytea",
         "Bytea",
         "Text",
-        "Timestamp"
+        "Timestamptz"
       ]
     },
     "nullable": []

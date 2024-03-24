@@ -1,5 +1,5 @@
 use sqlx::PgPool;
-use chrono::NaiveDateTime;
+use chrono::{DateTime, Utc};
 
 use crate::{charging::calculate_energy_used, database::types::ChargeStat, utils::time_diff_minutes_i64};
 use super::{charges::Charges, DBTable};
@@ -8,8 +8,8 @@ use crate::charging::calculate_cost;
 #[derive(Debug, Default, Clone, PartialEq, sqlx::FromRow)]
 pub struct ChargingProcess {
     pub id: i32,
-    pub start_date: NaiveDateTime,
-    pub end_date: Option<NaiveDateTime>,
+    pub start_date: DateTime<Utc>,
+    pub end_date: Option<DateTime<Utc>>,
     pub charge_energy_added: Option<f32>,
     pub start_ideal_range_km: Option<f32>,
     pub end_ideal_range_km: Option<f32>,

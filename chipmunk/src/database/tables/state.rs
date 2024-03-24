@@ -1,5 +1,5 @@
 use anyhow::Context;
-use chrono::NaiveDateTime;
+use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use tesla_api::vehicle_data::{ChargingState, ShiftState, VehicleData};
 
@@ -96,8 +96,8 @@ impl StateStatus {
 pub struct State {
     pub id: i32,
     pub state: StateStatus, // TODO: Make this optional
-    pub start_date: NaiveDateTime,
-    pub end_date: Option<NaiveDateTime>,
+    pub start_date: DateTime<Utc>,
+    pub end_date: Option<DateTime<Utc>>,
     pub car_id: i16,
 }
 
@@ -106,7 +106,7 @@ impl Default for State {
         Self {
             id: i32::default(),
             state: StateStatus::default(),
-            start_date: chrono::Utc::now().naive_utc(),
+            start_date: chrono::Utc::now(),
             end_date: Option::default(),
             car_id: i16::default(),
         }
@@ -127,7 +127,6 @@ impl State {
     /// Check if the state has changed from the previous state
     /// Returns (None, None) if the state has not changed
     /// Returns (Some(previous_state), Some(current_state)) if the state has changed
-
 
     pub fn transition(
         &self,
@@ -227,16 +226,24 @@ impl DBTable for State {
 }
 
 fn state_changed(prev_data: Option<&VehicleData>, curr_data: &VehicleData) -> bool {
-    let Some(prev_data) = prev_data else { return true; };
-    let Some(prev_state) = prev_data.state.as_ref() else { return false; };
-    let Some(curr_state) = curr_data.state.as_ref() else { return false; };
+    let Some(prev_data) = prev_data else {
+        return true;
+    };
+    let Some(prev_state) = prev_data.state.as_ref() else {
+        return false;
+    };
+    let Some(curr_state) = curr_data.state.as_ref() else {
+        return false;
+    };
     curr_state != prev_state
 }
 
 // We may not receive vehicle data while the car is asleep. assume sleep state if the previous
 // datapoint was more than 15 minutes ago and the vehicle's position remains unchanged
 fn was_asleep(prev_data: &Option<VehicleData>, curr_data: &VehicleData) -> bool {
-    let Some(prev_data) = prev_data else { return false; };
+    let Some(prev_data) = prev_data else {
+        return false;
+    };
 
     let Some(diff) = time_diff(prev_data.timestamp_utc(), curr_data.timestamp_utc()) else {
         log::error!("Error getting time difference to check vehicle state change");

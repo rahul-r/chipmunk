@@ -108,8 +108,8 @@ pub struct LoggingStatus {
     pub total_points: i32,
     pub current_miles: i32,
     pub total_miles: i32,
-    // pub session_start_time: NaiveDateTime,
-    // pub app_start_time: NaiveDateTime,
+    // pub session_start_time: DateTime<Utc>,
+    // pub app_start_time: DateTime<Utc>,
     pub is_user_present: bool,
     pub odometer: i32,
     // Remove?

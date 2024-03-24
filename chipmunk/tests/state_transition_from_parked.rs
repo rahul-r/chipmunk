@@ -14,13 +14,13 @@ async fn state_change_from_parked() {
     let car_id = 1i16;
 
     // Create initial parked state
-    let parking_start_time = chrono::Utc::now().naive_utc();
+    let parking_start_time = chrono::Utc::now();
     let t = chipmunk::logger::create_tables(&data_with_shift(parking_start_time, Some(P)), &Tables::default(), car_id).await.unwrap();
     assert_eq!(t.len(), 1);
     let parked_tables = &t[0];
 
     // Test state changes from parked state to parked state
-    let ts = parking_start_time + Duration::seconds(DELAYED_DATAPOINT_TIME_SEC);
+    let ts = parking_start_time + Duration::try_seconds(DELAYED_DATAPOINT_TIME_SEC).unwrap();
     let t = chipmunk::logger::create_tables(&data_with_shift(ts, Some(P)), parked_tables, car_id).await.unwrap();
     assert_eq!(t.len(), 1);
     assert!(t[0].address.is_none());
@@ -34,7 +34,7 @@ async fn state_change_from_parked() {
     assert_eq!(*t[0].state.as_ref().unwrap(), State {car_id, id: 0, state: Parked, start_date: ts_no_nanos(parking_start_time), end_date: Some(ts_no_nanos(ts)) });
 
     // Test state changes from shift state P to null
-    let ts = parking_start_time + Duration::seconds(DELAYED_DATAPOINT_TIME_SEC);
+    let ts = parking_start_time + Duration::try_seconds(DELAYED_DATAPOINT_TIME_SEC).unwrap();
     let t = chipmunk::logger::create_tables(&data_with_shift(ts, None), parked_tables, car_id).await.unwrap();
     assert_eq!(t.len(), 1);
     assert!(t[0].address.is_none());
@@ -48,8 +48,8 @@ async fn state_change_from_parked() {
     assert_eq!(*t[0].state.as_ref().unwrap(), State {car_id, id: 0, state: Parked, start_date: ts_no_nanos(parking_start_time), end_date: Some(ts_no_nanos(ts)) });
 
     // Test state changes from parked state to driving state
-    let parking_end_time = parking_start_time + Duration::seconds(DELAYED_DATAPOINT_TIME_SEC);
-    let driving_start_time = parking_end_time + Duration::seconds(1);
+    let parking_end_time = parking_start_time + Duration::try_seconds(DELAYED_DATAPOINT_TIME_SEC).unwrap();
+    let driving_start_time = parking_end_time + Duration::try_seconds(1).unwrap();
     let parked_tables_1 = Tables {
         time: Some(ts_no_nanos(parking_end_time)),
         ..parked_tables.clone()
@@ -101,11 +101,11 @@ async fn state_change_from_parked() {
     assert_eq!(*t[1].state.as_ref().unwrap(), State {car_id, id: 0, state: Driving, start_date: ts_no_nanos(ts), end_date: None });
 
     // Parked to asleep
-    let parking_end_time = parking_start_time + Duration::seconds(1);
+    let parking_end_time = parking_start_time + Duration::try_seconds(1).unwrap();
     let t = chipmunk::logger::create_tables(&data_with_shift(parking_end_time, Some(P)), &t[0], car_id).await.unwrap();
     let parked_state1 = &t[0];
     
-    let sleep_start_time = parking_end_time + Duration::seconds(1);
+    let sleep_start_time = parking_end_time + Duration::try_seconds(1).unwrap();
     let t = chipmunk::logger::create_tables(&data_with_state(sleep_start_time, Asleep), parked_state1, car_id).await.unwrap();
     assert_eq!(t.len(), 2);
     assert!(t[0].address.is_none());
@@ -130,11 +130,11 @@ async fn state_change_from_parked() {
     assert!(t[1].sw_update.is_none());
 
     // Parked to offline
-    let parking_end_time = parking_start_time + Duration::seconds(1);
+    let parking_end_time = parking_start_time + Duration::try_seconds(1).unwrap();
     let t = chipmunk::logger::create_tables(&data_with_shift(parking_end_time, Some(P)), &t[0], car_id).await.unwrap();
     let parked_tables_2 = &t[0];
     
-    let offline_start_time = parking_end_time + Duration::seconds(DELAYED_DATAPOINT_TIME_SEC + 1);
+    let offline_start_time = parking_end_time + Duration::try_seconds(DELAYED_DATAPOINT_TIME_SEC + 1).unwrap();
     let t = chipmunk::logger::create_tables(&data_with_state(offline_start_time, Offline), parked_tables_2, car_id).await.unwrap();
     assert_eq!(t.len(), 2);
     assert!(t[0].address.is_none());
@@ -159,11 +159,11 @@ async fn state_change_from_parked() {
     assert!(t[1].sw_update.is_none());
 
     // Parked to charging
-    let parking_end_time = parking_start_time + Duration::seconds(1);
+    let parking_end_time = parking_start_time + Duration::try_seconds(1).unwrap();
     let t = chipmunk::logger::create_tables(&data_with_shift(parking_end_time, Some(P)), &t[0], car_id).await.unwrap();
     let parked_tables_3 = &t[0];
     
-    let charging_start_time = parking_end_time + Duration::seconds(DELAYED_DATAPOINT_TIME_SEC + 1);
+    let charging_start_time = parking_end_time + Duration::try_seconds(DELAYED_DATAPOINT_TIME_SEC + 1).unwrap();
     let t = chipmunk::logger::create_tables(&data_charging(charging_start_time, 25), parked_tables_3, car_id).await.unwrap();
     assert_eq!(t.len(), 2);
     assert!(t[0].address.is_none());

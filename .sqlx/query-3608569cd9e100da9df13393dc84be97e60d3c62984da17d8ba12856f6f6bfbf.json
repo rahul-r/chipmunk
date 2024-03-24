@@ -25,8 +25,8 @@
         "Varchar",
         "Varchar",
         "Jsonb",
-        "Timestamp",
-        "Timestamp",
+        "Timestamptz",
+        "Timestamptz",
         "Int8",
         "Text"
       ]

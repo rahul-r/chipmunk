@@ -1,6 +1,6 @@
 CREATE TABLE public.charges (
     id SERIAL PRIMARY KEY,
-    date TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    date TIMESTAMP WITH TIME ZONE NOT NULL,
     battery_heater_on BOOLEAN,
     battery_level SMALLINT,
     charge_energy_added FLOAT4,

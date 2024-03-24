@@ -1,8 +1,8 @@
 CREATE TABLE public.states (
     id SERIAL PRIMARY KEY,
     state public.states_status NOT NULL,
-    start_date timestamp without time zone NOT NULL,
-    end_date timestamp without time zone,
+    start_date timestamp with time zone NOT NULL,
+    end_date timestamp with time zone,
     car_id smallint NOT NULL,
     CONSTRAINT positive_duration CHECK ((end_date >= start_date))
 );

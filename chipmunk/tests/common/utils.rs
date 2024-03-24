@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex};
 use rand::Rng;
 
 use chipmunk::database::{self, tables::{charges::Charges, charging_process::ChargingProcess, drive::Drive, position::Position, token::Token}, types::ChargeStat};
-use chrono::NaiveDateTime;
+use chrono::{DateTime, Utc};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use chipmunk::charging::calculate_energy_used;
@@ -173,11 +173,11 @@ pub async fn init_test_database(db_name: &str) -> sqlx::Pool<sqlx::Postgres> {
     pool
 }
 
-pub fn ts_no_nanos(ts: NaiveDateTime) -> NaiveDateTime {
+pub fn ts_no_nanos(ts: DateTime<Utc>) -> DateTime<Utc> {
     let timestamp = ts.timestamp_millis();
     let secs = timestamp / 1000;
     let nsecs = (timestamp % 1000 * 1_000_000) as u32;
-    NaiveDateTime::from_timestamp_opt(secs, nsecs).unwrap()
+    DateTime::from_timestamp(secs, nsecs).unwrap()
 }
 
 pub fn create_drive_from_positions(positions: &[Position]) -> Option<Drive> {

@@ -3,17 +3,17 @@ use sqlx::PgPool;
 use super::DBTable;
 
 use anyhow::Context;
-use chrono::NaiveDateTime;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use tesla_api::{
-    utils::{miles_to_km, timestamp_to_naivedatetime},
+    utils::{miles_to_km, timestamp_to_datetime},
     vehicle_data::VehicleData,
 };
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, sqlx::FromRow)]
 pub struct Charges {
     pub id: i32,
-    pub date: Option<NaiveDateTime>,
+    pub date: Option<DateTime<Utc>>,
     pub battery_heater_on: Option<bool>,
     pub battery_level: Option<i16>,
     pub charge_energy_added: Option<f32>,
@@ -45,7 +45,7 @@ impl Charges {
             .context("climate_state is None")?;
         Ok(Self {
             id: 0,
-            date: timestamp_to_naivedatetime(charge_state.timestamp),
+            date: timestamp_to_datetime(charge_state.timestamp),
             battery_heater_on: charge_state.battery_heater_on,
             battery_level: charge_state.battery_level,
             charge_energy_added: charge_state.charge_energy_added,

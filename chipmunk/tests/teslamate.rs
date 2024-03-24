@@ -7,8 +7,8 @@ pub mod common;
 
 fn validate_drive(drive: &Drive, expected: &Drive) {
     assert_eq!(drive.in_progress, expected.in_progress);
-    assert!(drive.start_date - expected.start_date < Duration::seconds(1));
-    assert_eq!(drive.end_date.zip(expected.end_date).map(|(de, ee)| de - ee < Duration::seconds(1)), Some(true));
+    assert!(drive.start_date - expected.start_date < Duration::try_seconds(1).unwrap());
+    assert_eq!(drive.end_date.zip(expected.end_date).map(|(de, ee)| de - ee < Duration::try_seconds(1).unwrap()), Some(true));
     approx_eq!(drive.outside_temp_avg, expected.outside_temp_avg, 0.1);
     assert_eq!(drive.speed_max, expected.speed_max);
     assert_eq!(drive.power_max, expected.power_max);
@@ -33,8 +33,8 @@ fn validate_drive(drive: &Drive, expected: &Drive) {
 }
 
 fn validate_charging(charging_from_db: &ChargingProcess, charging_calculated: &ChargingProcess) {
-    assert!(charging_from_db.start_date - charging_calculated.start_date < Duration::seconds(1));
-    assert_eq!(charging_from_db.end_date.zip(charging_calculated.end_date).map(|(de, ee)| de - ee < Duration::seconds(1)), Some(true));
+    assert!(charging_from_db.start_date - charging_calculated.start_date < Duration::try_seconds(1).unwrap());
+    assert_eq!(charging_from_db.end_date.zip(charging_calculated.end_date).map(|(de, ee)| de - ee < Duration::try_seconds(1).unwrap()), Some(true));
     assert_eq!(charging_from_db.end_date, charging_calculated.end_date);
     approx_eq!(charging_from_db.charge_energy_added, charging_calculated.charge_energy_added);
     approx_eq!(charging_from_db.start_ideal_range_km, charging_calculated.start_ideal_range_km);

@@ -1,4 +1,4 @@
-use chrono::{Duration, NaiveDateTime};
+use chrono::{DateTime, Duration, Utc};
 
 use crate::database::tables::charges::Charges;
 
@@ -6,7 +6,7 @@ use crate::database::tables::charges::Charges;
 pub fn calculate_energy_used(charges: &[Charges]) -> Option<f32> {
     let phases = determine_phases(charges);
     let mut total_energy_used = 0.0;
-    let mut previous_date: Option<NaiveDateTime> = None;
+    let mut previous_date: Option<DateTime<Utc>> = None;
 
     for charge in charges {
         let energy_used = if charge.charger_phases.is_some() {

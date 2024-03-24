@@ -1,5 +1,5 @@
 use anyhow::Context;
-use chrono::NaiveDateTime;
+use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use tesla_api::vehicle_data::VehicleData;
 
@@ -8,8 +8,8 @@ use super::DBTable;
 #[derive(Debug, Default, Clone)]
 pub struct SoftwareUpdate {
     pub id: i32,
-    pub start_date: NaiveDateTime,
-    pub end_date: Option<NaiveDateTime>,
+    pub start_date: DateTime<Utc>,
+    pub end_date: Option<DateTime<Utc>>,
     pub version: String,
     pub car_id: i16,
 }

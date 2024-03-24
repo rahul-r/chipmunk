@@ -26,8 +26,8 @@
             }
           }
         },
-        "Timestamp",
-        "Timestamp",
+        "Timestamptz",
+        "Timestamptz",
         "Int2"
       ]
     },

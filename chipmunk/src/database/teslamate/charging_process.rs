@@ -1,3 +1,4 @@
+use chrono::{DateTime, Utc};
 use sqlx::{PgPool, Row};
 
 use crate::database::{tables::charging_process::ChargingProcess, types::ChargeStat};
@@ -44,8 +45,8 @@ impl Teslamate for ChargingProcess {
             .await?;
         Ok(ChargingProcess {
             id: res.get::<i32, _>("id"),
-            start_date: res.get::<chrono::NaiveDateTime, _>("start_date"),
-            end_date: res.try_get::<chrono::NaiveDateTime, _>("end_date").ok(),
+            start_date: res.get::<DateTime<Utc>, _>("start_date"),
+            end_date: res.try_get::<DateTime<Utc>, _>("end_date").ok(),
             charge_energy_added: res.try_get::<f32, _>("charge_energy_added").ok(),
             start_ideal_range_km: res.try_get::<f32, _>("start_ideal_range_km").ok(),
             end_ideal_range_km: res.try_get::<f32, _>("end_ideal_range_km").ok(),

@@ -11,12 +11,12 @@
       {
         "ordinal": 1,
         "name": "start_date",
-        "type_info": "Timestamp"
+        "type_info": "Timestamptz"
       },
       {
         "ordinal": 2,
         "name": "end_date",
-        "type_info": "Timestamp"
+        "type_info": "Timestamptz"
       },
       {
         "ordinal": 3,

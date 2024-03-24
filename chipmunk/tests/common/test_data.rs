@@ -1,5 +1,5 @@
 use chipmunk::database::tables::state::StateStatus;
-use chrono::NaiveDateTime;
+use chrono::{DateTime, Utc};
 use rand::{self, Rng};
 
 use tesla_api::vehicle_data::{
@@ -261,7 +261,7 @@ pub fn get_vehicle_state(timestamp: u64) -> VehicleState {
     }
 }
 
-pub fn get_data(timestamp: NaiveDateTime) -> VehicleData {
+pub fn get_data(timestamp: DateTime<Utc>) -> VehicleData {
     let timestamp = timestamp.timestamp_millis() as u64;
     VehicleData {
         id: Some(1234567890123456),
@@ -291,7 +291,7 @@ pub fn get_data(timestamp: NaiveDateTime) -> VehicleData {
 }
 
 // Create a VehicleData with the provided shift state
-pub fn data_with_shift(timestamp: NaiveDateTime, shift: Option<ShiftState>) -> VehicleData {
+pub fn data_with_shift(timestamp: DateTime<Utc>, shift: Option<ShiftState>) -> VehicleData {
     let data = get_data(timestamp);
     VehicleData {
         drive_state: Some(DriveState {
@@ -305,13 +305,13 @@ pub fn data_with_shift(timestamp: NaiveDateTime, shift: Option<ShiftState>) -> V
     }
 }
 
-pub fn data_with_state(timestamp: NaiveDateTime, state: StateStatus) -> VehicleData {
+pub fn data_with_state(timestamp: DateTime<Utc>, state: StateStatus) -> VehicleData {
     let mut data = get_data(timestamp);
     data.state = Some(state.as_str().to_string());
     data
 }
 
-pub fn data_charging(timestamp: NaiveDateTime, batt_leval: i16) -> VehicleData {
+pub fn data_charging(timestamp: DateTime<Utc>, batt_leval: i16) -> VehicleData {
     let mut data = get_data(timestamp);
     data.charge_state.as_mut().unwrap().battery_level = Some(batt_leval);
     data.charge_state.as_mut().unwrap().charging_state = Some(ChargingState::Charging);

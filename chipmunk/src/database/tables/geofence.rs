@@ -1,4 +1,4 @@
-use chrono::{NaiveDateTime, Utc};
+use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 
 use crate::database::types::BillingType;
@@ -11,8 +11,8 @@ pub struct Geofence {
     pub latitude: f32,
     pub longitude: f32,
     pub radius: i16,
-    pub inserted_at: NaiveDateTime,
-    pub updated_at: NaiveDateTime,
+    pub inserted_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
     pub cost_per_unit: Option<f32>,
     pub session_fee: Option<f32>,
     pub billing_type: BillingType,
@@ -25,8 +25,8 @@ impl Default for Geofence {
             latitude: 0.0,
             longitude: 0.0,
             radius: 0,
-            inserted_at: Utc::now().naive_utc(),
-            updated_at: Utc::now().naive_utc(),
+            inserted_at: Utc::now(),
+            updated_at: Utc::now(),
             cost_per_unit: None,
             session_fee: None,
             billing_type: BillingType::default(),

@@ -30,12 +30,12 @@
       {
         "ordinal": 2,
         "name": "start_date",
-        "type_info": "Timestamp"
+        "type_info": "Timestamptz"
       },
       {
         "ordinal": 3,
         "name": "end_date",
-        "type_info": "Timestamp"
+        "type_info": "Timestamptz"
       },
       {
         "ordinal": 4,

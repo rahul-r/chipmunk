@@ -1,7 +1,7 @@
 CREATE TABLE public.drives (
     id SERIAL PRIMARY KEY,
-    start_date timestamp without time zone NOT NULL,
-    end_date timestamp without time zone,
+    start_date timestamp with time zone NOT NULL,
+    end_date timestamp with time zone,
     outside_temp_avg FLOAT4,
     speed_max FLOAT4,
     power_max FLOAT4,

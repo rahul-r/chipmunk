@@ -11,8 +11,8 @@
     ],
     "parameters": {
       "Left": [
-        "Timestamp",
-        "Timestamp",
+        "Timestamptz",
+        "Timestamptz",
         {
           "Custom": {
             "name": "unit_of_length",

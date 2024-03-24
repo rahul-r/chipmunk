@@ -187,7 +187,7 @@ async fn start_logging_for_state(
         state: new_state,
         start_date: current_position.date.unwrap_or_else(|| {
             log::error!("Timestamp is None, using current time");
-            chrono::Utc::now().naive_utc()
+            chrono::Utc::now()
         }),
         ..State::default()
     });

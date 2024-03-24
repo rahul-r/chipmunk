@@ -1,4 +1,4 @@
-use chrono::{NaiveDateTime, Utc};
+use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 
 use crate::database::{
@@ -10,8 +10,8 @@ use crate::database::{
 pub struct Settings {
     #[allow(dead_code)]
     id: i64,
-    pub inserted_at: NaiveDateTime,
-    pub updated_at: NaiveDateTime,
+    pub inserted_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
     pub unit_of_length: UnitOfLength,
     pub unit_of_temperature: UnitOfTemperature,
     pub preferred_range: Range,
@@ -27,8 +27,8 @@ impl Default for Settings {
     fn default() -> Self {
         Self {
             id: 0,
-            inserted_at: Utc::now().naive_utc(),
-            updated_at: Utc::now().naive_utc(),
+            inserted_at: Utc::now(),
+            updated_at: Utc::now(),
             unit_of_length: UnitOfLength::default(),
             unit_of_temperature: UnitOfTemperature::default(),
             preferred_range: Range::default(),

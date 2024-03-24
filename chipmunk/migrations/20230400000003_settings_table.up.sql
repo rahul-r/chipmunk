@@ -1,7 +1,7 @@
 CREATE TABLE public.settings (
     id BIGINT PRIMARY KEY DEFAULT 1,
-    inserted_at timestamp(0) without time zone NOT NULL,
-    updated_at timestamp(0) without time zone NOT NULL,
+    inserted_at timestamp(0) with time zone NOT NULL,
+    updated_at timestamp(0) with time zone NOT NULL,
     unit_of_length public.unit_of_length DEFAULT 'km'::public.unit_of_length NOT NULL,
     unit_of_temperature public.unit_of_temperature DEFAULT 'C'::public.unit_of_temperature NOT NULL,
     preferred_range public.range DEFAULT 'rated'::public.range NOT NULL,

@@ -14,7 +14,7 @@ async fn test1() {
     chipmunk::init_log();
 
     // Asleep to asleep
-    let start_time = chrono::Utc::now().naive_utc();
+    let start_time = chrono::Utc::now();
     let t = chipmunk::logger::create_tables(&data_with_state(start_time, Asleep), &Tables::default(), car_id).await.unwrap();
     assert_eq!(t.len(), 1);
     assert!(t[0].address.is_none());
@@ -29,7 +29,7 @@ async fn test1() {
     assert!(t[0].sw_update.is_none());
     let prev_state = &t[0];
 
-    let ts = start_time + Duration::seconds(1);
+    let ts = start_time + Duration::try_seconds(1).unwrap();
     let t = chipmunk::logger::create_tables(&data_with_state(ts, Asleep), prev_state, car_id).await.unwrap();
     assert_eq!(t.len(), 1);
     assert!(t[0].address.is_none());
@@ -43,7 +43,7 @@ async fn test1() {
     assert_eq!(*t[0].state.as_ref().unwrap(), State {car_id, id: 0, state: Asleep, start_date: ts_no_nanos(start_time), end_date: Some(ts_no_nanos(ts)) });
     assert!(t[0].sw_update.is_none());
 
-    let ts = start_time + Duration::seconds(DELAYED_DATAPOINT_TIME_SEC + 1);
+    let ts = start_time + Duration::try_seconds(DELAYED_DATAPOINT_TIME_SEC + 1).unwrap();
     let t = chipmunk::logger::create_tables(&data_with_state(ts, Asleep), prev_state, car_id).await.unwrap();
     assert_eq!(t.len(), 1);
     assert!(t[0].address.is_none());
@@ -58,7 +58,7 @@ async fn test1() {
     assert!(t[0].sw_update.is_none());
 
     // Asleep to park
-    let start_time = chrono::Utc::now().naive_utc();
+    let start_time = chrono::Utc::now();
     let t = chipmunk::logger::create_tables(&data_with_state(start_time, Asleep), &Tables::default(), car_id).await.unwrap();
     assert_eq!(t.len(), 1);
     assert!(t[0].address.is_none());
@@ -71,7 +71,7 @@ async fn test1() {
     assert!(t[0].sw_update.is_none());
     assert!(t[0].state.is_some());
     let prev_tables = &t[0];
-    let ts = start_time + Duration::seconds(1);
+    let ts = start_time + Duration::try_seconds(1).unwrap();
     let t = chipmunk::logger::create_tables(&data_with_shift(ts, Some(P)), prev_tables, car_id).await.unwrap();
     assert_eq!(t.len(), 2);
     assert!(t[0].address.is_none());
@@ -95,11 +95,11 @@ async fn test1() {
     assert!(t[1].sw_update.is_none());
 
     // Asleep to park after delay
-    let start_time = chrono::Utc::now().naive_utc();
+    let start_time = chrono::Utc::now();
     let t = chipmunk::logger::create_tables(&data_with_state(start_time, Asleep), &Tables::default(), car_id).await.unwrap();
     assert_eq!(t.len(), 1);
     let prev_tables = &t[0];
-    let ts = start_time + Duration::seconds(DELAYED_DATAPOINT_TIME_SEC + 1);
+    let ts = start_time + Duration::try_seconds(DELAYED_DATAPOINT_TIME_SEC + 1).unwrap();
     let t = chipmunk::logger::create_tables(&data_with_shift(ts, Some(P)), prev_tables, car_id).await.unwrap();
     assert_eq!(t.len(), 2);
     assert!(t[0].address.is_none());
@@ -123,11 +123,11 @@ async fn test1() {
     assert!(t[1].sw_update.is_none());
 
     // Asleep to drive
-    let start_time = chrono::Utc::now().naive_utc();
+    let start_time = chrono::Utc::now();
     let t = chipmunk::logger::create_tables(&data_with_state(start_time, Asleep), &Tables::default(), car_id).await.unwrap();
     assert_eq!(t.len(), 1);
     let prev_tables = &t[0];
-    let ts = start_time + Duration::seconds(1);
+    let ts = start_time + Duration::try_seconds(1).unwrap();
     let t = chipmunk::logger::create_tables(&data_with_shift(ts, Some(D)), prev_tables, car_id).await.unwrap();
     assert_eq!(t.len(), 2);
     assert!(t[0].address.is_none());
@@ -151,11 +151,11 @@ async fn test1() {
     assert!(t[1].sw_update.is_none());
 
     // Asleep to drive after delay
-    let start_time = chrono::Utc::now().naive_utc();
+    let start_time = chrono::Utc::now();
     let t = chipmunk::logger::create_tables(&data_with_state(start_time, Asleep), &Tables::default(), car_id).await.unwrap();
     assert_eq!(t.len(), 1);
     let prev_tables = &t[0];
-    let ts = start_time + Duration::seconds(DELAYED_DATAPOINT_TIME_SEC + 1);
+    let ts = start_time + Duration::try_seconds(DELAYED_DATAPOINT_TIME_SEC + 1).unwrap();
     let t = chipmunk::logger::create_tables(&data_with_shift(ts, Some(D)), prev_tables, car_id).await.unwrap();
     assert_eq!(t.len(), 2);
     assert!(t[0].address.is_none());
@@ -179,11 +179,11 @@ async fn test1() {
     assert!(t[1].sw_update.is_none());
 
     // Asleep to charging
-    let start_time = chrono::Utc::now().naive_utc();
+    let start_time = chrono::Utc::now();
     let t = chipmunk::logger::create_tables(&data_with_state(start_time, Asleep), &Tables::default(), car_id).await.unwrap();
     assert_eq!(t.len(), 1);
     let prev_tables = &t[0];
-    let ts = start_time + Duration::seconds(1);
+    let ts = start_time + Duration::try_seconds(1).unwrap();
     let t = chipmunk::logger::create_tables(&data_charging(ts, 25), prev_tables, car_id).await.unwrap();
     assert_eq!(t.len(), 2);
     assert!(t[0].address.is_none());
@@ -207,11 +207,11 @@ async fn test1() {
     assert!(t[1].sw_update.is_none());
 
     // Asleep to charging after delay
-    let start_time = chrono::Utc::now().naive_utc();
+    let start_time = chrono::Utc::now();
     let t = chipmunk::logger::create_tables(&data_with_state(start_time, Asleep), &Tables::default(), car_id).await.unwrap();
     assert_eq!(t.len(), 1);
     let prev_tables = &t[0];
-    let ts = start_time + Duration::seconds(DELAYED_DATAPOINT_TIME_SEC + 1);
+    let ts = start_time + Duration::try_seconds(DELAYED_DATAPOINT_TIME_SEC + 1).unwrap();
     let t = chipmunk::logger::create_tables(&data_charging(ts, 25), prev_tables, car_id).await.unwrap();
     assert_eq!(t.len(), 2);
     assert!(t[0].address.is_none());
@@ -235,11 +235,11 @@ async fn test1() {
     assert!(t[1].sw_update.is_none());
 
     // Asleep to offline
-    let start_time = chrono::Utc::now().naive_utc();
+    let start_time = chrono::Utc::now();
     let t = chipmunk::logger::create_tables(&data_with_state(start_time, Asleep), &Tables::default(), car_id).await.unwrap();
     assert_eq!(t.len(), 1);
     let prev_tables = &t[0];
-    let ts = start_time + Duration::seconds(1);
+    let ts = start_time + Duration::try_seconds(1).unwrap();
     let t = chipmunk::logger::create_tables(&data_with_state(ts, Offline), prev_tables, car_id).await.unwrap();
     assert_eq!(t.len(), 2);
     assert!(t[0].address.is_none());
@@ -263,11 +263,11 @@ async fn test1() {
     assert!(t[1].sw_update.is_none());
 
     // Asleep to offline after delay
-    let start_time = chrono::Utc::now().naive_utc();
+    let start_time = chrono::Utc::now();
     let t = chipmunk::logger::create_tables(&data_with_state(start_time, Asleep), &Tables::default(), car_id).await.unwrap();
     assert_eq!(t.len(), 1);
     let prev_tables = &t[0];
-    let ts = start_time + Duration::seconds(DELAYED_DATAPOINT_TIME_SEC + 1);
+    let ts = start_time + Duration::try_seconds(DELAYED_DATAPOINT_TIME_SEC + 1).unwrap();
     let t = chipmunk::logger::create_tables(&data_with_state(ts, Offline), prev_tables, car_id).await.unwrap();
     assert_eq!(t.len(), 2);
     assert!(t[0].address.is_none());

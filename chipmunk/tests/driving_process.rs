@@ -46,7 +46,7 @@ async fn test_driving_and_parking() {
     settings.db_insert(&pool).await.unwrap();
 
     // Set up a pointer to send vehicle data to the mock server
-    let drive1_start_time = chrono::Utc::now().naive_utc();
+    let drive1_start_time = chrono::Utc::now();
     let data = test_data::data_with_shift(drive1_start_time, Some(D));
     let starting_odometer_mi = data.vehicle_state.as_ref().unwrap().odometer.unwrap();
     let data = Arc::new(Mutex::new(data));
@@ -73,7 +73,7 @@ async fn test_driving_and_parking() {
 
     assert_eq!(Address::db_num_rows(&pool).await.unwrap(), 1);
     let drive1_start_address = Address::db_get_last(&pool).await.unwrap();
-    assert!(drive1_start_time - drive1_start_address.inserted_at < chrono::Duration::seconds(2));
+    assert!(drive1_start_time - drive1_start_address.inserted_at < chrono::Duration::try_seconds(2).unwrap());
 
     assert_eq!(Car::db_num_rows(&pool).await.unwrap(), 1);
     let car = Car::db_get_last(&pool).await.unwrap();
@@ -114,7 +114,7 @@ async fn test_driving_and_parking() {
     assert_ne!(VehicleData::db_num_rows(&pool).await.unwrap(), 0);
 
     // Continue driving
-    let timestamp = chrono::Utc::now().naive_utc();
+    let timestamp = chrono::Utc::now();
     let odometer_mi = last_position.odometer.unwrap() + 123.4;
     let mut vehicle_data = test_data::data_with_shift(timestamp, Some(D));
     vehicle_data.vehicle_state.as_mut().unwrap().odometer = Some(odometer_mi);
@@ -158,7 +158,7 @@ async fn test_driving_and_parking() {
     assert_eq!(last_position.car_id, car.id);
 
     let drive_duration_min = 9;
-    let drive1_end_time = timestamp + chrono::Duration::minutes(drive_duration_min);
+    let drive1_end_time = timestamp + chrono::Duration::try_minutes(drive_duration_min).unwrap();
     let mut vehicle_data = test_data::data_with_shift(drive1_end_time, Some(D));
     vehicle_data.vehicle_state.as_mut().unwrap().odometer = Some(odometer_mi);
     **data.lock().as_mut().unwrap() = vehicle_data;
@@ -175,7 +175,7 @@ async fn test_driving_and_parking() {
     // This can happen if the there are no data points recorded while the car is parked
     // The logger should create a new drive with the same start and end address
     let drive1_num_positions = Position::db_num_rows(&pool).await.unwrap();
-    let drive2_start_time = drive1_end_time + chrono::Duration::seconds(DELAYED_DATAPOINT_TIME_SEC + 1);
+    let drive2_start_time = drive1_end_time + chrono::Duration::try_seconds(DELAYED_DATAPOINT_TIME_SEC + 1).unwrap();
     let mut vehicle_data = test_data::data_with_shift(drive2_start_time, Some(D));
     vehicle_data.vehicle_state.as_mut().unwrap().odometer = Some(odometer_mi);
     **data.lock().as_mut().unwrap() = vehicle_data;
@@ -243,7 +243,7 @@ async fn test_driving_and_parking() {
     assert_eq!(last_driving_position.car_id, car.id);
 
     // Stop driving / start park state
-    let parking_start_time = drive1_end_time + chrono::Duration::seconds(DELAYED_DATAPOINT_TIME_SEC + 1);
+    let parking_start_time = drive1_end_time + chrono::Duration::try_seconds(DELAYED_DATAPOINT_TIME_SEC + 1).unwrap();
     let vehicle_data = test_data::data_with_shift(drive2_start_time, Some(P));
     **data.lock().as_mut().unwrap() = vehicle_data;
     *send_response.lock().unwrap() = true;

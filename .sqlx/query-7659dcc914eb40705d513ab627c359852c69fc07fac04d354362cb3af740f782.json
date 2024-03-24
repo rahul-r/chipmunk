@@ -15,8 +15,8 @@
         "Float4",
         "Float4",
         "Int2",
-        "Timestamp",
-        "Timestamp",
+        "Timestamptz",
+        "Timestamptz",
         "Float4",
         "Float4",
         {

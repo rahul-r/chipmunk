@@ -1,8 +1,8 @@
 use anyhow::Context;
-use chrono::NaiveDateTime;
+use chrono::{DateTime, Utc};
 
 use sqlx::PgPool;
-use tesla_api::utils::{get_elevation, miles_to_km, mph_to_kmh, timestamp_to_naivedatetime};
+use tesla_api::utils::{get_elevation, miles_to_km, mph_to_kmh, timestamp_to_datetime};
 use tesla_api::vehicle_data::VehicleData;
 
 use super::DBTable;
@@ -10,7 +10,7 @@ use super::DBTable;
 #[derive(Debug, Default, Clone, sqlx::FromRow)]
 pub struct Position {
     pub id: Option<i32>,
-    pub date: Option<NaiveDateTime>,
+    pub date: Option<DateTime<Utc>>,
     pub latitude: Option<f32>,
     pub longitude: Option<f32>,
     pub speed: Option<f32>,
@@ -55,12 +55,12 @@ impl Position {
             .context("vehicle_state is None")?;
         Ok(Self {
             id: None,
-            date: match timestamp_to_naivedatetime(drive_state.timestamp) {
+            date: match timestamp_to_datetime(drive_state.timestamp) {
                 None => {
                     log::error!(
                         "Value of `drive_state.timestamp` is None, using current time instead"
                     );
-                    Some(chrono::Utc::now().naive_utc())
+                    Some(chrono::Utc::now())
                 }
                 time => time,
             },

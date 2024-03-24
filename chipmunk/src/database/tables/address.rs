@@ -1,4 +1,4 @@
-use chrono::{NaiveDateTime, Utc};
+use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 
 use crate::openstreetmap::{self, OsmResponse};
@@ -22,8 +22,8 @@ pub struct Address {
     pub state_district: Option<String>,
     pub country: Option<String>,
     pub raw: Option<serde_json::Value>,
-    pub inserted_at: NaiveDateTime,
-    pub updated_at: NaiveDateTime,
+    pub inserted_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
     pub osm_id: Option<i64>,
     pub osm_type: Option<String>,
 }
@@ -69,8 +69,8 @@ impl Address {
             state_district: osm.get_state_district(),
             country: osm.get_country(),
             raw: raw_osm,
-            inserted_at: Utc::now().naive_utc(),
-            updated_at: Utc::now().naive_utc(),
+            inserted_at: Utc::now(),
+            updated_at: Utc::now(),
             osm_id: osm.osm_id,
             osm_type: osm.osm_type,
         })

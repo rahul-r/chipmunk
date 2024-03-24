@@ -1,7 +1,7 @@
 CREATE TABLE public.updates (
     id SERIAL PRIMARY KEY,
-    start_date timestamp without time zone NOT NULL,
-    end_date timestamp without time zone,
+    start_date timestamp with time zone NOT NULL,
+    end_date timestamp with time zone,
     version character varying(255),
     car_id smallint NOT NULL,
     CONSTRAINT positive_duration CHECK ((end_date >= start_date))
