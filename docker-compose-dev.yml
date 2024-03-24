@@ -1,10 +1,8 @@
-version: '3.1'
-
 services:
   db:
     image: postgres:16
-    container_name: postgres
-    hostname: postgres
+    container_name: db
+    hostname: db
     restart: unless-stopped
     ports:
       - "5432:5432"
@@ -46,8 +44,8 @@ services:
       PGADMIN_DEFAULT_EMAIL: mail@example.com
       PGADMIN_DEFAULT_PASSWORD: chipmunk
       PGADMIN_CONFIG_ENHANCED_COOKIE_PROTECTION: "True"
-      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: 'False'
-      PGADMIN_CONFIG_SERVER_MODE: 'False'
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+      PGADMIN_CONFIG_SERVER_MODE: "False"
       PGADMIN_CONFIG_CONSOLE_LOG_LEVEL: 10
       CHIPMUNK_DB: db
       CHIPMUNK_DB_USER: chipmunk
@@ -58,7 +56,7 @@ services:
       SE_OPTS: "log /dev/null"
     logging:
       driver: "none"
-    user: 'root'
+    user: "root"
     # Connect to the database without manually entering username and password
     # SOURCE: https://stackoverflow.com/questions/66578506/where-is-the-pgpass-file-in-pgadmin4-docker-container-when-this-file-is-mounted/69258794#69258794
     entrypoint: >

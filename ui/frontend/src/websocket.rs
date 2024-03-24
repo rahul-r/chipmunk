@@ -84,9 +84,10 @@ impl Ws {
 
         spawn_local(async move {
             while let Some(msg) = read.lock().unwrap().next().await {
+                let ws_tx_clone = ws_tx.clone();
                 let handle_msg = async || -> anyhow::Result<()> {
                     match msg? {
-                        Message::Text(t) => ws_tx.send(WsMessage::from_string(&*t)?).await?,
+                        Message::Text(t) => ws_tx_clone.send(WsMessage::from_string(&*t)?).await?,
                         Message::Bytes(_) => log::warn!("Binary data received via WebSocket"),
                     };
                     Ok(())
