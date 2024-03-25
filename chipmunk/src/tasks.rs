@@ -1,9 +1,9 @@
 use std::time::Duration;
 
-use crate::database::DBTable;
 use crate::database::tables::settings::Settings;
 use crate::database::tables::token::Token;
 use crate::database::tables::Tables;
+use crate::database::DBTable;
 use crate::logger::process_vehicle_data;
 use crate::{database, EnvVars};
 use anyhow::Context;
@@ -31,7 +31,6 @@ enum DatabaseDataType {
 enum Config<'a> {
     AccessToken(&'a str),
     LoggingPeriodMs(i32),
-    Frequency(i32),
     Key(&'a str),
 }
 
@@ -210,22 +209,17 @@ async fn data_polling_task(
                     TeslaError::NotOnline => {
                         // TODO: Is there a way to wait for the vehicle to come online?
                         log::info!("Vehicle is not online");
-                        tokio::time::sleep(Duration::from_millis(logging_period_ms as u64)).await;
-                        continue;
                     }
                     TeslaError::InvalidHeader(e) => log::error!("Error: `{e}`"),
                     TeslaError::ParseError(e) => log::error!("Error: `{e}`"),
                     TeslaError::WebSocketError(e) => log::error!("Error: `{e}`"),
                     TeslaError::TokenExpired(e) => log::error!("Error: `{e}`"),
                     TeslaError::JsonDecodeError(e) => log::error!("Error: `{e}`"),
-                    TeslaError::RequestTimeout => {
-                        log::info!("Timeout");
-                        // Wait for a bit before trying again
-                        tokio::time::sleep(Duration::from_secs(2)).await;
-                        continue;
-                    }
+                    TeslaError::RequestTimeout => log::info!("Timeout"),
                     TeslaError::InvalidResponse => log::error!("Error: `{e}`"),
                 }
+                tokio::time::sleep(Duration::from_millis(logging_period_ms as u64)).await;
+                continue;
             }
         };
 
@@ -384,7 +378,7 @@ pub async fn run(env: &EnvVars, pool: &sqlx::PgPool) -> anyhow::Result<()> {
     let tesla_client = tesla_api::get_tesla_client(&tokens.access_token)?;
 
     let vehicles = tesla_api::get_vehicles(&tesla_client).await?;
-    let vehicle = vehicles.get(0); // TODO: Use the first vehicle for now
+    let vehicle = vehicles.first(); // TODO: Use the first vehicle for now
     let car_id = vehicle
         .context("Invalid vehicle data")?
         .id
@@ -398,9 +392,6 @@ pub async fn run(env: &EnvVars, pool: &sqlx::PgPool) -> anyhow::Result<()> {
     let settings = Settings::db_get_last(pool).await?;
 
     if let Err(e) = config_tx.send(Config::Key("new configuration key")) {
-        log::error!("Error sending configuration: {e}");
-    }
-    if let Err(e) = config_tx.send(Config::Frequency(4321)) {
         log::error!("Error sending configuration: {e}");
     }
     if let Err(e) = config_tx.send(Config::LoggingPeriodMs(settings.logging_period_ms)) {
