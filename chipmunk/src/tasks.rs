@@ -354,7 +354,12 @@ async fn web_server_task(
     });
 
     tokio::select! {
-        _ = TeslaServer::start(http_port, data_from_server_tx, data_to_server_rx, server_exit_signal_rx) => log::warn!("web server exited"),
+        result = TeslaServer::start(http_port, data_from_server_tx, data_to_server_rx, server_exit_signal_rx) => {
+            match result {
+                Ok(_) => log::warn!("web server exited"),
+                Err(e) => log::error!("Web server exited: {e}"),
+            }
+        }
         status = message_handler_task => log::warn!("message handler task exited: {status:?}"),
     }
     tracing::warn!("exiting {name}");

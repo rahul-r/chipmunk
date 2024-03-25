@@ -51,7 +51,7 @@ impl TeslaServer {
         data_from_srv_tx: mpsc::UnboundedSender<MpscTopic>,
         mut data_to_srv_rx: broadcast::Receiver<i32>,
         exit_signal_rx: oneshot::Receiver<()>,
-    ) -> Arc<Mutex<TeslaServer>> {
+    ) -> anyhow::Result<Arc<Mutex<TeslaServer>>> {
         let clients = Clients::default(); // Keep track of all connected clients
         let clients_copy = clients.clone();
         let with_clients = warp::any().map(move || clients_copy.clone());
@@ -90,9 +90,14 @@ impl TeslaServer {
 
         let address = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), port);
         log::info!("Listening on http://{}", address);
-        let (_addr, server) = warp::serve(routes).bind_with_graceful_shutdown(address, async {
+        let signal = async {
             exit_signal_rx.await.ok();
-        });
+        };
+        let (_addr, server) =
+            match warp::serve(routes).try_bind_with_graceful_shutdown(address, signal) {
+                Ok(r) => r,
+                Err(e) => anyhow::bail!(e),
+            };
 
         let message_handler_task = {
             let clients = clients.clone();
@@ -122,10 +127,10 @@ impl TeslaServer {
 
         tracing::error!("Exiting server task");
 
-        Arc::new(Mutex::new(TeslaServer {
+        Ok(Arc::new(Mutex::new(TeslaServer {
             clients,
             status: LoggingStatus::default(),
-        }))
+        })))
     }
 
     /// Broadcast message to all connected clients
@@ -176,7 +181,8 @@ impl TeslaServer {
             };
 
             if let Err(e) = TeslaServer::handle_messages(&client_tx, msg, tx.clone()).await {
-                log::error!("{} {}", e, e.backtrace());
+                // log::error!("{} {}", e, e.backtrace());
+                log::error!("{}", e);
             }
         }
 
@@ -253,7 +259,9 @@ impl TeslaServer {
             Topic::GetSettings => (),
             Topic::RefreshToken => {
                 let Some(token_value) = ws_msg.clone().data else {
-                    let resp = ws_msg.response_with_data(json!({"status": false, "reason": "No token provided"}));
+                    let resp = ws_msg.response_with_data(
+                        json!({"status": false, "reason": "No token provided"}),
+                    );
                     TeslaServer::send(client, &resp)?;
                     anyhow::bail!("No token provided");
                 };
