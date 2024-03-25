@@ -23,7 +23,7 @@ use crate::{
 };
 
 pub async fn log(pool: &sqlx::PgPool, env: &crate::EnvVars) -> anyhow::Result<()> {
-    tasks::run(&env, &pool).await
+    tasks::run(env, pool).await
 }
 
 pub async fn process_vehicle_data(

@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+use std::{rc::Rc, sync::Mutex};
 
 use async_channel::{unbounded, Receiver, Sender};
 use futures::{
@@ -37,8 +37,8 @@ impl Ws {
         };
         let (write, read) = ws.split();
 
-        let write = Arc::new(Mutex::new(write));
-        let read = Arc::new(Mutex::new(read));
+        let write = Rc::new(Mutex::new(write));
+        let read = Rc::new(Mutex::new(read));
         let tx = Self::transmit(write);
         let rx = Self::receive(read);
         Self {
@@ -49,7 +49,7 @@ impl Ws {
         }
     }
 
-    fn transmit(write: Arc<Mutex<SplitSink<WebSocket, Message>>>) -> Sender<WsMessage> {
+    fn transmit(write: Rc<Mutex<SplitSink<WebSocket, Message>>>) -> Sender<WsMessage> {
         let (ws_tx, ws_rx) = unbounded::<WsMessage>();
         let write = write;
 
@@ -78,7 +78,7 @@ impl Ws {
         ws_tx
     }
 
-    fn receive(read: Arc<Mutex<SplitStream<WebSocket>>>) -> Receiver<WsMessage> {
+    fn receive(read: Rc<Mutex<SplitStream<WebSocket>>>) -> Receiver<WsMessage> {
         let (ws_tx, ws_rx) = unbounded::<WsMessage>();
         let read = read;
 

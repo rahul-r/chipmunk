@@ -1,5 +1,5 @@
 use anyhow::Context;
-use chrono::{Duration, DateTime, Utc};
+use chrono::{DateTime, Duration, Utc};
 use sqlx::PgPool;
 use tesla_api::auth::AuthResponse;
 
@@ -113,9 +113,14 @@ impl Token {
     pub async fn db_get_last(pool: &PgPool, encryption_key: &str) -> anyhow::Result<AuthResponse> {
         log::info!("Getting tokens from database");
 
-        let token_table = sqlx::query_as!(Token, r#"SELECT * FROM tokens"#)
+        let token_table_res = sqlx::query_as!(Token, r#"SELECT * FROM tokens"#)
             .fetch_one(pool)
-            .await?;
+            .await;
+
+        let token_table = match token_table_res {
+            Ok(t) => t,
+            Err(e) => anyhow::bail!("Cannot retrieve auth token from database: {e}"),
+        };
 
         log::info!("Decrypting tokens");
 

@@ -32,7 +32,6 @@ macro_rules! print_err_and_exit {
     () => {
         |e| {
             log::error!("{e}");
-            eprintln!("{e}");
             std::process::exit(1);
         }
     };
@@ -73,7 +72,7 @@ async fn main() -> anyhow::Result<()> {
         match option {
             "tasks" => chipmunk::tasks::run(&env, &pool)
                 .await
-                .inspect_err(|e| log::error!("{e}"))?,
+                .unwrap_or_else(print_err_and_exit!()),
             unknown => eprintln!("Unknown option `{unknown}`"),
         };
     }
