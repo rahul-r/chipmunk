@@ -11,5 +11,6 @@ target_mac/
 
 .env
 chipmunk_container
+chipmunk_docker
 dist
 .idea

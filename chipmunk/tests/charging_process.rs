@@ -26,8 +26,7 @@ use tokio::time::{sleep, Duration};
 
 use crate::common::{test_data, utils::{create_charging_from_charges, init_test_database, ts_no_nanos}, DELAYED_DATAPOINT_TIME_SEC};
 
-#[tokio::test]
-async fn test_missing_charging_detection() {
+pub async fn test_missing_charging_detection() {
     use ShiftState::*;
     use StateStatus::*;
     // chipmunk::init_log();
@@ -158,8 +157,7 @@ async fn test_missing_charging_detection() {
 }
 
 // test no new charging process is started when a delayed data point is received if the vehicle is already charging
-#[tokio::test]
-async fn test_delayed_data_during_missing_charging_detection() {
+pub async fn test_delayed_data_during_missing_charging_detection() {
     // chipmunk::init_log();
 
     let random_http_port = rand::thread_rng().gen_range(4000..60000);
@@ -241,8 +239,7 @@ async fn test_delayed_data_during_missing_charging_detection() {
     assert_eq!(ChargingProcess::db_num_rows(&pool).await.unwrap(), 1); // No new charging process should be created
 }
 
-#[tokio::test]
-async fn test_charging_process() {
+pub async fn test_charging_process() {
     use ShiftState::*;
     // chipmunk::init_log();
 

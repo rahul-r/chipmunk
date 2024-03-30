@@ -27,8 +27,7 @@ use tokio::time::{sleep, Duration};
 
 use crate::common::{test_data, utils::{ts_no_nanos, init_test_database}, DELAYED_DATAPOINT_TIME_SEC};
 
-#[tokio::test]
-async fn test_driving_and_parking() {
+pub async fn test_driving_and_parking() {
     use ShiftState::*;
 
     // chipmunk::init_log();

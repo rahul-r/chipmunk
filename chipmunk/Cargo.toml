@@ -25,7 +25,7 @@ sqlx = { version = "0.7.4", features = [
 ] }
 dotenvy = "0.15.7"
 env_logger = "0.11.1"
-clap = { version = "4.2.1", features = ["derive"] }
+clap = { version = "=4.2.1", features = ["derive"] }
 openssl = "0.10.50"
 rand = "0.8.5"
 futures = "0.3.28"

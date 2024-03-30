@@ -5,7 +5,7 @@ use crate::common::utils::{create_charging_from_charges, create_drive_from_posit
 
 pub mod common;
 
-fn validate_drive(drive: &Drive, expected: &Drive) {
+pub fn validate_drive(drive: &Drive, expected: &Drive) {
     assert_eq!(drive.in_progress, expected.in_progress);
     assert!(drive.start_date - expected.start_date < Duration::try_seconds(1).unwrap());
     assert_eq!(drive.end_date.zip(expected.end_date).map(|(de, ee)| de - ee < Duration::try_seconds(1).unwrap()), Some(true));
@@ -32,7 +32,7 @@ fn validate_drive(drive: &Drive, expected: &Drive) {
     // IGNORE THIS assert_eq!(drive.end_geofence_id, expected.end_geofence_id);
 }
 
-fn validate_charging(charging_from_db: &ChargingProcess, charging_calculated: &ChargingProcess) {
+pub fn validate_charging(charging_from_db: &ChargingProcess, charging_calculated: &ChargingProcess) {
     assert!(charging_from_db.start_date - charging_calculated.start_date < Duration::try_seconds(1).unwrap());
     assert_eq!(charging_from_db.end_date.zip(charging_calculated.end_date).map(|(de, ee)| de - ee < Duration::try_seconds(1).unwrap()), Some(true));
     assert_eq!(charging_from_db.end_date, charging_calculated.end_date);
@@ -54,8 +54,7 @@ fn validate_charging(charging_from_db: &ChargingProcess, charging_calculated: &C
     // IGNORE THIS assert_eq!(charging_from_db.geofence_id, charging_calculated.geofence_id);
 }
 
-#[tokio::test]
-async fn test_teslamate_drive() {
+pub async fn test_teslamate_drive() {
     dotenvy::dotenv().ok();
     let url = std::env::var("TESLAMATE_DATABASE_URL")
         .expect("Cannot get test database URL from environment variable, Please set env `TESLAMATE_DATABASE_URL`");
@@ -92,8 +91,7 @@ async fn test_teslamate_drive() {
     }
 }
 
-#[tokio::test]
-async fn test_teslamate_charging() {
+pub async fn test_teslamate_charging() {
     dotenvy::dotenv().unwrap();
     let url = std::env::var("TESLAMATE_DATABASE_URL")
         .expect("Cannot get test database URL from environment variable, Please set env `TESLAMATE_DATABASE_URL`");
