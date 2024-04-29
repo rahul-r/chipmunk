@@ -27,6 +27,7 @@ use tokio::time::{sleep, Duration};
 
 use crate::common::{test_data, utils::{ts_no_nanos, init_test_database}, DELAYED_DATAPOINT_TIME_SEC};
 
+#[tokio::test]
 pub async fn test_driving_and_parking() {
     use ShiftState::*;
 
@@ -35,7 +36,7 @@ pub async fn test_driving_and_parking() {
     let random_http_port = rand::thread_rng().gen_range(4000..60000);
     std::env::set_var("HTTP_PORT", random_http_port.to_string());
 
-    let _osm_mock = create_mock_osm_server();
+    let _osm_mock = create_mock_osm_server().await;
     let pool = init_test_database("test_driving_and_parking").await;
     let env = chipmunk::load_env_vars().unwrap();
 
@@ -51,7 +52,7 @@ pub async fn test_driving_and_parking() {
     let data = Arc::new(Mutex::new(data));
     let send_response = Arc::new(Mutex::new(true));
     // Create a Tesla mock server
-    let _tesla_mock = create_mock_tesla_server(data.clone(), send_response.clone()); // Assign the return value to a variable to keep the server alive
+    let _tesla_mock = create_mock_tesla_server(data.clone(), send_response.clone()).await; // Assign the return value to a variable to keep the server alive
 
     let panic_hook = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |panic_info| {

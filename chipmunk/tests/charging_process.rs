@@ -26,6 +26,7 @@ use tokio::time::{sleep, Duration};
 
 use crate::common::{test_data, utils::{create_charging_from_charges, init_test_database, ts_no_nanos}, DELAYED_DATAPOINT_TIME_SEC};
 
+#[tokio::test]
 pub async fn test_missing_charging_detection() {
     use ShiftState::*;
     use StateStatus::*;
@@ -34,7 +35,7 @@ pub async fn test_missing_charging_detection() {
     let random_http_port = rand::thread_rng().gen_range(4000..60000);
     std::env::set_var("HTTP_PORT", random_http_port.to_string());
 
-    let _osm_mock = create_mock_osm_server();
+    let _osm_mock = create_mock_osm_server().await;
     let pool = init_test_database("test_missing_charging_detection").await;
     let env = chipmunk::load_env_vars().unwrap();
 
@@ -49,7 +50,7 @@ pub async fn test_missing_charging_detection() {
     let data = Arc::new(Mutex::new(data));
     let send_response = Arc::new(Mutex::new(true));
     // Create a Tesla mock server
-    let _tesla_mock = create_mock_tesla_server(data.clone(), send_response.clone()); // Assign the return value to a variable to keep the server alive
+    let _tesla_mock = create_mock_tesla_server(data.clone(), send_response.clone()).await; // Assign the return value to a variable to keep the server alive
 
     let pool_clone = pool.clone();
 
@@ -157,13 +158,14 @@ pub async fn test_missing_charging_detection() {
 }
 
 // test no new charging process is started when a delayed data point is received if the vehicle is already charging
+#[tokio::test]
 pub async fn test_delayed_data_during_missing_charging_detection() {
     // chipmunk::init_log();
 
     let random_http_port = rand::thread_rng().gen_range(4000..60000);
     std::env::set_var("HTTP_PORT", random_http_port.to_string());
 
-    let _osm_mock = create_mock_osm_server();
+    let _osm_mock = create_mock_osm_server().await;
     let pool = init_test_database("test_delayed_data_during_missing_charging_detection").await;
     let env = chipmunk::load_env_vars().unwrap();
 
@@ -183,7 +185,7 @@ pub async fn test_delayed_data_during_missing_charging_detection() {
     let data = Arc::new(Mutex::new(data));
     let send_response = Arc::new(Mutex::new(true));
     // Create a Tesla mock server
-    let _tesla_mock = create_mock_tesla_server(data.clone(), send_response.clone()); // Assign the return value to a variable to keep the server alive
+    let _tesla_mock = create_mock_tesla_server(data.clone(), send_response.clone()).await; // Assign the return value to a variable to keep the server alive
 
     // Start charging
     sleep(Duration::from_secs(1)).await; // Run the logger for a second
@@ -239,6 +241,7 @@ pub async fn test_delayed_data_during_missing_charging_detection() {
     assert_eq!(ChargingProcess::db_num_rows(&pool).await.unwrap(), 1); // No new charging process should be created
 }
 
+#[tokio::test]
 pub async fn test_charging_process() {
     use ShiftState::*;
     // chipmunk::init_log();
@@ -246,7 +249,7 @@ pub async fn test_charging_process() {
     let random_http_port = rand::thread_rng().gen_range(4000..60000);
     std::env::set_var("HTTP_PORT", random_http_port.to_string());
 
-    let _osm_mock = create_mock_osm_server();
+    let _osm_mock = create_mock_osm_server().await;
     let pool = init_test_database("test_charging_process").await;
     let env = chipmunk::load_env_vars().unwrap();
 
@@ -266,7 +269,7 @@ pub async fn test_charging_process() {
     let data = Arc::new(Mutex::new(data));
     let send_response = Arc::new(Mutex::new(true));
     // Create a Tesla mock server
-    let _tesla_mock = create_mock_tesla_server(data.clone(), send_response.clone()); // Assign the return value to a variable to keep the server alive
+    let _tesla_mock = create_mock_tesla_server(data.clone(), send_response.clone()).await; // Assign the return value to a variable to keep the server alive
 
     // Start charging
     sleep(Duration::from_secs(1)).await; // Run the logger for a second

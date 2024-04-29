@@ -106,12 +106,13 @@ pub fn create_drive_from_gpx() -> (Vec<VehicleData>, usize, usize) {
     (data_points, drive_start_index, drive_end_index)
 }
 
+#[tokio::test]
 pub async fn check_vehicle_data() -> anyhow::Result<()> {
     let random_http_port = rand::thread_rng().gen_range(4000..60000);
     std::env::set_var("HTTP_PORT", random_http_port.to_string());
 
     let pool = init_test_database("check_vehicle_data").await;
-    let _osm_mock = create_mock_osm_server();
+    let _osm_mock = create_mock_osm_server().await;
 
     let (vehicle_data_list, _drive_start_index, _drive_end_index) = create_drive_from_gpx();
     let mut vin_id_map = database::tables::car::get_vin_id_map(&pool).await;
@@ -154,8 +155,9 @@ pub async fn check_vehicle_data() -> anyhow::Result<()> {
 }
 
 // Test each request returns a response with different osm_id
+#[tokio::test]
 pub async fn test_osm_mock() {
-    let _osm_mock = create_mock_osm_server();
+    let _osm_mock = create_mock_osm_server().await;
     let client = openstreetmap::osm_client().unwrap();
     let res1 = openstreetmap::reverse_geocode(&client, &1.0, &1.0).await.unwrap();
     let res2 = openstreetmap::reverse_geocode(&client, &1.0, &1.0).await.unwrap();
@@ -163,11 +165,12 @@ pub async fn test_osm_mock() {
 }
 
 // Test vehicle data can be changed after creating the mock server
+#[tokio::test]
 pub async fn test_tesla_mock() {
     let data = test_data::get_data(chrono::Utc::now());
     let data = Arc::new(Mutex::new(data));
 
-    let _tesla_mock = create_mock_tesla_server(data.clone(), Arc::new(Mutex::new(true))); // Assign the return value to a variable to keep the server alive
+    let _tesla_mock = create_mock_tesla_server(data.clone(), Arc::new(Mutex::new(true))).await; // Assign the return value to a variable to keep the server alive
 
     let client = tesla_api::get_tesla_client("").unwrap();
 
