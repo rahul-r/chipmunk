@@ -20,14 +20,15 @@ pub fn calculate_energy_used(charges: &[Charges]) -> Option<f32> {
             charge.charger_power.unwrap_or(0) as f32
         };
 
+        if charge.date.is_none() {
+            log::warn!("No timestamp found in charge");
+        }
+
         let time_diff = charge
             .date
             .zip(previous_date)
             .map(|(c, p)| c - p)
-            .unwrap_or_else(|| {
-                log::warn!("Invalid charge timestamp");
-                Duration::zero()
-            })
+            .unwrap_or(Duration::zero())
             .num_seconds();
         total_energy_used += energy_used * (time_diff as f32) / 3600.0;
         previous_date = charge.date;

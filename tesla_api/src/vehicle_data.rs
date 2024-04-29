@@ -426,44 +426,24 @@ impl VehicleData {
     }
 
     pub fn timestamp_utc(&self) -> Option<DateTime<Utc>> {
-        let Some(ref vehicle_state) = self.vehicle_state else {
-            return None;
-        };
-
-        let Some(timestamp) = vehicle_state.timestamp else {
-            return None;
-        };
-
+        let timestamp = self.vehicle_state.as_ref()?.timestamp?;
         let secs = (timestamp / 1000) as i64;
         let nsecs = (timestamp % 1000 * 1_000_000) as u32;
         DateTime::from_timestamp(secs, nsecs)
     }
 
     pub fn location(&self) -> Option<(f32, f32)> {
-        let Some(ref drive_state) = self.drive_state else {
-            return None;
-        };
-
-        let Some(lat) = drive_state.latitude else {
-            return None;
-        };
-
-        let Some(lon) = drive_state.longitude else {
-            return None;
-        };
-
+        let drive_state = self.drive_state.as_ref()?;
+        let lat = drive_state.latitude?;
+        let lon = drive_state.longitude?;
         Some((lat, lon))
     }
 
     pub fn is_driving(&self) -> bool {
-        let Some(ref drive_state) = self.drive_state else {
-            return false;
-        };
-
-        let Some(ref shift_state) = drive_state.shift_state else {
-            return false;
-        };
-
-        *shift_state == ShiftState::D
+        self.drive_state
+            .as_ref()
+            .and_then(|d| d.shift_state.as_ref())
+            .map(|s| *s == ShiftState::D)
+            .unwrap_or(false)
     }
 }
