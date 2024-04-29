@@ -1,0 +1,120 @@
+layout {
+    cwd "."
+    tab name="Editor" focus=true hide_floating_panes=true {
+        pane command="nvim" cwd="." focus=true {
+            args "--cmd" "lua" "vim.g.loaded_node_provider=0;vim.g.loaded_perl_provider=0;vim.g.loaded_python_provider=0;vim.g.python3_host_prog='nvim-python3';vim.g.ruby_host_prog='nvim-ruby'" "chipmunk/src/main.rs"
+            start_suspended true
+        }
+        pane size=1 borderless=true {
+            plugin location="file:~/.local/share/zellij/plugins/zjstatus.wasm" {
+            border_char "─"
+            border_enabled "false"
+            border_format "#[fg=#6C7086]{char}"
+            border_position "top"
+            datetime "#[fg=#6C7086,bold] {format} "
+            datetime_format "%A, %d %b %Y %H:%M"
+            datetime_timezone "America/Los_Angeles"
+            format_left "{mode}#[fg=white,bg=blue,bold] {session} #[fg=blue,bg=#181825]{tabs}"
+            format_right "#[fg=#181825,bg=#b1bbfa]{datetime}"
+            format_space "#[bg=#181825]"
+            mode_default_to_mode "resize"
+            mode_locked "#[bg=gray,fg=#FF00D9,bold] {name} "
+            mode_normal "#[bg=gray,fg=#AFFF00,bold] {name} "
+            mode_resize "#[bg=gray,fg=#D75F00,bold] {name} "
+            mode_tmux "#[bg=gray,fg=#FFC387,bold] {name} "
+            tab_active "#[fg=#181825,bg=#ffffff,bold,italic] {index}  {name} #[fg=#ffffff,bg=#181825]"
+            tab_active_fullscreen "#[fg=#9399B2,bg=#181825,bold,italic] {index} {name} 󰉈  "
+            tab_active_sync "#[fg=#9399B2,bg=#181825,bold,italic] {index} {name}   "
+            tab_normal "#[fg=#181825,bg=#4C4C59] #[fg=#000000,bg=#4C4C59]{index}  {name} #[fg=#4C4C59,bg=#181825]"
+            tab_normal_fullscreen "#[fg=#6C7086,bg=#181825] {index} {name} □ "
+            tab_normal_sync "#[fg=#6C7086,bg=#181825] {index} {name} <> "
+            }
+        }
+    }
+    tab name="Build" hide_floating_panes=true {
+        pane cwd="." focus=true
+        pane size=1 borderless=true {
+            plugin location="file:~/.local/share/zellij/plugins/zjstatus.wasm" {
+            border_char "─"
+            border_enabled "false"
+            border_format "#[fg=#6C7086]{char}"
+            border_position "top"
+            datetime "#[fg=#6C7086,bold] {format} "
+            datetime_format "%A, %d %b %Y %H:%M"
+            datetime_timezone "America/Los_Angeles"
+            format_left "{mode}#[fg=white,bg=blue,bold] {session} #[fg=blue,bg=#181825]{tabs}"
+            format_right "#[fg=#181825,bg=#b1bbfa]{datetime}"
+            format_space "#[bg=#181825]"
+            mode_default_to_mode "resize"
+            mode_locked "#[bg=gray,fg=#FF00D9,bold] {name} "
+            mode_normal "#[bg=gray,fg=#AFFF00,bold] {name} "
+            mode_resize "#[bg=gray,fg=#D75F00,bold] {name} "
+            mode_tmux "#[bg=gray,fg=#FFC387,bold] {name} "
+            tab_active "#[fg=#181825,bg=#ffffff,bold,italic] {index}  {name} #[fg=#ffffff,bg=#181825]"
+            tab_active_fullscreen "#[fg=#9399B2,bg=#181825,bold,italic] {index} {name} 󰉈  "
+            tab_active_sync "#[fg=#9399B2,bg=#181825,bold,italic] {index} {name}   "
+            tab_normal "#[fg=#181825,bg=#4C4C59] #[fg=#000000,bg=#4C4C59]{index}  {name} #[fg=#4C4C59,bg=#181825]"
+            tab_normal_fullscreen "#[fg=#6C7086,bg=#181825] {index} {name} □ "
+            tab_normal_sync "#[fg=#6C7086,bg=#181825] {index} {name} <> "
+            }
+        }
+    }
+    tab name="Docker" hide_floating_panes=true {
+        pane focus=true {
+            plugin location="file:~/.local/share/zellij/plugins/zj-docker.wasm"
+        }
+        pane size=1 borderless=true {
+            plugin location="file:~/.local/share/zellij/plugins/zjstatus.wasm" {
+            border_char "─"
+            border_enabled "false"
+            border_format "#[fg=#6C7086]{char}"
+            border_position "top"
+            datetime "#[fg=#6C7086,bold] {format} "
+            datetime_format "%A, %d %b %Y %H:%M"
+            datetime_timezone "America/Los_Angeles"
+            format_left "{mode}#[fg=white,bg=blue,bold] {session} #[fg=blue,bg=#181825]{tabs}"
+            format_right "#[fg=#181825,bg=#b1bbfa]{datetime}"
+            format_space "#[bg=#181825]"
+            mode_default_to_mode "resize"
+            mode_locked "#[bg=gray,fg=#FF00D9,bold] {name} "
+            mode_normal "#[bg=gray,fg=#AFFF00,bold] {name} "
+            mode_resize "#[bg=gray,fg=#D75F00,bold] {name} "
+            mode_tmux "#[bg=gray,fg=#FFC387,bold] {name} "
+            tab_active "#[fg=#181825,bg=#ffffff,bold,italic] {index}  {name} #[fg=#ffffff,bg=#181825]"
+            tab_active_fullscreen "#[fg=#9399B2,bg=#181825,bold,italic] {index} {name} 󰉈  "
+            tab_active_sync "#[fg=#9399B2,bg=#181825,bold,italic] {index} {name}   "
+            tab_normal "#[fg=#181825,bg=#4C4C59] #[fg=#000000,bg=#4C4C59]{index}  {name} #[fg=#4C4C59,bg=#181825]"
+            tab_normal_fullscreen "#[fg=#6C7086,bg=#181825] {index} {name} □ "
+            tab_normal_sync "#[fg=#6C7086,bg=#181825] {index} {name} <> "
+            }
+        }
+    }
+    new_tab_template {
+        pane cwd="."
+        pane size=1 borderless=true {
+            plugin location="file:~/.local/share/zellij/plugins/zjstatus.wasm" {
+            border_char "─"
+            border_enabled "false"
+            border_format "#[fg=#6C7086]{char}"
+            border_position "top"
+            datetime "#[fg=#6C7086,bold] {format} "
+            datetime_format "%A, %d %b %Y %H:%M"
+            datetime_timezone "America/Los_Angeles"
+            format_left "{mode}#[fg=white,bg=blue,bold] {session} #[fg=blue,bg=#181825]{tabs}"
+            format_right "#[fg=#181825,bg=#b1bbfa]{datetime}"
+            format_space "#[bg=#181825]"
+            mode_default_to_mode "resize"
+            mode_locked "#[bg=gray,fg=#FF00D9,bold] {name} "
+            mode_normal "#[bg=gray,fg=#AFFF00,bold] {name} "
+            mode_resize "#[bg=gray,fg=#D75F00,bold] {name} "
+            mode_tmux "#[bg=gray,fg=#FFC387,bold] {name} "
+            tab_active "#[fg=#181825,bg=#ffffff,bold,italic] {index}  {name} #[fg=#ffffff,bg=#181825]"
+            tab_active_fullscreen "#[fg=#9399B2,bg=#181825,bold,italic] {index} {name} 󰉈  "
+            tab_active_sync "#[fg=#9399B2,bg=#181825,bold,italic] {index} {name}   "
+            tab_normal "#[fg=#181825,bg=#4C4C59] #[fg=#000000,bg=#4C4C59]{index}  {name} #[fg=#4C4C59,bg=#181825]"
+            tab_normal_fullscreen "#[fg=#6C7086,bg=#181825] {index} {name} □ "
+            tab_normal_sync "#[fg=#6C7086,bg=#181825] {index} {name} <> "
+            }
+        }
+    }
+}
