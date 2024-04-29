@@ -2,11 +2,13 @@
 
 set -e
 
-USE_PODMAN=1
+#USE_PODMAN=1
 
 if [ -n "$USE_PODMAN" ]; then
+  echo "Using podman"
   CONTAINER=podman
 else
+  echo "Using docker"
   CONTAINER=docker
 fi
 
