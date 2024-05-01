@@ -12,6 +12,8 @@ pub mod openstreetmap;
 pub mod utils;
 pub mod tasks;
 
+pub const DELAYED_DATAPOINT_TIME_SEC: i64 = 10 * 60;
+
 #[derive(Clone)]
 pub struct EnvVars {
     pub encryption_key: String,

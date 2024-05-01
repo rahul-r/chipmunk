@@ -19,7 +19,7 @@ use crate::{
         DBTable,
     },
     tasks,
-    utils::sub_option,
+    utils::sub_option, DELAYED_DATAPOINT_TIME_SEC,
 };
 
 pub async fn log(pool: &sqlx::PgPool, env: &crate::EnvVars) -> anyhow::Result<()> {
@@ -395,7 +395,7 @@ async fn check_hidden_process(
         .get_time()
         .zip(curr_position.date)
         .map(|(prev, curr)| curr - prev)
-        .map(|diff| diff <= chrono::Duration::try_minutes(10).expect("This should always pass"))
+        .map(|diff| diff <= chrono::Duration::try_seconds(DELAYED_DATAPOINT_TIME_SEC).expect("This should always pass"))
         .unwrap_or(true)
     {
         return None;

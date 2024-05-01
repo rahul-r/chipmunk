@@ -23,6 +23,7 @@ use common::utils::{create_mock_osm_server, create_mock_tesla_server};
 use rand::Rng;
 use tesla_api::vehicle_data::ShiftState;
 use tokio::time::{sleep, Duration};
+use futures::future::{Abortable, AbortHandle};
 
 use crate::common::{test_data, utils::{create_charging_from_charges, init_test_database, ts_no_nanos}, DELAYED_DATAPOINT_TIME_SEC};
 
@@ -30,7 +31,7 @@ use crate::common::{test_data, utils::{create_charging_from_charges, init_test_d
 pub async fn test_missing_charging_detection() {
     use ShiftState::*;
     use StateStatus::*;
-    // chipmunk::init_log();
+    chipmunk::init_log();
 
     let random_http_port = rand::thread_rng().gen_range(4000..60000);
     std::env::set_var("HTTP_PORT", random_http_port.to_string());
@@ -160,7 +161,7 @@ pub async fn test_missing_charging_detection() {
 // test no new charging process is started when a delayed data point is received if the vehicle is already charging
 #[tokio::test]
 pub async fn test_delayed_data_during_missing_charging_detection() {
-    // chipmunk::init_log();
+    chipmunk::init_log();
 
     let random_http_port = rand::thread_rng().gen_range(4000..60000);
     std::env::set_var("HTTP_PORT", random_http_port.to_string());
@@ -244,7 +245,7 @@ pub async fn test_delayed_data_during_missing_charging_detection() {
 #[tokio::test]
 pub async fn test_charging_process() {
     use ShiftState::*;
-    // chipmunk::init_log();
+    chipmunk::init_log();
 
     let random_http_port = rand::thread_rng().gen_range(4000..60000);
     std::env::set_var("HTTP_PORT", random_http_port.to_string());
@@ -375,3 +376,117 @@ pub async fn test_charging_process() {
     // IGNORE THIS assert_eq!(charging.address_id, expected.address_id);
     // IGNORE THIS assert_eq!(charging.geofence_id, expected.geofence_id);
 }
+
+// Test that the logger appends to the previous charging session if the previous session was interrupted
+// Test 1:
+// Conditions:
+// - The vechicle was charging and the charging session was interrupted
+// - A new charging session is started within 30 minutes of the last data point of the previous session
+// Expectation:
+// - The logger should not start a new session
+// - The new session should be appended to the previous session
+// Test 2:
+// Conditions:
+// - The vechicle was charging and the charging session was interrupted
+// - A new charging session is started after 30 minutes of the last data point of the previous session
+// Expectation:
+// - The logger should start a new session
+#[tokio::test]
+pub async fn test_continue_previous_charging_session() {
+    chipmunk::init_log();
+
+    let random_http_port = rand::thread_rng().gen_range(4000..60000);
+    std::env::set_var("HTTP_PORT", random_http_port.to_string());
+
+    let _osm_mock = create_mock_osm_server().await;
+    let pool = init_test_database("test_continue_previous_charging_session").await;
+    let env = chipmunk::load_env_vars().unwrap();
+
+    // Make the logging period shorter to speed up the test
+    let mut settings = Settings::db_get_last(&pool).await.unwrap();
+    settings.logging_period_ms = 1;
+    settings.db_insert(&pool).await.unwrap();
+
+    let pool_clone = pool.clone();
+    let env_clone = env.clone();
+    // let _logger_task = tokio::task::spawn(async move {
+    //     chipmunk::logger::log(&pool_clone, &env).await.unwrap();
+    // });
+    let (abort_handle, abort_registration) = AbortHandle::new_pair();
+    let future = Abortable::new(async move { chipmunk::logger::log(&pool_clone, &env_clone).await.unwrap(); }, abort_registration);
+    let _logger_task = tokio::task::spawn(async move {
+        future.await.ok();
+    });
+
+    // Set up a pointer to send vehicle data to the mock server
+    let charging_start_time = chrono::Utc::now();
+    let data = test_data::data_charging(charging_start_time, 25);
+    let data = Arc::new(Mutex::new(data));
+    let send_response = Arc::new(Mutex::new(true));
+    // Create a Tesla mock server
+    let _tesla_mock = create_mock_tesla_server(data.clone(), send_response.clone()).await; // Assign the return value to a variable to keep the server alive
+
+    // Start charging
+    sleep(Duration::from_secs(1)).await; // Run the logger for a second
+    *send_response.lock().unwrap() = false; // Tell the mock server to stop sending vehicle data
+    wait_for_db!(pool);
+
+    let cp_from_db = ChargingProcess::db_get_all(&pool).await.unwrap();
+    let num_charges_1 = Charges::db_get_all(&pool).await.unwrap().len();
+    assert_eq!(cp_from_db.len(), 1);
+
+    // Simulate charging interruption by stopping and re-starting logger task
+    abort_handle.abort();
+    let pool_clone = pool.clone();
+    let env_clone = env.clone();
+    let (abort_handle, abort_registration) = AbortHandle::new_pair();
+    let future = Abortable::new(async move { chipmunk::logger::log(&pool_clone, &env_clone).await.unwrap(); }, abort_registration);
+    let _logger_task = tokio::task::spawn(async move {
+        future.await.ok();
+    });
+
+    // Start streaming charging data after less than DELAYED_DATAPOINT_TIME_SEC
+    let charging_restart_time = charging_start_time + chrono::Duration::try_seconds(DELAYED_DATAPOINT_TIME_SEC).unwrap();
+    let new_data = test_data::data_charging(charging_restart_time, 25);
+    **data.lock().as_mut().unwrap() = new_data;
+    *send_response.lock().unwrap() = true;
+    // Start charging
+    sleep(Duration::from_secs(1)).await; // Run the logger for some time
+    *send_response.lock().unwrap() = false; // Tell the mock server to stop sending vehicle data
+    wait_for_db!(pool);
+
+    let cp_from_db = ChargingProcess::db_get_all(&pool).await.unwrap();
+    let num_charges_2 = Charges::db_get_all(&pool).await.unwrap().len();
+    // The logger should not start a new session
+    assert_eq!(cp_from_db.len(), 1);
+    // The charges should be appended to the previous session
+    assert!(num_charges_2 > num_charges_1);
+
+    // Simulate charging interruption by stopping and re-starting logger task
+    abort_handle.abort();
+    let pool_clone = pool.clone();
+    let env_clone = env.clone();
+    let (_abort_handle, abort_registration) = AbortHandle::new_pair();
+    let future = Abortable::new(async move { chipmunk::logger::log(&pool_clone, &env_clone).await.unwrap(); }, abort_registration);
+    let _logger_task = tokio::task::spawn(async move {
+        future.await.ok();
+    });
+
+    // Start streaming charging data after more than DELAYED_DATAPOINT_TIME_SEC
+    let charging_restart_time = charging_start_time + chrono::Duration::try_seconds(DELAYED_DATAPOINT_TIME_SEC + 1).unwrap();
+    let new_data = test_data::data_charging(charging_restart_time, 25);
+    **data.lock().as_mut().unwrap() = new_data;
+    *send_response.lock().unwrap() = true;
+    // Start charging
+    sleep(Duration::from_secs(1)).await; // Run the logger for some time
+    *send_response.lock().unwrap() = false; // Tell the mock server to stop sending vehicle data
+    wait_for_db!(pool);
+
+    let cp_from_db = ChargingProcess::db_get_all(&pool).await.unwrap();
+    let num_charges_3 = Charges::db_get_all(&pool).await.unwrap().len();
+    // The logger should have started a new session
+    assert_eq!(cp_from_db.len(), 2);
+    // There should be more charges than before
+    assert!(num_charges_3 > num_charges_2);
+}
+

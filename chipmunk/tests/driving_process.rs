@@ -31,7 +31,7 @@ use crate::common::{test_data, utils::{ts_no_nanos, init_test_database}, DELAYED
 pub async fn test_driving_and_parking() {
     use ShiftState::*;
 
-    // chipmunk::init_log();
+    chipmunk::init_log();
 
     let random_http_port = rand::thread_rng().gen_range(4000..60000);
     std::env::set_var("HTTP_PORT", random_http_port.to_string());

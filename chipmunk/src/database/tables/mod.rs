@@ -2,6 +2,8 @@ use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use tesla_api::vehicle_data::VehicleData;
 
+use crate::{utils::time_diff, DELAYED_DATAPOINT_TIME_SEC};
+
 use self::{
     address::Address,
     car::Car,
@@ -209,40 +211,64 @@ impl Tables {
             .await
             .map_err(|e| log::error!("{e}"))
             .ok();
+
         let time = position.as_ref().and_then(|p| p.date);
+
+        let time_now = chrono::offset::Utc::now();
+
+        let charging_process = ChargingProcess::db_get_last(pool)
+            .await
+            .map_err(|e| log::warn!("{e}"))
+            .map(|cp| {
+                cp.end_date
+                    .map(|end_time| time_now - end_time)
+                    .map(|diff| diff.num_seconds() <= DELAYED_DATAPOINT_TIME_SEC)
+                    .inspect(|continue_logging| if !continue_logging { log::debug!("The last charging process data point was logged more than {DELAYED_DATAPOINT_TIME_SEC} seconds ago. Returning None to creare a new charging process"); })
+                    .map(|continue_logging| if continue_logging { Some(cp) } else { None })
+                    .unwrap_or(None)
+            })
+            .unwrap_or(None);
+
+        let drive = Drive::db_get_last(pool)
+            .await
+            .map_err(|e| log::warn!("{e}"))
+            .map(|drv| {
+                drv.end_date
+                    .map(|end_time| time_now - end_time)
+                    .map(|diff| diff.num_seconds() <= DELAYED_DATAPOINT_TIME_SEC)
+                    .inspect(|d| if !d { log::debug!("The last drive data point was logged more than {DELAYED_DATAPOINT_TIME_SEC} seconds ago. Returning None to creare a new idrive"); })
+                    .map(|d| if d { Some(drv) } else { None })
+                    .unwrap_or(None)
+            })
+            .unwrap_or(None);
+
         Self {
             address: Address::db_get_last(pool)
                 .await
-                .map_err(|e| log::error!("{e}"))
+                .map_err(|e| log::warn!("{e}"))
                 .ok(),
             car: Car::db_get_last(pool)
                 .await
-                .map_err(|e| log::error!("{e}"))
+                .map_err(|e| log::warn!("{e}"))
                 .ok(),
             charges: Charges::db_get_last(pool)
                 .await
-                .map_err(|e| log::error!("{e}"))
+                .map_err(|e| log::warn!("{e}"))
                 .ok(),
-            charging_process: ChargingProcess::db_get_last(pool)
-                .await
-                .map_err(|e| log::error!("{e}"))
-                .ok(),
-            drive: Drive::db_get_last(pool)
-                .await
-                .map_err(|e| log::error!("{e}"))
-                .ok(),
+            charging_process,
+            drive,
             position,
             settings: Settings::db_get_last(pool)
                 .await
-                .map_err(|e| log::error!("{e}"))
+                .map_err(|e| log::warn!("{e}"))
                 .ok(),
             state: State::db_get_last(pool)
                 .await
-                .map_err(|e| log::error!("{e}"))
+                .map_err(|e| log::warn!("{e}"))
                 .ok(),
             sw_update: SoftwareUpdate::db_get_last(pool)
                 .await
-                .map_err(|e| log::error!("{e}"))
+                .map_err(|e| log::warn!("{e}"))
                 .ok(),
             time,
             raw_data: None, // TODO: Load raw data from car_data table
