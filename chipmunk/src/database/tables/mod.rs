@@ -209,12 +209,17 @@ impl Tables {
     pub async fn db_get_last(pool: &PgPool) -> Self {
         let position = Position::db_get_last(pool)
             .await
-            .map_err(|e| log::error!("{e}"))
+            .map_err(|e| log::warn!("Position: {e}"))
             .ok();
 
         let time = position.as_ref().and_then(|p| p.date);
 
         let time_now = chrono::offset::Utc::now();
+
+        let mut state = State::db_get_last(pool)
+            .await
+            .map_err(|e| log::warn!("State: {e}"))
+            .ok();
 
         // Get the last charging process data point if it was logged less than DELAYED_DATAPOINT_TIME_SEC seconds ago
         // If it was logged more than DELAYED_DATAPOINT_TIME_SEC seconds ago, return None to create a new charging process
@@ -226,9 +231,9 @@ impl Tables {
                     .map(|end_time| time_now - end_time)
                     .map(|diff| diff.num_seconds() <= DELAYED_DATAPOINT_TIME_SEC)
                     .inspect(|continue_charging| if !continue_charging {
-                        log::debug!("Tast charging process data point was logged more than {DELAYED_DATAPOINT_TIME_SEC} seconds ago. Returning None to creare a new charging process");
+                        log::debug!("Last charging process data point was logged more than {DELAYED_DATAPOINT_TIME_SEC} seconds ago. Returning None to creare a new charging process");
                     })
-                    .map(|continue_charging| if continue_charging { Some(cp) } else { None })
+                    .map(|continue_charging| if continue_charging { Some(cp) } else { state = None; None })
                     .unwrap_or(None)
             })
             .unwrap_or(None);
@@ -237,7 +242,7 @@ impl Tables {
         // If it was logged more than DELAYED_DATAPOINT_TIME_SEC seconds ago, return None to create a new drive
         let drive = Drive::db_get_last(pool)
             .await
-            .map_err(|e| log::warn!("{e}"))
+            .map_err(|e| log::warn!("Drive: {e}"))
             .map(|drv| {
                 drv.end_date
                     .map(|end_time| time_now - end_time)
@@ -245,7 +250,7 @@ impl Tables {
                     .inspect(|continue_drive| if !continue_drive {
                         log::debug!("Last drive data point was logged more than {DELAYED_DATAPOINT_TIME_SEC} seconds ago. Returning None to creare a new idrive");
                     })
-                    .map(|continue_drive| if continue_drive { Some(drv) } else { None })
+                    .map(|continue_drive| if continue_drive { Some(drv) } else { state = None; None })
                     .unwrap_or(None)
             })
             .unwrap_or(None);
@@ -253,33 +258,33 @@ impl Tables {
         Self {
             address: Address::db_get_last(pool)
                 .await
-                .map_err(|e| log::warn!("{e}"))
+                .map_err(|e| log::warn!("Address: {e}"))
                 .ok(),
             car: Car::db_get_last(pool)
                 .await
-                .map_err(|e| log::warn!("{e}"))
+                .map_err(|e| log::warn!("Car: {e}"))
                 .ok(),
             charges: Charges::db_get_last(pool)
                 .await
-                .map_err(|e| log::warn!("{e}"))
+                .map_err(|e| log::warn!("Charges: {e}"))
                 .ok(),
             charging_process,
             drive,
             position,
             settings: Settings::db_get_last(pool)
                 .await
-                .map_err(|e| log::warn!("{e}"))
+                .map_err(|e| log::warn!("Settings: {e}"))
                 .ok(),
-            state: State::db_get_last(pool)
-                .await
-                .map_err(|e| log::warn!("{e}"))
-                .ok(),
+            state,
             sw_update: SoftwareUpdate::db_get_last(pool)
                 .await
-                .map_err(|e| log::warn!("{e}"))
+                .map_err(|e| log::warn!("SoftwareUpdate: {e}"))
                 .ok(),
             time,
-            raw_data: None, // TODO: Load raw data from car_data table
+            raw_data: VehicleData::db_get_last(pool)
+                .await
+                .map_err(|e| log::warn!("VehicleData: {e}"))
+                .ok(),
         }
     }
 }
