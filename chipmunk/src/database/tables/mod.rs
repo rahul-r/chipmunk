@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use tesla_api::vehicle_data::VehicleData;
 
-use crate::{utils::time_diff, DELAYED_DATAPOINT_TIME_SEC};
+use crate::DELAYED_DATAPOINT_TIME_SEC;
 
 use self::{
     address::Address,
@@ -216,6 +216,8 @@ impl Tables {
 
         let time_now = chrono::offset::Utc::now();
 
+        // Get the last charging process data point if it was logged less than DELAYED_DATAPOINT_TIME_SEC seconds ago
+        // If it was logged more than DELAYED_DATAPOINT_TIME_SEC seconds ago, return None to create a new charging process
         let charging_process = ChargingProcess::db_get_last(pool)
             .await
             .map_err(|e| log::warn!("{e}"))
@@ -223,12 +225,16 @@ impl Tables {
                 cp.end_date
                     .map(|end_time| time_now - end_time)
                     .map(|diff| diff.num_seconds() <= DELAYED_DATAPOINT_TIME_SEC)
-                    .inspect(|continue_logging| if !continue_logging { log::debug!("The last charging process data point was logged more than {DELAYED_DATAPOINT_TIME_SEC} seconds ago. Returning None to creare a new charging process"); })
-                    .map(|continue_logging| if continue_logging { Some(cp) } else { None })
+                    .inspect(|continue_charging| if !continue_charging {
+                        log::debug!("Tast charging process data point was logged more than {DELAYED_DATAPOINT_TIME_SEC} seconds ago. Returning None to creare a new charging process");
+                    })
+                    .map(|continue_charging| if continue_charging { Some(cp) } else { None })
                     .unwrap_or(None)
             })
             .unwrap_or(None);
 
+        // Get the last drive data point if it was logged less than DELAYED_DATAPOINT_TIME_SEC seconds ago
+        // If it was logged more than DELAYED_DATAPOINT_TIME_SEC seconds ago, return None to create a new drive
         let drive = Drive::db_get_last(pool)
             .await
             .map_err(|e| log::warn!("{e}"))
@@ -236,8 +242,10 @@ impl Tables {
                 drv.end_date
                     .map(|end_time| time_now - end_time)
                     .map(|diff| diff.num_seconds() <= DELAYED_DATAPOINT_TIME_SEC)
-                    .inspect(|d| if !d { log::debug!("The last drive data point was logged more than {DELAYED_DATAPOINT_TIME_SEC} seconds ago. Returning None to creare a new idrive"); })
-                    .map(|d| if d { Some(drv) } else { None })
+                    .inspect(|continue_drive| if !continue_drive {
+                        log::debug!("Last drive data point was logged more than {DELAYED_DATAPOINT_TIME_SEC} seconds ago. Returning None to creare a new idrive");
+                    })
+                    .map(|continue_drive| if continue_drive { Some(drv) } else { None })
                     .unwrap_or(None)
             })
             .unwrap_or(None);

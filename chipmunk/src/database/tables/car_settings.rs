@@ -67,10 +67,6 @@ impl DBTable for CarSettings {
         sqlx::query_as!(Self, r#"SELECT * FROM car_settings ORDER BY id DESC LIMIT 1"#)
         .fetch_one(pool)
         .await
-        .map_err(|e| {
-            log::error!("Error getting last row from table `{}`: {}", Self::table_name(), e);
-            e
-        })
     }
 
     // pub async fn db_get_for_car(pool: &PgPool, settings_id: i64) -> sqlx::Result<Vec<Self>> {

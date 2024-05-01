@@ -120,10 +120,6 @@ impl DBTable for Settings {
         )
         .fetch_one(pool)
         .await
-        .map_err(|e| {
-            log::error!("Error getting last settings: {}", e);
-            e
-        })
     }
 }
 

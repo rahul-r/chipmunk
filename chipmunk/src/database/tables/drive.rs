@@ -237,7 +237,7 @@ impl DBTable for Drive {
     }
 
     async fn db_get_last(pool: &PgPool) -> sqlx::Result<Self> {
-        let cp = sqlx::query_as!(
+        sqlx::query_as!(
             Self,
             r#"
                 SELECT
@@ -270,8 +270,7 @@ impl DBTable for Drive {
             "#
         )
         .fetch_one(pool)
-        .await?;
-        Ok(cp)
+        .await
     }
 
     async fn db_get_all(pool: &PgPool) -> sqlx::Result<Vec<Self>> {

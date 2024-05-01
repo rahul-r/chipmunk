@@ -255,14 +255,6 @@ impl DBTable for Position {
         sqlx::query_as!(Self, r#"SELECT * FROM positions ORDER BY id DESC LIMIT 1"#)
             .fetch_one(pool)
             .await
-            .map_err(|e| {
-                log::error!(
-                    "Error getting last row from table `{}`: {}",
-                    Self::table_name(),
-                    e
-                );
-                e
-            })
     }
 }
 

@@ -129,6 +129,7 @@ impl ChargingProcess {
         .fetch_one(pool)
         .await?
         .id;
+
         Ok(id)
     }
 
@@ -303,7 +304,7 @@ impl DBTable for ChargingProcess {
     }
 
     async fn db_get_last(pool: &PgPool) -> sqlx::Result<Self> {
-        let cp = sqlx::query_as!(
+        sqlx::query_as!(
             Self,
             r#"
                 SELECT
@@ -331,8 +332,7 @@ impl DBTable for ChargingProcess {
             "#
         )
         .fetch_one(pool)
-        .await?;
-        Ok(cp)
+        .await
     }
 
     async fn db_get_id(pool: &PgPool, id: i64) -> sqlx::Result<Self> {
