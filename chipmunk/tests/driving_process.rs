@@ -40,7 +40,7 @@ pub async fn test_driving_and_parking() {
     let pool = init_test_database("test_driving_and_parking").await;
     let env = chipmunk::load_env_vars().unwrap();
 
-    // Make the logging period faster to speed up the test
+    // Make the logging period shorter to speed up the test
     let mut settings = Settings::db_get_last(&pool).await.unwrap();
     settings.logging_period_ms = 1;
     settings.db_insert(&pool).await.unwrap();

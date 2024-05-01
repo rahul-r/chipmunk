@@ -51,7 +51,7 @@ async fn data_processor_task(
     use mpsc::error::*;
     let name = "data_processor_task";
     let mut vin_id_map = database::tables::car::get_vin_id_map(pool).await;
-    let mut tables = Tables::default();
+    let mut tables = Tables::db_get_last(pool).await;
 
     loop {
         tokio::task::yield_now().await;
@@ -216,7 +216,8 @@ async fn data_polling_task(
                     TeslaError::TokenExpired(e) => log::error!("Error: `{e}`"),
                     TeslaError::JsonDecodeError(e) => log::error!("Error: `{e}`"),
                     TeslaError::RequestTimeout => log::info!("Timeout"),
-                    TeslaError::InvalidResponse => log::error!("Error: `{e}`"),
+                    TeslaError::InvalidResponse(ref msg) => log::error!("Error: `{e}` - {msg}"),
+                    TeslaError::TestInProgress => log::info!("{e}"),
                 }
                 tokio::time::sleep(Duration::from_millis(logging_period_ms as u64)).await;
                 continue;
@@ -284,14 +285,13 @@ async fn web_server_task(
         loop {
             match data_from_server_rx.try_recv() {
                 Ok(value) => match value {
-                    MpscTopic::Logging(value) => {
-                        println!("Sending loging control command: {value}"); // TODO: Send log start command to logger task
-                                                                             // if let Err(e) = logger_tx.send(value) {
-                                                                             //     log::error!("{e}");
-                                                                             // }
+                    MpscTopic::Logging(_value) => {
+                        // TODO: Send log start command to logger task
+                        // if let Err(e) = logger_tx.send(value) {
+                        //     log::error!("{e}");
+                        // }
                     }
                     MpscTopic::RefreshToken(refresh_token) => {
-                        println!("Inserting tokens");
                         let _tokens =
                             match tesla_api::auth::refresh_access_token(refresh_token.as_str())
                                 .await
@@ -463,7 +463,7 @@ pub async fn run(env: &EnvVars, pool: &sqlx::PgPool) -> anyhow::Result<()> {
         })
     };
 
-    // Task to periodically refresh access token
+    // TODO: Task to periodically refresh access token
 
     // After spawning all the tasks, close the tracker
     task_tracker.close();

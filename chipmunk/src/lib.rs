@@ -12,6 +12,7 @@ pub mod openstreetmap;
 pub mod utils;
 pub mod tasks;
 
+#[derive(Clone)]
 pub struct EnvVars {
     pub encryption_key: String,
     pub database_url: String,
@@ -69,11 +70,11 @@ pub fn init_log() {
             let line_num = record.line().unwrap_or(0);
             let message = record.args();
             let crate_name = record.target();
-            let grey = env_logger::fmt::style::RgbColor::from((140, 143, 145)).on_default().render();
+            let gray = env_logger::fmt::style::RgbColor::from((140, 143, 145)).on_default().render();
 
             writeln!(
                 buf,
-                "{timestamp} [{style}{level}{style_reset}] {crate_name}{grey}]{style_reset} {filename}:{line_num} - {message}"
+                "{timestamp} [{style}{level}{style_reset}] {crate_name}{gray}]{style_reset} {filename}:{line_num} - {message}"
             )
         })
         .init();

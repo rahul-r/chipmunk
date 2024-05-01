@@ -10,7 +10,7 @@ pub struct SoftwareUpdate {
     pub id: i32,
     pub start_date: DateTime<Utc>,
     pub end_date: Option<DateTime<Utc>>,
-    pub version: String,
+    pub version: Option<String>,
     pub car_id: i16,
 }
 
@@ -59,6 +59,18 @@ impl DBTable for SoftwareUpdate {
         .id;
 
         Ok(id as i64)
+    }
+
+    async fn db_get_last(pool: &PgPool) -> sqlx::Result<Self> {
+        sqlx::query_as!(
+            Self,
+            r#"
+                SELECT * FROM updates
+                ORDER BY start_date DESC LIMIT 1
+            "#
+        )
+        .fetch_one(pool)
+        .await
     }
 }
 

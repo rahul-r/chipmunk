@@ -39,7 +39,7 @@ pub async fn test_missing_charging_detection() {
     let pool = init_test_database("test_missing_charging_detection").await;
     let env = chipmunk::load_env_vars().unwrap();
 
-    // Make the logging period faster to speed up the test
+    // Make the logging period shorter to speed up the test
     let mut settings = Settings::db_get_last(&pool).await.unwrap();
     settings.logging_period_ms = 1;
     settings.db_insert(&pool).await.unwrap();
@@ -169,7 +169,7 @@ pub async fn test_delayed_data_during_missing_charging_detection() {
     let pool = init_test_database("test_delayed_data_during_missing_charging_detection").await;
     let env = chipmunk::load_env_vars().unwrap();
 
-    // Make the logging period faster to speed up the test
+    // Make the logging period shorter to speed up the test
     let mut settings = Settings::db_get_last(&pool).await.unwrap();
     settings.logging_period_ms = 1;
     settings.db_insert(&pool).await.unwrap();
@@ -253,7 +253,7 @@ pub async fn test_charging_process() {
     let pool = init_test_database("test_charging_process").await;
     let env = chipmunk::load_env_vars().unwrap();
 
-    // Make the logging period faster to speed up the test
+    // Make the logging period shorter to speed up the test
     let mut settings = Settings::db_get_last(&pool).await.unwrap();
     settings.logging_period_ms = 1;
     settings.db_insert(&pool).await.unwrap();

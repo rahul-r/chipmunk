@@ -27,8 +27,8 @@ pub enum TeslaError {
     Request(StatusCode),
     #[error("{0}")]
     ApiError(TeslaResponseCode),
-    #[error("Invalid response received from Tesla server")]
-    InvalidResponse,
+    #[error("Invalid response received from Tesla server: {0}")]
+    InvalidResponse(String),
     #[error("Vehicle is not online")]
     NotOnline,
     #[error("API request timeout")]
@@ -43,6 +43,8 @@ pub enum TeslaError {
     TokenExpired(String),
     #[error("Error decoding json, {0}")]
     JsonDecodeError(serde_json::Error),
+    #[error("Chipmunk code test in progress")]
+    TestInProgress,
 }
 
 impl From<url::ParseError> for TeslaError {
@@ -102,10 +104,14 @@ macro_rules! read_response_json {
     ($response:expr, $generic:ty) => {
         match $response.status() {
             StatusCode::OK => {
-                if let Some(resp) = $response.json::<ApiResponse<$generic>>().await?.response {
-                    Ok(resp)
-                } else {
-                    Err(TeslaError::InvalidResponse)
+                let text = $response.text().await?;
+                if text == "chipmunk_test_in_progress" {
+                    return Err(TeslaError::TestInProgress);
+                }
+
+                match serde_json::from_str::<ApiResponse<$generic>>(&text)?.response {
+                    Some(resp) => Ok(resp),
+                    None => Err(TeslaError::InvalidResponse(text)),
                 }
             }
             _ => parse_error!($response),

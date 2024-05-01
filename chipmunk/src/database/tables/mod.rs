@@ -204,7 +204,7 @@ impl Tables {
         Ok(tables)
     }
 
-    async fn _db_get_last(pool: &PgPool) -> Self {
+    pub async fn db_get_last(pool: &PgPool) -> Self {
         let position = Position::db_get_last(pool)
             .await
             .map_err(|e| log::error!("{e}"))

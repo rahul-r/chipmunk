@@ -76,7 +76,7 @@ pub async fn create_mock_tesla_server(vehicle_data: Arc<Mutex<VehicleData>>, sen
 
             w.write_all(resp_json.as_bytes()).unwrap();
         } else {
-            w.write_all("{}".as_bytes()).unwrap();
+            w.write_all("chipmunk_test_in_progress".as_bytes()).unwrap();
         }
         Ok(())
     };
