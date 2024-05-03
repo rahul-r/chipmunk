@@ -128,16 +128,16 @@ macro_rules! parse_error {
         {
             let code = $response.status();
 
-            let resp_text = $response.text().await?;
-            // Try converting the response to a JSON object
-            let resp = match serde_json::from_str::<ApiResponse<serde_json::Value>>(&resp_text) {
-                Ok(json) => json.to_string(), // If successful, return the string representation of the JSON object
-                Err(_) => resp_text, // Otherwise, return the raw response text
-            };
-
-            if resp != "" {
-                log::error!("{resp}");
-            }
+            // let resp_text = $response.text().await?;
+            // // Try converting the response to a JSON object
+            // let resp = match serde_json::from_str::<ApiResponse<serde_json::Value>>(&resp_text) {
+            //     Ok(json) => json.to_string(), // If successful, return the string representation of the JSON object
+            //     Err(_) => resp_text, // Otherwise, return the raw response text
+            // };
+            //
+            // if resp != "" {
+            //     log::error!("{resp}");
+            // }
 
             match code {
                 // Check if the status code is a custom Tesla response code

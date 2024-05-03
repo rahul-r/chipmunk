@@ -33,16 +33,9 @@ enum DatabaseRespType {
 }
 
 #[derive(Debug, Clone)]
-enum Config<'a> {
-    AccessToken(&'a str),
+enum Config {
+    AccessToken(String),
     LoggingPeriodMs(i32),
-    Key(&'a str),
-}
-
-impl Default for Config<'_> {
-    fn default() -> Self {
-        Config::Key("default_key")
-    }
 }
 
 async fn data_processor_task(
@@ -50,7 +43,7 @@ async fn data_processor_task(
     processed_data_tx: broadcast::Sender<Tables>,
     database_tx: mpsc::Sender<DatabaseDataType>,
     mut database_resp_rx: mpsc::Receiver<DatabaseRespType>,
-    _config_rx: watch::Receiver<Config<'_>>,
+    _config_rx: watch::Receiver<Config>,
     cancellation_token: CancellationToken,
     pool: &sqlx::PgPool,
 ) {
@@ -141,20 +134,20 @@ async fn data_processor_task(
 
 async fn data_streaming_task(
     data_tx: mpsc::Sender<DataTypes>,
-    mut config_rx: watch::Receiver<Config<'_>>,
+    mut config_rx: watch::Receiver<Config>,
     cancellation_token: CancellationToken,
     vehicle_id: u64,
 ) {
     use mpsc::error::*;
     let name = "data_stream_task";
     let (streaming_data_tx, mut streaming_data_rx) = tokio::sync::mpsc::channel::<StreamingData>(1);
-    let mut access_token = "";
+    let mut access_token = "".to_string();
     // TODO: Use the default access token if the config_rx is not available instead of
     // throwing error and breaking out of the loop
     if let Ok(true) = config_rx.has_changed() {
         access_token = match *config_rx.borrow_and_update() {
-            Config::AccessToken(at) => at,
-            _ => "",
+            Config::AccessToken(ref at) => at.clone(),
+            _ => "".to_string(),
         }
     }
 
@@ -208,7 +201,7 @@ async fn data_streaming_task(
 
 async fn data_polling_task(
     data_tx: mpsc::Sender<DataTypes>,
-    config_rx: watch::Receiver<Config<'_>>,
+    config_rx: watch::Receiver<Config>,
     cancellation_token: CancellationToken,
     tesla_client: TeslaClient,
     car_id: u64,
@@ -271,7 +264,7 @@ async fn data_polling_task(
 async fn database_task(
     mut data_rx: mpsc::Receiver<DatabaseDataType>,
     data_resp_tx: mpsc::Sender<DatabaseRespType>,
-    _config_rx: watch::Receiver<Config<'_>>,
+    _config_rx: watch::Receiver<Config>,
     cancellation_token: CancellationToken,
     pool: &sqlx::PgPool,
 ) {
@@ -320,7 +313,7 @@ async fn database_task(
 
 async fn web_server_task(
     mut data_rx: broadcast::Receiver<Tables>,
-    _config_rx: watch::Receiver<Config<'_>>,
+    _config_rx: watch::Receiver<Config>,
     cancellation_token: CancellationToken,
     http_port: u16,
 ) {
@@ -413,8 +406,6 @@ async fn web_server_task(
 }
 
 pub async fn run(env: &EnvVars, pool: &sqlx::PgPool) -> anyhow::Result<()> {
-    // channel to pass around system settings
-    let (config_tx, config_rx) = watch::channel::<Config>(Config::default());
     // Channel for vehicle data and streaming data
     let (vehicle_data_tx, vehicle_data_rx) = mpsc::channel::<DataTypes>(1);
     // channel for parsed data
@@ -429,15 +420,19 @@ pub async fn run(env: &EnvVars, pool: &sqlx::PgPool) -> anyhow::Result<()> {
 
     let tokens_from_db = Token::db_get_last(pool, &env.encryption_key).await?;
     // TODO: Refresh token only if already expired
-    let tokens = tesla_api::auth::refresh_access_token(&tokens_from_db.refresh_token).await?;
-    if let Err(e) = Token::db_insert(pool, &tokens, &env.encryption_key).await {
-        log::error!("Error inserting refreshed tokens into the database: {e:?}");
-    }
+    // let tokens = tesla_api::auth::refresh_access_token(&tokens_from_db.refresh_token).await?;
+    // if let Err(e) = Token::db_insert(pool, &tokens, &env.encryption_key).await {
+    //     log::error!("Error inserting refreshed tokens into the database: {e:?}");
+    // }
+    let tokens = tokens_from_db;
+
+    // channel to pass around system settings
+    let (config_tx, config_rx) = watch::channel::<Config>(Config::AccessToken(tokens.access_token.clone()));
 
     let tesla_client = tesla_api::get_tesla_client(&tokens.access_token)?;
 
     let vehicles = tesla_api::get_vehicles(&tesla_client).await?;
-    let vehicle = vehicles.first(); // TODO: Use the first vehicle for now
+    let vehicle = vehicles.first(); // FIXME: Use the first vehicle for now
     let car_id = vehicle
         .context("Invalid vehicle data")?
         .id
@@ -450,9 +445,6 @@ pub async fn run(env: &EnvVars, pool: &sqlx::PgPool) -> anyhow::Result<()> {
 
     let settings = Settings::db_get_last(pool).await?;
 
-    if let Err(e) = config_tx.send(Config::Key("new configuration key")) {
-        log::error!("Error sending configuration: {e}");
-    }
     if let Err(e) = config_tx.send(Config::LoggingPeriodMs(settings.logging_period_ms)) {
         log::error!("Error sending configuration: {e}");
     }
