@@ -172,19 +172,7 @@ impl Token {
 }
 
 #[tokio::test]
-async fn test_key_retrieval() {
-    dotenvy::dotenv().ok();
-    let url = &env::var("TEST_DATABASE_URL")
-        .expect("Cannot get test database URL from environment variable, Please set env `TEST_DATABASE_URL`");
-    let pool = initialize(url).await.expect("Error initializing database");
-    let encryption_key = "secret password acbdefghijklmnop";
-    Token::db_get_last(&pool, encryption_key)
-        .await
-        .expect("Error getting tokens from database");
-}
-
-#[tokio::test]
-async fn test_key_insertion() {
+async fn test_key_insertion_and_retrieval() {
     dotenvy::dotenv().ok();
     let url = &env::var("TEST_DATABASE_URL")
         .expect("Cannot get test database URL from environment variable, Please set env `TEST_DATABASE_URL`");
@@ -197,7 +185,12 @@ async fn test_key_insertion() {
         expires_in: 1234,
         token_type: "Bearer".into(),
     };
-    Token::db_insert(&pool, tokens, encryption_key)
+
+    Token::db_insert(&pool, &tokens, encryption_key)
         .await
         .expect("Error inserting tokens to database");
+
+    Token::db_get_last(&pool, encryption_key)
+        .await
+        .expect("Error getting tokens from database");
 }

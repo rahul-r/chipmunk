@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-use crate::{TeslaError, AUTH_URL};
+use crate::{auth_url, TeslaError};
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct AuthResponse {
     pub access_token: String,
     pub refresh_token: String,
@@ -24,7 +24,7 @@ pub async fn refresh_access_token(refresh_token: &str) -> Result<AuthResponse, T
     let client = reqwest::ClientBuilder::new()
         .timeout(std::time::Duration::from_secs(10))
         .build()?;
-    let res = client.post(AUTH_URL).json(&map).send().await?;
+    let res = client.post(auth_url()).json(&map).send().await?;
 
     if res.status().is_success() {
         let token = res.json::<AuthResponse>().await?;

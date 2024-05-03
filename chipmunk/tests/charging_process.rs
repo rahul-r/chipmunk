@@ -259,11 +259,6 @@ pub async fn test_charging_process() {
     settings.logging_period_ms = 1;
     settings.db_insert(&pool).await.unwrap();
 
-    let pool_clone = pool.clone();
-    let _logger_task = tokio::task::spawn(async move {
-        tasks::run(&env, &pool_clone).await.unwrap();
-    });
-
     // Set up a pointer to send vehicle data to the mock server
     let charging_start_time = chrono::Utc::now();
     let data = test_data::data_charging(charging_start_time, 25);
@@ -271,6 +266,13 @@ pub async fn test_charging_process() {
     let send_response = Arc::new(Mutex::new(true));
     // Create a Tesla mock server
     let _tesla_mock = create_mock_tesla_server(data.clone(), send_response.clone()).await; // Assign the return value to a variable to keep the server alive
+
+    let pool_clone = pool.clone();
+    let _logger_task = tokio::task::spawn(async move {
+        if let Err(e) = tasks::run(&env, &pool_clone).await {
+            log::error!("{e:?}");
+        }
+    });
 
     // Start charging
     sleep(Duration::from_secs(1)).await; // Run the logger for a second

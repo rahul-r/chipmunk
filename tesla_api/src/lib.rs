@@ -19,6 +19,10 @@ fn get_base_url() -> String {
     std::env::var("MOCK_TESLA_BASE_URL").unwrap_or_else(|_| BASE_URL.to_string())
 }
 
+pub fn auth_url() -> String {
+    std::env::var("MOCK_TESLA_BASE_URL").unwrap_or_else(|_| AUTH_URL.to_string())
+}
+
 #[derive(thiserror::Error, Debug)]
 pub enum TeslaError {
     #[error("Connection Error: {0}")]

@@ -95,7 +95,22 @@ pub async fn create_mock_tesla_server(vehicle_data: Arc<Mutex<VehicleData>>, sen
         .with_body(create_vehicles_response_json())
         .create_async();
 
-    let (_srv1, _srv2) = futures::join!(srv1, srv2);
+    let tokens = AuthResponse {
+        access_token: "access_token".to_string(),
+        refresh_token: "refresh_token".to_string(),
+        id_token: "id_token".to_string(),
+        expires_in: 6000,
+        token_type: "Bearer".to_string(),
+    };
+
+    let srv3 = server
+        .mock("POST", "/")
+        .with_status(200)
+        .with_header("content-type", "application/json")
+        .with_body(serde_json::to_string(&tokens).unwrap())
+        .create_async();
+
+    let (_srv1, _srv2, _srv3) = futures::join!(srv1, srv2, srv3);
 
     let mock_url = server.url();
     std::env::set_var("MOCK_TESLA_BASE_URL", mock_url);
@@ -139,7 +154,22 @@ pub async fn create_mock_tesla_server_vec(vehicle_data: Arc<Mutex<VecDeque<Vehic
         .with_body(create_vehicles_response_json())
         .create_async();
 
-    let (_srv1, _srv2) = futures::join!(srv1, srv2);
+    let tokens = AuthResponse {
+        access_token: "access_token".to_string(),
+        refresh_token: "refresh_token".to_string(),
+        id_token: "id_token".to_string(),
+        expires_in: 6000,
+        token_type: "Bearer".to_string(),
+    };
+
+    let srv3 = server
+        .mock("POST", "/")
+        .with_status(200)
+        .with_header("content-type", "application/json")
+        .with_body(serde_json::to_string(&tokens).unwrap())
+        .create_async();
+
+    let (_srv1, _srv2, _srv3) = futures::join!(srv1, srv2, srv3);
 
     let mock_url = server.url();
     std::env::set_var("MOCK_TESLA_BASE_URL", mock_url);
@@ -209,11 +239,11 @@ pub async fn init_test_database(db_name: &str) -> sqlx::Pool<sqlx::Postgres> {
         refresh_token: "refresh_token".to_string(),
         id_token: "id_token".to_string(),
         expires_in: 6000,
-        token_type: "token_type".to_string(),
+        token_type: "Bearer".to_string(),
     };
     let encryption_key = "secret password acbdefghijklmnop";
     std::env::set_var("TOKEN_ENCRYPTION_KEY", encryption_key);
-    Token::db_insert(&pool, tokens, encryption_key)
+    Token::db_insert(&pool, &tokens, encryption_key)
         .await
         .unwrap();
 

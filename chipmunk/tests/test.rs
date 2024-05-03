@@ -132,7 +132,9 @@ pub async fn check_vehicle_data() -> anyhow::Result<()> {
     let env = load_env_vars().unwrap();
     let pool_clone = pool.clone();
     let _logger_task = tokio::task::spawn(async move {
-        chipmunk::tasks::run(&env, &pool_clone).await.unwrap();
+        if let Err(e) = chipmunk::tasks::run(&env, &pool_clone).await {
+            log::error!("{e:?}");
+        }
     });
 
     // sleep(Duration::from_secs(5)).await; // Run the logger for some time

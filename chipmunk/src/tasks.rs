@@ -356,7 +356,7 @@ async fn web_server_task(
 
                         // TODO: Send token to database task
                         // let encryption_key = env.encryption_key.clone();
-                        // if let Err(e) = Token::db_insert(&pool, tokens, encryption_key.as_str()).await
+                        // if let Err(e) = Token::db_insert(&pool, &tokens, encryption_key.as_str()).await
                         // {
                         //     log::error!("{e}");
                         // }
