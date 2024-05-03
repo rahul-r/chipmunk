@@ -51,6 +51,7 @@ pub fn decrypt(data: &[u8], key: &str, iv: &[u8]) -> anyhow::Result<String> {
 }
 
 #[test]
+#[ignore = "This test will modify auth key entries in production database"]
 fn test_encryption() {
     let plaintext = "Hello world!";
     let key = "0123456789abcdef0123456789abcdef";

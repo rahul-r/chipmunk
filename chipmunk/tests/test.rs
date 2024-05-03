@@ -2,24 +2,28 @@
 
 pub mod common;
 
+use std::collections::VecDeque;
 use std::fs::File;
 use std::io::BufReader;
+use std::io::Write;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
 use chipmunk::database::tables::position::Position;
+use chipmunk::database::tables::settings::Settings;
 use chipmunk::database::tables::state::{StateStatus, State};
-use chrono::Duration;
 use rand::Rng;
+use tokio::time::Duration;
+use tokio::time::sleep;
 
 use crate::common::DELAYED_DATAPOINT_TIME_SEC;
 use crate::common::test_data::data_with_shift;
-use crate::common::utils::{create_drive_from_positions, create_mock_tesla_server, ts_no_nanos};
+use crate::common::utils::{create_drive_from_positions, create_mock_tesla_server, create_mock_tesla_server_vec, ts_no_nanos};
 use crate::common::utils::{create_mock_osm_server, init_test_database};
 use chipmunk::database::tables::drive::Drive;
 use chipmunk::database::tables::Tables;
 use chipmunk::database::DBTable;
-use chipmunk::{database, openstreetmap};
+use chipmunk::{load_env_vars, openstreetmap};
 use common::test_data;
 use tesla_api::vehicle_data::{DriveState, ShiftState, VehicleData};
 
@@ -108,28 +112,39 @@ pub fn create_drive_from_gpx() -> (Vec<VehicleData>, usize, usize) {
 
 #[tokio::test]
 pub async fn check_vehicle_data() -> anyhow::Result<()> {
+    chipmunk::init_log();
     let random_http_port = rand::thread_rng().gen_range(4000..60000);
     std::env::set_var("HTTP_PORT", random_http_port.to_string());
 
     let pool = init_test_database("check_vehicle_data").await;
     let _osm_mock = create_mock_osm_server().await;
 
-    let (vehicle_data_list, _drive_start_index, _drive_end_index) = create_drive_from_gpx();
-    let mut vin_id_map = database::tables::car::get_vin_id_map(&pool).await;
-    let mut tables = Tables::default();
+    // Make the logging period shorter to speed up the test
+    let mut settings = Settings::db_get_last(&pool).await.unwrap();
+    settings.logging_period_ms = 1;
+    settings.db_insert(&pool).await.unwrap();
 
-    for data in &vehicle_data_list {
-        (vin_id_map, tables) =
-            chipmunk::logger::process_vehicle_data(&pool, vin_id_map, tables, data.clone()).await;
-    }
+    let (vehicle_data_list, _drive_start_index, _drive_end_index) = create_drive_from_gpx();
+
+    let vehicle_data_queue: VecDeque<VehicleData> = VecDeque::from(vehicle_data_list);
+    let _tesla_mock = create_mock_tesla_server_vec(Arc::new(Mutex::new(vehicle_data_queue)), Arc::new(Mutex::new(true))).await; // Assign the return value to a variable to keep the server alive
+
+    let env = load_env_vars().unwrap();
+    let pool_clone = pool.clone();
+    let _logger_task = tokio::task::spawn(async move {
+        chipmunk::tasks::run(&env, &pool_clone).await.unwrap();
+    });
+
+    // sleep(Duration::from_secs(5)).await; // Run the logger for some time
+    wait_for_db!(pool);
 
     let drive_from_db = Drive::db_get_last(&pool).await.unwrap();
     let positions = Position::db_get_for_drive(&pool, 1, drive_from_db.id).await.unwrap();
     let drive_calculated = create_drive_from_positions(&positions).unwrap();
 
     assert_eq!(drive_calculated.in_progress, drive_from_db.in_progress);
-    assert!(drive_calculated.start_date - drive_from_db.start_date < Duration::try_seconds(1).unwrap());
-    assert_eq!(drive_from_db.end_date.zip(drive_calculated.end_date).map(|(de, ee)| de - ee < Duration::try_seconds(1).unwrap()), Some(true));
+    assert!(drive_calculated.start_date - drive_from_db.start_date < chrono::Duration::try_seconds(1).unwrap());
+    assert_eq!(drive_from_db.end_date.zip(drive_calculated.end_date).map(|(de, ee)| de - ee < chrono::Duration::try_seconds(1).unwrap()), Some(true));
     approx_eq!(drive_from_db.outside_temp_avg, drive_calculated.outside_temp_avg, 0.1);
     assert_eq!(drive_from_db.speed_max, drive_calculated.speed_max);
     assert_eq!(drive_from_db.power_max, drive_calculated.power_max);
@@ -209,13 +224,13 @@ async fn test_charged_and_driven_offline() {
     assert!(t[0].state.is_some());
     assert_eq!(*t[0].state.as_ref().unwrap(), State {car_id, id: 0, state: Driving, start_date: ts_no_nanos(driving_start_time), end_date: None });
 
-    let driving_intermediate_time = driving_start_time + Duration::try_seconds(5).unwrap();
+    let driving_intermediate_time = driving_start_time + chrono::Duration::try_seconds(5).unwrap();
     let t = chipmunk::logger::create_tables(&data_with_shift(driving_intermediate_time, Some(D)), drive_start_tables, car_id).await.unwrap();
     assert_eq!(t.len(), 1);
     let drive_tables = &t[0];
 
     // Create a data point after a delay with drive and charge data
-    let driving_after_delay_time = driving_intermediate_time + Duration::try_seconds(DELAYED_DATAPOINT_TIME_SEC + 1).unwrap();
+    let driving_after_delay_time = driving_intermediate_time + chrono::Duration::try_seconds(DELAYED_DATAPOINT_TIME_SEC + 1).unwrap();
     let mut charged_and_driven_data = data_with_shift(driving_after_delay_time, Some(D));
     charged_and_driven_data.charge_state.as_mut().unwrap().battery_level = charged_and_driven_data.charge_state.as_ref().unwrap().battery_level.map(|mut c| {c += 10; c});
     let t = chipmunk::logger::create_tables(&charged_and_driven_data, drive_tables, car_id).await.unwrap();

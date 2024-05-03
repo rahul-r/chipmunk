@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+use std::{collections::VecDeque, sync::{Arc, Mutex}};
 
 use rand::Rng;
 
@@ -75,6 +75,50 @@ pub async fn create_mock_tesla_server(vehicle_data: Arc<Mutex<VehicleData>>, sen
             let resp_json = serde_json::to_string(&resp).unwrap();
 
             w.write_all(resp_json.as_bytes()).unwrap();
+        } else {
+            w.write_all("chipmunk_test_in_progress".as_bytes()).unwrap();
+        }
+        Ok(())
+    };
+
+    let srv1 = server
+        .mock("GET", "/vehicles/1/vehicle_data")
+        .with_status(200)
+        .with_header("content-type", "application/json")
+        .with_chunked_body(vehicle_data_response)
+        .create_async();
+
+    let srv2 = server
+        .mock("GET", "/products")
+        .with_status(200)
+        .with_header("content-type", "application/json")
+        .with_body(create_vehicles_response_json())
+        .create_async();
+
+    let (_srv1, _srv2) = futures::join!(srv1, srv2);
+
+    let mock_url = server.url();
+    std::env::set_var("MOCK_TESLA_BASE_URL", mock_url);
+    server
+}
+
+pub async fn create_mock_tesla_server_vec(vehicle_data: Arc<Mutex<VecDeque<VehicleData>>>, send_response: Arc<Mutex<bool>>) -> mockito::ServerGuard {
+    // Request a new server from the pool
+    let mut server = mockito::Server::new_async().await;
+
+    let vehicle_data_response = move |w: &mut dyn std::io::Write| {
+        if *send_response.lock().unwrap() {
+            let r = vehicle_data.lock().unwrap().pop_front().clone();
+            if r.is_some() {
+                let resp = ApiResponse {
+                    response: Some(r),
+                };
+                let resp_json = serde_json::to_string(&resp).unwrap();
+
+                w.write_all(resp_json.as_bytes()).unwrap();
+            } else {
+                w.write_all("chipmunk_test_in_progress".as_bytes()).unwrap();
+            }
         } else {
             w.write_all("chipmunk_test_in_progress".as_bytes()).unwrap();
         }

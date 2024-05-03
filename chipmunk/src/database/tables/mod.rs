@@ -107,9 +107,16 @@ impl Tables {
         // Insert state table
         if let Some(ref mut s) = tables.state {
             if s.id == 0 {
-                s.db_insert(pool).await.map(|id| s.id = id as i32)?;
+                s.db_insert(pool)
+                    .await
+                    .map(|id| s.id = id as i32)
+                    .map_err(|e| log::error!("{:?}", e))
+                    .ok();
             } else {
-                s.db_update(pool).await?;
+                s.db_update(pool)
+                    .await
+                    .map_err(|e| log::error!("{:?}", e))
+                    .ok();
             }
         }
 

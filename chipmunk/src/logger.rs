@@ -18,23 +18,18 @@ use crate::{
         types::ChargeStat,
         DBTable,
     },
-    tasks,
-    utils::sub_option, DELAYED_DATAPOINT_TIME_SEC,
+    utils::sub_option,
+    DELAYED_DATAPOINT_TIME_SEC,
 };
 
-pub async fn log(pool: &sqlx::PgPool, env: &crate::EnvVars) -> anyhow::Result<()> {
-    tasks::run(env, pool).await
-}
-
-pub async fn process_vehicle_data(
+pub async fn get_car_id(
     pool: &sqlx::PgPool,
     mut vin_id_map: HashMap<String, i16>,
-    prev_tables: Tables,
-    data: VehicleData,
-) -> (HashMap<String, i16>, Tables) {
+    data: &VehicleData,
+) -> (HashMap<String, i16>, Option<i16>) {
     let Some(vin) = &data.vin else {
         log::warn!("VIN is None, skipping this entry");
-        return (vin_id_map, prev_tables);
+        return (vin_id_map, None);
     };
 
     // Check if the vehicle_data response belongs to a car in the database, if not, insert a new entry and update `vin_id_map`
@@ -49,13 +44,13 @@ pub async fn process_vehicle_data(
             Ok(id) => id,
             Err(e) => {
                 log::error!("Error inserting car settings into database: {e}");
-                return (vin_id_map, prev_tables);
+                return (vin_id_map, None);
             }
         };
         let Ok(car) =
-            Car::from(&data, car_settings_id).map_err(|e| log::error!("Error creating car: {e}"))
+            Car::from(data, car_settings_id).map_err(|e| log::error!("Error creating car: {e}"))
         else {
-            return (vin_id_map, prev_tables);
+            return (vin_id_map, None);
         };
         // TODO: move to the main db_insert function
         let Ok(id) = car
@@ -64,26 +59,13 @@ pub async fn process_vehicle_data(
             .map_err(|e| log::error!("{e}"))
             .map(|id| id as i16)
         else {
-            return (vin_id_map, prev_tables);
+            return (vin_id_map, None);
         };
         vin_id_map.insert(vin.clone(), id);
         id
     };
 
-    let mut last_inserted_tables: Option<Tables> = None;
-    if let Ok(table_list) = create_tables(&data, &prev_tables, car_id)
-        .await
-        .map_err(|e| log::error!("Error adding to database: {e}"))
-    {
-        for t in table_list {
-            match t.db_insert(pool).await {
-                Ok(updated_tables) => last_inserted_tables = Some(updated_tables),
-                Err(e) => log::error!("Error inserting tables into database: {e}"),
-            }
-        }
-    };
-
-    (vin_id_map, last_inserted_tables.unwrap_or(prev_tables))
+    (vin_id_map, Some(car_id))
 }
 
 pub async fn create_tables(
@@ -395,7 +377,10 @@ async fn check_hidden_process(
         .get_time()
         .zip(curr_position.date)
         .map(|(prev, curr)| curr - prev)
-        .map(|diff| diff <= chrono::Duration::try_seconds(DELAYED_DATAPOINT_TIME_SEC).expect("This should always pass"))
+        .map(|diff| {
+            diff <= chrono::Duration::try_seconds(DELAYED_DATAPOINT_TIME_SEC)
+                .expect("This should always pass")
+        })
         .unwrap_or(true)
     {
         return None;

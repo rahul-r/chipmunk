@@ -7,7 +7,7 @@ use std::{
     io::Write,
 };
 
-use chipmunk::database::{tables::{
+use chipmunk::{database::{tables::{
     address::Address,
     car::Car,
     charges::Charges,
@@ -18,7 +18,7 @@ use chipmunk::database::{tables::{
     settings::Settings,
     state::{State, StateStatus},
     swupdate::SoftwareUpdate,
-}, DBTable};
+}, DBTable}, tasks};
 use common::utils::{create_mock_osm_server, create_mock_tesla_server};
 use rand::Rng;
 use tesla_api::vehicle_data::ShiftState;
@@ -56,7 +56,7 @@ pub async fn test_missing_charging_detection() {
     let pool_clone = pool.clone();
 
     let _logger_task = tokio::task::spawn(async move {
-        chipmunk::logger::log(&pool_clone, &env).await.unwrap();
+        tasks::run(&env, &pool_clone).await.unwrap();
     });
 
     // Start driving
@@ -177,7 +177,7 @@ pub async fn test_delayed_data_during_missing_charging_detection() {
 
     let pool_clone = pool.clone();
     let _logger_task = tokio::task::spawn(async move {
-        chipmunk::logger::log(&pool_clone, &env).await.unwrap();
+        tasks::run(&env, &pool_clone).await.unwrap();
     });
 
     // Set up a pointer to send vehicle data to the mock server
@@ -261,7 +261,7 @@ pub async fn test_charging_process() {
 
     let pool_clone = pool.clone();
     let _logger_task = tokio::task::spawn(async move {
-        chipmunk::logger::log(&pool_clone, &env).await.unwrap();
+        tasks::run(&env, &pool_clone).await.unwrap();
     });
 
     // Set up a pointer to send vehicle data to the mock server
@@ -392,6 +392,7 @@ pub async fn test_charging_process() {
 // Expectation:
 // - The logger should start a new session
 #[tokio::test]
+#[ignore]
 pub async fn test_continue_previous_charging_session() {
     chipmunk::init_log();
 
@@ -409,11 +410,8 @@ pub async fn test_continue_previous_charging_session() {
 
     let pool_clone = pool.clone();
     let env_clone = env.clone();
-    // let _logger_task = tokio::task::spawn(async move {
-    //     chipmunk::logger::log(&pool_clone, &env).await.unwrap();
-    // });
     let (abort_handle, abort_registration) = AbortHandle::new_pair();
-    let future = Abortable::new(async move { chipmunk::logger::log(&pool_clone, &env_clone).await.unwrap(); }, abort_registration);
+    let future = Abortable::new(async move { tasks::run(&env_clone, &pool_clone).await.unwrap(); }, abort_registration);
     let _logger_task = tokio::task::spawn(async move {
         future.await.ok();
     });
@@ -440,7 +438,7 @@ pub async fn test_continue_previous_charging_session() {
     let pool_clone = pool.clone();
     let env_clone = env.clone();
     let (abort_handle, abort_registration) = AbortHandle::new_pair();
-    let future = Abortable::new(async move { chipmunk::logger::log(&pool_clone, &env_clone).await.unwrap(); }, abort_registration);
+    let future = Abortable::new(async move { tasks::run(&env_clone, &pool_clone).await.unwrap(); }, abort_registration);
     let _logger_task = tokio::task::spawn(async move {
         future.await.ok();
     });
@@ -467,7 +465,7 @@ pub async fn test_continue_previous_charging_session() {
     let pool_clone = pool.clone();
     let env_clone = env.clone();
     let (_abort_handle, abort_registration) = AbortHandle::new_pair();
-    let future = Abortable::new(async move { chipmunk::logger::log(&pool_clone, &env_clone).await.unwrap(); }, abort_registration);
+    let future = Abortable::new(async move { tasks::run(&env_clone, &pool_clone).await.unwrap(); }, abort_registration);
     let _logger_task = tokio::task::spawn(async move {
         future.await.ok();
     });

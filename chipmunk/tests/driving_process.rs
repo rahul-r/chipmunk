@@ -7,7 +7,7 @@ use std::{
     io::Write,
 };
 
-use chipmunk::database::{tables::{
+use chipmunk::{database::{tables::{
     address::Address,
     car::Car,
     charges::Charges,
@@ -18,7 +18,7 @@ use chipmunk::database::{tables::{
     settings::Settings,
     state::{State, StateStatus},
     swupdate::SoftwareUpdate,
-}, DBTable};
+}, DBTable}, tasks};
 use common::utils::{create_mock_osm_server, create_mock_tesla_server};
 use rand::Rng;
 use tesla_api::utils::miles_to_km;
@@ -63,7 +63,7 @@ pub async fn test_driving_and_parking() {
     let pool_clone = pool.clone();
 
     let _logger_task = tokio::task::spawn(async move {
-        chipmunk::logger::log(&pool_clone, &env).await.unwrap();
+        tasks::run(&env, &pool_clone).await.unwrap();
     });
 
     // Start driving
