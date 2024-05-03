@@ -63,7 +63,7 @@ async fn main() -> anyhow::Result<()> {
     // If token is provided, store it in the database
     if let Some(refresh_token) = cli.token {
         match tesla_api::auth::refresh_access_token(refresh_token.as_str()).await {
-            Ok(tokens) => Token::db_insert(&pool, tokens, env.encryption_key.as_str()).await?,
+            Ok(tokens) => Token::db_insert(&pool, &tokens, env.encryption_key.as_str()).await?,
             Err(e) => log::error!("{e}"),
         };
     }

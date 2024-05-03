@@ -53,7 +53,7 @@ impl Token {
 
     pub async fn db_insert(
         pool: &PgPool,
-        tokens: AuthResponse,
+        tokens: &AuthResponse,
         encryption_key: &str,
     ) -> anyhow::Result<()> {
         log::info!("Encrypting tokens");
@@ -164,6 +164,8 @@ impl Token {
                 "".into()
             }),
         };
+
+        log::info!("Tokens decrypted");
 
         Ok(token)
     }

@@ -130,7 +130,10 @@ macro_rules! parse_error {
                 Ok(json) => json.to_string(), // If successful, return the string representation of the JSON object
                 Err(_) => resp_text, // Otherwise, return the raw response text
             };
-            log::error!("{resp}");
+
+            if resp != "" {
+                log::error!("{resp}");
+            }
 
             match code {
                 // Check if the status code is a custom Tesla response code

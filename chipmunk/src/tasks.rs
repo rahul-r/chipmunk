@@ -427,7 +427,13 @@ pub async fn run(env: &EnvVars, pool: &sqlx::PgPool) -> anyhow::Result<()> {
     let cancellation_token = CancellationToken::new();
     let task_tracker = TaskTracker::new();
 
-    let tokens = Token::db_get_last(pool, &env.encryption_key).await?;
+    let tokens_from_db = Token::db_get_last(pool, &env.encryption_key).await?;
+    // TODO: Refresh token only if already expired
+    let tokens = tesla_api::auth::refresh_access_token(&tokens_from_db.refresh_token).await?;
+    if let Err(e) = Token::db_insert(pool, &tokens, &env.encryption_key).await {
+        log::error!("Error inserting refreshed tokens into the database: {e:?}");
+    }
+
     let tesla_client = tesla_api::get_tesla_client(&tokens.access_token)?;
 
     let vehicles = tesla_api::get_vehicles(&tesla_client).await?;
