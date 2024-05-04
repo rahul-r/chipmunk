@@ -213,6 +213,7 @@ pub async fn get_vehicle_data(client: &reqwest::Client, id: u64) -> Result<Strin
     log::debug!("Getting vehicle data");
     let res = client
         .get(format!("{}/vehicles/{id}/vehicle_data", get_base_url()))
+        .query(&[("endpoints", "charge_state;climate_state;closures_state;drive_state;gui_settings;location_data;vehicle_config;vehicle_state;vehicle_data_combo")])
         .send()
         .await?;
 
