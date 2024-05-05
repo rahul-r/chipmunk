@@ -67,7 +67,7 @@ RUN echo "#!/bin/bash\n"\
          "export HTTP_PORT=${HTTP_PORT:=3072}\n"\
          "export CHIPMUNK_HOST=localhost\n"\
          "export CHIPMUNK_PORT=${HTTP_PORT}\n"\
-         "/run.sh& /chipmunk/chipmunk log"\
+         "/run.sh& /chipmunk/chipmunk tasks"\
     > /chipmunk/start.sh &&\
     chmod +x /chipmunk/start.sh
 

@@ -73,7 +73,7 @@ async fn main() -> anyhow::Result<()> {
             "tasks" => chipmunk::tasks::run(&env, &pool)
                 .await
                 .unwrap_or_else(print_err_and_exit!()),
-            unknown => eprintln!("Unknown option `{unknown}`"),
+            unknown => log::error!("Unknown command line argument `{unknown}`"),
         };
     }
 
