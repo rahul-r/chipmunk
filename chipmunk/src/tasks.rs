@@ -81,7 +81,8 @@ async fn data_processor_task(
                         continue;
                     };
 
-                    let table_list = match create_tables(&vehicle_data, &prev_tables, car_id).await {
+                    let table_list = match create_tables(&vehicle_data, &prev_tables, car_id).await
+                    {
                         Ok(table_list) => table_list,
                         Err(e) => {
                             log::error!("Error adding to database: {e}");
@@ -420,28 +421,25 @@ pub async fn run(env: &EnvVars, pool: &sqlx::PgPool) -> anyhow::Result<()> {
 
     let tokens_from_db = Token::db_get_last(pool, &env.encryption_key).await?;
     // TODO: Refresh token only if already expired
-    // let tokens = tesla_api::auth::refresh_access_token(&tokens_from_db.refresh_token).await?;
-    // if let Err(e) = Token::db_insert(pool, &tokens, &env.encryption_key).await {
-    //     log::error!("Error inserting refreshed tokens into the database: {e:?}");
-    // }
-    let tokens = tokens_from_db;
+    let tokens = tesla_api::auth::refresh_access_token(&tokens_from_db.refresh_token).await?;
+    if let Err(e) = Token::db_insert(pool, &tokens, &env.encryption_key).await {
+        log::error!("Error inserting refreshed tokens into the database: {e:?}");
+    }
 
     // channel to pass around system settings
-    let (config_tx, config_rx) = watch::channel::<Config>(Config::AccessToken(tokens.access_token.clone()));
+    let (config_tx, config_rx) =
+        watch::channel::<Config>(Config::AccessToken(tokens.access_token.clone()));
 
     let tesla_client = tesla_api::get_tesla_client(&tokens.access_token)?;
 
     let vehicles = tesla_api::get_vehicles(&tesla_client).await?;
     let vehicle = vehicles.first(); // FIXME: Use the first vehicle for now
-    let car_id = vehicle
-        .context("Invalid vehicle data")?
-        .id
-        .context("Invalid ID")?;
-
-    let vehicle_id = vehicle
-        .context("Invalid vehicle data")?
-        .vehicle_id
-        .context("Invalid vehicle ID")?;
+    let Some(car_id) = vehicle.and_then(|v| v.id) else {
+        anyhow::bail!("Cannot read id field from vehicle_data");
+    };
+    let Some(vehicle_id) = vehicle.and_then(|v| v.vehicle_id) else {
+        anyhow::bail!("Cannot read vehicle_id field from vehicle_data");
+    };
 
     let settings = Settings::db_get_last(pool).await?;
 
