@@ -13,7 +13,12 @@ const BASE_URL: &str = "https://owner-api.teslamotors.com/api/1";
 const AUTH_URL: &str = "https://auth.tesla.com/oauth2/v3/token";
 const STREAMING_URL: &str = "wss://streaming.vn.teslamotors.com/streaming/";
 
-pub type TeslaClient = reqwest::Client;
+type ErrorHandlerType = Box<dyn FnMut() + Send + Sync>;
+
+pub struct TeslaClient {
+    client: reqwest::Client,
+    handle_token_expiry: Option<ErrorHandlerType>,
+}
 
 fn get_base_url() -> String {
     std::env::var("MOCK_TESLA_BASE_URL").unwrap_or_else(|_| BASE_URL.to_string())
@@ -105,7 +110,7 @@ impl<T: std::fmt::Display + std::fmt::Debug> std::fmt::Display for ApiResponse<T
 /// Otherwise, it returns an error indicating the reason for failure.
 #[macro_export]
 macro_rules! read_response_json {
-    ($response:expr, $generic:ty) => {
+    ($response:expr, $generic:ty, $tesla:expr) => {
         match $response.status() {
             StatusCode::OK => {
                 let text = $response.text().await?;
@@ -118,52 +123,48 @@ macro_rules! read_response_json {
                     None => Err(TeslaError::InvalidResponse(text)),
                 }
             }
-            _ => parse_error!($response),
+            _ => parse_error!($response, $tesla),
         }
     };
 }
 
 macro_rules! parse_error {
-    ($response:expr) => {
-        {
-            let code = $response.status();
+    ($response:expr, $tesla:expr) => {{
+        match $response.status() {
+            // Check if the status code is a custom Tesla response code
+            status_code => if let Ok(response_code) = TeslaResponseCode::from_http_status(status_code)
+            {
+                match response_code {
+                    TeslaResponseCode::UNAUTHORIZED => {
+                        if let Some(ref mut t) = $tesla.handle_token_expiry {
+                            t();
+                        } else {
+                            log::error!("Callback is None");
+                        }
 
-            // let resp_text = $response.text().await?;
-            // // Try converting the response to a JSON object
-            // let resp = match serde_json::from_str::<ApiResponse<serde_json::Value>>(&resp_text) {
-            //     Ok(json) => json.to_string(), // If successful, return the string representation of the JSON object
-            //     Err(_) => resp_text, // Otherwise, return the raw response text
-            // };
-            //
-            // if resp != "" {
-            //     log::error!("{resp}");
-            // }
-
-            match code {
-                // Check if the status code is a custom Tesla response code
-                status_code => if let Ok(response_code) = TeslaResponseCode::from_http_status(status_code)
-                {
-                    match response_code {
-                        TeslaResponseCode::UNAUTHORIZED => return Err(TeslaError::TokenExpired(format!(
-                                "Status code `{}` received",
-                                TeslaResponseCode::UNAUTHORIZED
-                            ))),
-                        TeslaResponseCode::DEVICE_NOT_AVAILABLE => Err(TeslaError::NotOnline), // Vehicle is not online
-                        other_code => Err(TeslaError::ApiError(other_code))
+                        return Err(TeslaError::TokenExpired(format!(
+                            "Status code `{}` received",
+                            TeslaResponseCode::UNAUTHORIZED
+                        )));
                     }
-                } else {
-                    // Status code is not a custom Tesla response code (unknown code), return error
-                    match status_code {
-                        StatusCode::REQUEST_TIMEOUT => Err(TeslaError::RequestTimeout),
-                        _ => Err(TeslaError::Request(status_code))
-                    }
+                    TeslaResponseCode::DEVICE_NOT_AVAILABLE => Err(TeslaError::NotOnline), // Vehicle is not online
+                    other_code => Err(TeslaError::ApiError(other_code))
+                }
+            } else {
+                // Status code is not a custom Tesla response code (unknown code), return error
+                match status_code {
+                    StatusCode::REQUEST_TIMEOUT => Err(TeslaError::RequestTimeout),
+                    _ => Err(TeslaError::Request(status_code))
                 }
             }
         }
-    };
+    }};
 }
 
-pub fn get_tesla_client(access_token: &str) -> Result<reqwest::Client, TeslaError> {
+pub fn get_tesla_client(
+    access_token: &str,
+    handle_token_expiry: Option<ErrorHandlerType>,
+) -> Result<TeslaClient, TeslaError> {
     let mut headers = reqwest::header::HeaderMap::new();
     let key = format!("Bearer {}", access_token);
     let mut auth_value = match reqwest::header::HeaderValue::from_str(&key) {
@@ -177,7 +178,10 @@ pub fn get_tesla_client(access_token: &str) -> Result<reqwest::Client, TeslaErro
         .default_headers(headers)
         .build()?;
 
-    Ok(client)
+    Ok(TeslaClient {
+        client,
+        handle_token_expiry,
+    })
 }
 
 // TODO: merge this with the VehicleData struct in vehicle_data.rs
@@ -199,26 +203,31 @@ pub struct Vehicles {
     pub backseat_token_updated_at: Option<i32>,
 }
 
-pub async fn get_vehicles(client: &reqwest::Client) -> Result<Vec<Vehicles>, TeslaError> {
+pub async fn get_vehicles(tesla: &mut TeslaClient) -> Result<Vec<Vehicles>, TeslaError> {
     log::debug!("Getting list of vehicles");
-    let res = client.get(format!("{}/products", get_base_url())).send().await?;
+    let res = tesla
+        .client
+        .get(format!("{}/products", get_base_url()))
+        .send()
+        .await?;
     log::debug!("Received response: {:?}", res);
-    read_response_json!(res, Vec<Vehicles>)
+    read_response_json!(res, Vec<Vehicles>, tesla)
 }
 
 /*
  * id: value of `get_vehicles().id` field and not the `vehicle_id` field
 */
-pub async fn get_vehicle_data(client: &reqwest::Client, id: u64) -> Result<String, TeslaError> {
+pub async fn get_vehicle_data(tesla: &mut TeslaClient, id: u64) -> Result<String, TeslaError> {
     log::debug!("Getting vehicle data");
-    let res = client
+    let res = tesla
+        .client
         .get(format!("{}/vehicles/{id}/vehicle_data", get_base_url()))
         .query(&[("endpoints", "charge_state;climate_state;closures_state;drive_state;gui_settings;location_data;vehicle_config;vehicle_state;vehicle_data_combo")])
         .send()
         .await?;
 
     log::debug!("Received response: {:?}", res);
-    Ok(read_response_json!(res, serde_json::Value)?.to_string())
+    Ok(read_response_json!(res, serde_json::Value, tesla)?.to_string())
 }
 
 pub struct Vehicle;

@@ -14,3 +14,5 @@ chipmunk_container
 chipmunk_docker
 dist
 .idea
+
+rustc-ice*
