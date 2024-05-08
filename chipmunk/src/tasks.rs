@@ -412,12 +412,25 @@ async fn web_server_task(
 /// Receive config messages from other tasks and re-broadcast the messages to make it available to
 /// all tasks
 async fn config_task(
+    pool: &sqlx::PgPool,
     mut to_config_rx: broadcast::Receiver<Config>,
     config_tx: watch::Sender<Config>,
     cancellation_token: CancellationToken,
 ) {
     use broadcast::error::*;
     let name = "config_task";
+
+    match Settings::db_get_last(pool).await {
+        Ok(settings) => {
+            if let Err(e) = config_tx.send(Config::LoggingPeriodMs(settings.logging_period_ms)) {
+                log::error!("Error sending configuration: {e}");
+            }
+        }
+        Err(e) => {
+            log::error!("{e}. Settings not updated");
+        }
+    }
+
     loop {
         match to_config_rx.recv().await {
             Ok(config) => {
@@ -481,27 +494,29 @@ pub async fn run(env: &EnvVars, pool: &sqlx::PgPool) -> anyhow::Result<()> {
         Some(Box::new(move || handle_token_expiry(&pool_clone))),
     )?;
 
-    let settings = Settings::db_get_last(pool).await?;
-
-    if let Err(e) = config_tx.send(Config::LoggingPeriodMs(settings.logging_period_ms)) {
-        log::error!("Error sending configuration: {e}");
-    }
-
     // Starts web server and use the processed data to show logging status to the user
     let web_server_task_handle = {
         let config_rx = config_tx.subscribe();
         let cancellation_token = cancellation_token.clone();
         let http_port = env.http_port;
         task_tracker.spawn(async move {
-            web_server_task(data_rx, config_rx, to_config_tx, cancellation_token, http_port).await;
+            web_server_task(
+                data_rx,
+                config_rx,
+                to_config_tx,
+                cancellation_token,
+                http_port,
+            )
+            .await;
         })
     };
 
     // Starts web server and use the processed data to show logging status to the user
     let config_task_handle = {
+        let pool_clone = pool.clone();
         let cancellation_token = cancellation_token.clone();
         task_tracker.spawn(async move {
-            config_task(to_config_rx, config_tx, cancellation_token).await;
+            config_task(&pool_clone, to_config_rx, config_tx, cancellation_token).await;
         })
     };
 
@@ -536,7 +551,6 @@ pub async fn run(env: &EnvVars, pool: &sqlx::PgPool) -> anyhow::Result<()> {
             ids
         }
     };
-
 
     // Transmits streaming data
     let data_stream_task_handle = {
