@@ -458,7 +458,7 @@ async fn config_task(
 }
 
 fn handle_token_expiry(_pool: &sqlx::PgPool) {
-    log::error!("TOKEN EXPIRED");
+    log::info!("Running `handle_token_expiry` callback");
 }
 
 pub async fn run(env: &EnvVars, pool: &sqlx::PgPool) -> anyhow::Result<()> {
@@ -490,9 +490,9 @@ pub async fn run(env: &EnvVars, pool: &sqlx::PgPool) -> anyhow::Result<()> {
 
     let pool_clone = pool.clone();
     let mut tesla_client = tesla_api::get_tesla_client(
-        &tokens.access_token,
+        &tokens.refresh_token,
         Some(Box::new(move || handle_token_expiry(&pool_clone))),
-    )?;
+    ).await?;
 
     // Starts web server and use the processed data to show logging status to the user
     let web_server_task_handle = {
@@ -511,7 +511,6 @@ pub async fn run(env: &EnvVars, pool: &sqlx::PgPool) -> anyhow::Result<()> {
         })
     };
 
-    // Starts web server and use the processed data to show logging status to the user
     let config_task_handle = {
         let pool_clone = pool.clone();
         let cancellation_token = cancellation_token.clone();
@@ -528,8 +527,7 @@ pub async fn run(env: &EnvVars, pool: &sqlx::PgPool) -> anyhow::Result<()> {
                 // Wait for the user to supply auth token via the web interface
                 log::info!("Waiting for auth token from user. Enter the token using the web interface");
                 config_rx.mark_unchanged(); // Mark the current value as seen to prevent the
-                // `changed()` function from returning immediately when it was called the first
-                // time
+                // `changed()` function from returning immediately when it was called the first time
                 config_rx.changed().await?;
                 let Config::AccessToken(ref refresh_token) = *config_rx.borrow_and_update() else {
                     continue;
@@ -538,9 +536,9 @@ pub async fn run(env: &EnvVars, pool: &sqlx::PgPool) -> anyhow::Result<()> {
 
                 let pool_clone = pool.clone();
                 tesla_client = tesla_api::get_tesla_client(
-                    &tokens.access_token,
+                    &tokens.refresh_token,
                     Some(Box::new(move || handle_token_expiry(&pool_clone))),
-                )?;
+                ).await?;
 
                 let Some(_ids) = get_ids(&mut tesla_client).await else {
                     continue;

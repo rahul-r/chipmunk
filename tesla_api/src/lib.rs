@@ -17,6 +17,7 @@ type ErrorHandlerType = Box<dyn FnMut() + Send + Sync>;
 
 pub struct TeslaClient {
     client: reqwest::Client,
+    refresh_token: String,
     handle_token_expiry: Option<ErrorHandlerType>,
 }
 
@@ -142,6 +143,9 @@ macro_rules! parse_error {
                             log::error!("Callback is None");
                         }
 
+                        log::info!("Access token expired, refreshing..");
+                        $tesla.client = get_tesla_client(&$tesla.refresh_token, None).await?.client;
+
                         return Err(TeslaError::TokenExpired(format!(
                             "Status code `{}` received",
                             TeslaResponseCode::UNAUTHORIZED
@@ -161,12 +165,15 @@ macro_rules! parse_error {
     }};
 }
 
-pub fn get_tesla_client(
-    access_token: &str,
+pub async fn get_tesla_client(
+    refresh_token: &str,
     handle_token_expiry: Option<ErrorHandlerType>,
 ) -> Result<TeslaClient, TeslaError> {
     let mut headers = reqwest::header::HeaderMap::new();
-    let key = format!("Bearer {}", access_token);
+
+    let tokens = auth::refresh_access_token(refresh_token).await?;
+    let key = format!("Bearer {}", tokens.access_token);
+
     let mut auth_value = match reqwest::header::HeaderValue::from_str(&key) {
         Ok(value) => value,
         Err(e) => return Err(TeslaError::InvalidHeader(e)),
@@ -180,6 +187,7 @@ pub fn get_tesla_client(
 
     Ok(TeslaClient {
         client,
+        refresh_token: refresh_token.into(),
         handle_token_expiry,
     })
 }
