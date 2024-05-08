@@ -97,7 +97,7 @@ To make this the default, add it to `.env` file. cargo sqlx prepare will still d
 ## Testing
 `cargo test` will run tests parallely in different threads. Some of the tests in this project uses shared resources (database, http server, etc.) and will fail `cargo test`. One option is to run the tests sequentially which will take a long time to run the tests.
 
-Altranativels, we can use test frameworks like cargo-nextest to run the tests parallely without interferring with each other.
+Alternatively, we can use test frameworks like cargo-nextest to run the tests parallely without interferring with each other.
 
 ```shell
 cargo install cargo-nextest
