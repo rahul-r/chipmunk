@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{auth_url, TeslaError};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AuthResponse {
     pub access_token: String,
     pub refresh_token: String,

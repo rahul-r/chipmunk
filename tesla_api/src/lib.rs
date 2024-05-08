@@ -1,3 +1,4 @@
+use auth::AuthResponse;
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 
@@ -17,7 +18,7 @@ type ErrorHandlerType = Box<dyn FnMut() + Send + Sync>;
 
 pub struct TeslaClient {
     client: reqwest::Client,
-    refresh_token: String,
+    tokens: AuthResponse,
     handle_token_expiry: Option<ErrorHandlerType>,
 }
 
@@ -55,6 +56,8 @@ pub enum TeslaError {
     JsonDecodeError(serde_json::Error),
     #[error("Chipmunk code test in progress")]
     TestInProgress,
+    #[error("{0}, retry")]
+    Retry(String),
 }
 
 impl From<url::ParseError> for TeslaError {
@@ -144,12 +147,9 @@ macro_rules! parse_error {
                         }
 
                         log::info!("Access token expired, refreshing..");
-                        $tesla.client = get_tesla_client(&$tesla.refresh_token, None).await?.client;
-
-                        return Err(TeslaError::TokenExpired(format!(
-                            "Status code `{}` received",
-                            TeslaResponseCode::UNAUTHORIZED
-                        )));
+                        let tokens = auth::refresh_access_token(&$tesla.tokens.refresh_token).await?;
+                        $tesla.client = get_tesla_client(tokens, None)?.client;
+                        return Err(TeslaError::Retry("Access token refreshed".into()));
                     }
                     TeslaResponseCode::DEVICE_NOT_AVAILABLE => Err(TeslaError::NotOnline), // Vehicle is not online
                     other_code => Err(TeslaError::ApiError(other_code))
@@ -165,15 +165,12 @@ macro_rules! parse_error {
     }};
 }
 
-pub async fn get_tesla_client(
-    refresh_token: &str,
+pub fn get_tesla_client(
+    tokens: AuthResponse,
     handle_token_expiry: Option<ErrorHandlerType>,
 ) -> Result<TeslaClient, TeslaError> {
     let mut headers = reqwest::header::HeaderMap::new();
-
-    let tokens = auth::refresh_access_token(refresh_token).await?;
     let key = format!("Bearer {}", tokens.access_token);
-
     let mut auth_value = match reqwest::header::HeaderValue::from_str(&key) {
         Ok(value) => value,
         Err(e) => return Err(TeslaError::InvalidHeader(e)),
@@ -187,7 +184,7 @@ pub async fn get_tesla_client(
 
     Ok(TeslaClient {
         client,
-        refresh_token: refresh_token.into(),
+        tokens,
         handle_token_expiry,
     })
 }

@@ -247,6 +247,7 @@ async fn data_polling_task(
                     TeslaError::RequestTimeout => log::info!("Timeout"),
                     TeslaError::InvalidResponse(ref msg) => log::error!("Error: `{e}` - {msg}"),
                     TeslaError::TestInProgress => log::info!("{e}"),
+                    TeslaError::Retry(e) => log::info!("{e}"),
                 }
                 tokio::time::sleep(Duration::from_millis(logging_period_ms as u64)).await;
                 continue;
@@ -474,13 +475,7 @@ pub async fn run(env: &EnvVars, pool: &sqlx::PgPool) -> anyhow::Result<()> {
     let cancellation_token = CancellationToken::new();
     let task_tracker = TaskTracker::new();
 
-    let tokens_from_db = Token::db_get_last(pool, &env.encryption_key).await?;
-    // TODO: Refresh token only if already expired
-    // let tokens = tesla_api::auth::refresh_access_token(&tokens_from_db.refresh_token).await?;
-    // if let Err(e) = Token::db_insert(pool, &tokens, &env.encryption_key).await {
-    //     log::error!("Error inserting refreshed tokens into the database: {e:?}");
-    // }
-    let tokens = tokens_from_db;
+    let tokens = Token::db_get_last(pool, &env.encryption_key).await?;
 
     // channel to pass around system settings
     let (config_tx, mut config_rx) =
@@ -490,9 +485,9 @@ pub async fn run(env: &EnvVars, pool: &sqlx::PgPool) -> anyhow::Result<()> {
 
     let pool_clone = pool.clone();
     let mut tesla_client = tesla_api::get_tesla_client(
-        &tokens.refresh_token,
+        tokens.clone(),
         Some(Box::new(move || handle_token_expiry(&pool_clone))),
-    ).await?;
+    )?;
 
     // Starts web server and use the processed data to show logging status to the user
     let web_server_task_handle = {
@@ -536,9 +531,9 @@ pub async fn run(env: &EnvVars, pool: &sqlx::PgPool) -> anyhow::Result<()> {
 
                 let pool_clone = pool.clone();
                 tesla_client = tesla_api::get_tesla_client(
-                    &tokens.refresh_token,
+                    tokens.clone(),
                     Some(Box::new(move || handle_token_expiry(&pool_clone))),
-                ).await?;
+                )?;
 
                 let Some(_ids) = get_ids(&mut tesla_client).await else {
                     continue;
@@ -654,6 +649,7 @@ async fn get_ids(tesla_client: &mut TeslaClient) -> Option<(u64, u64)> {
         Err(e) => {
             match e {
                 TeslaError::TokenExpired(_) => (),
+                TeslaError::Retry(e) => log::warn!("{e}"),
                 e => log::error!("Error: {e}"),
             }
             None
