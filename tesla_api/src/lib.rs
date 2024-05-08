@@ -14,6 +14,8 @@ const BASE_URL: &str = "https://owner-api.teslamotors.com/api/1";
 const AUTH_URL: &str = "https://auth.tesla.com/oauth2/v3/token";
 const STREAMING_URL: &str = "wss://streaming.vn.teslamotors.com/streaming/";
 
+const NUM_RETRY: u8 = 2;
+
 type ErrorHandlerType = Box<dyn FnMut() + Send + Sync>;
 
 pub struct TeslaClient {
@@ -209,6 +211,27 @@ pub struct Vehicles {
 }
 
 pub async fn get_vehicles(tesla: &mut TeslaClient) -> Result<Vec<Vehicles>, TeslaError> {
+    let mut retry_count = NUM_RETRY;
+    loop {
+        match get_vehicles_local(tesla).await {
+            Ok(v) => return Ok(v),
+            Err(e) => match e {
+                TeslaError::Retry(e) => {
+                    log::warn!("{e}, retry #{}", NUM_RETRY - retry_count + 1);
+                    if retry_count > 0 {
+                        retry_count -= 1;
+                        continue;
+                    } else {
+                        return Err(TeslaError::Retry(e));
+                    }
+                }
+                e => return Err(e)
+            }
+        }
+    }
+}
+
+async fn get_vehicles_local(tesla: &mut TeslaClient) -> Result<Vec<Vehicles>, TeslaError> {
     log::debug!("Getting list of vehicles");
     let res = tesla
         .client
@@ -219,10 +242,31 @@ pub async fn get_vehicles(tesla: &mut TeslaClient) -> Result<Vec<Vehicles>, Tesl
     read_response_json!(res, Vec<Vehicles>, tesla)
 }
 
+pub async fn get_vehicle_data(tesla: &mut TeslaClient, id: u64) -> Result<String, TeslaError> {
+    let mut retry_count = NUM_RETRY;
+    loop {
+        match get_vehicle_data_local(tesla, id).await {
+            Ok(v) => return Ok(v),
+            Err(e) => match e {
+                TeslaError::Retry(e) => {
+                    log::warn!("{e}, retry #{}", NUM_RETRY - retry_count + 1);
+                    if retry_count > 0 {
+                        retry_count -= 1;
+                        continue;
+                    } else {
+                        return Err(TeslaError::Retry(e));
+                    }
+                }
+                e => return Err(e)
+            }
+        }
+    }
+}
+
 /*
  * id: value of `get_vehicles().id` field and not the `vehicle_id` field
 */
-pub async fn get_vehicle_data(tesla: &mut TeslaClient, id: u64) -> Result<String, TeslaError> {
+async fn get_vehicle_data_local(tesla: &mut TeslaClient, id: u64) -> Result<String, TeslaError> {
     log::debug!("Getting vehicle data");
     let res = tesla
         .client
