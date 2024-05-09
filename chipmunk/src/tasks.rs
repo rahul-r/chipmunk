@@ -472,22 +472,14 @@ pub async fn run(env: &EnvVars, pool: &sqlx::PgPool) -> anyhow::Result<()> {
     // channel to receive response from database task
     let (database_resp_tx, database_resp_rx) = mpsc::channel::<DatabaseRespType>(1);
 
-    let cancellation_token = CancellationToken::new();
-    let task_tracker = TaskTracker::new();
-
-    let tokens = Token::db_get_last(pool, &env.encryption_key).await?;
-
     // channel to pass around system settings
     let (config_tx, mut config_rx) =
-        watch::channel::<Config>(Config::AccessToken(tokens.access_token.clone()));
+        watch::channel::<Config>(Config::AccessToken("".into()));
 
     let (to_config_tx, to_config_rx) = broadcast::channel::<Config>(1);
 
-    let pool_clone = pool.clone();
-    let mut tesla_client = tesla_api::get_tesla_client(
-        tokens.clone(),
-        Some(Box::new(move || handle_token_expiry(&pool_clone))),
-    )?;
+    let cancellation_token = CancellationToken::new();
+    let task_tracker = TaskTracker::new();
 
     // Starts web server and use the processed data to show logging status to the user
     let web_server_task_handle = {
@@ -513,6 +505,43 @@ pub async fn run(env: &EnvVars, pool: &sqlx::PgPool) -> anyhow::Result<()> {
             config_task(&pool_clone, to_config_rx, config_tx, cancellation_token).await;
         })
     };
+
+    // Read tokens from the database if exists, if not, get from the user and store it in the
+    // databse
+    let tokens = match Token::db_get_last(pool, &env.encryption_key).await {
+        Ok(t) => t,
+        Err(e) => {
+            log::error!("{e}");
+            log::info!("Waiting for auth token from user. Enter the token using the web interface");
+            loop {
+                // Wait for the user to supply auth token via the web interface
+                config_rx.mark_unchanged(); // Mark the current value as seen to prevent the
+                // `changed()` function from returning immediately when it was called the first time
+                config_rx.changed().await?;
+                let Config::AccessToken(ref refresh_token) = *config_rx.borrow_and_update() else {
+                    continue;
+                };
+
+                match tesla_api::auth::refresh_access_token(refresh_token.as_str()).await {
+                    Ok(tokens) => {
+                        Token::db_insert(pool, &tokens, env.encryption_key.as_str()).await?;
+                        break;
+                    }
+                    Err(e) => {
+                        log::error!("{e}");
+                        continue;
+                    }
+                };
+            }
+            Token::db_get_last(pool, &env.encryption_key).await?
+        }
+    };
+
+    let pool_clone = pool.clone();
+    let mut tesla_client = tesla_api::get_tesla_client(
+        tokens.clone(),
+        Some(Box::new(move || handle_token_expiry(&pool_clone))),
+    )?;
 
     let (car_id, vehicle_id) = match get_ids(&mut tesla_client).await {
         Some((car_id, vehicle_id)) => (car_id, vehicle_id),
