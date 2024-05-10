@@ -71,6 +71,11 @@ impl TeslaServer {
         let mut index_html = dist_dir.clone();
         index_html.push("index.html");
 
+        if !index_html.exists() {
+            log::error!("{:?} does not exist", index_html);
+            anyhow::bail!("{:?} does not exist", index_html);
+        }
+
         // handle path "/"
         let index = warp::get()
             .and(warp::path::end())
