@@ -11,6 +11,7 @@ pub mod logger;
 pub mod openstreetmap;
 pub mod utils;
 pub mod tasks;
+pub mod config;
 
 pub const DELAYED_DATAPOINT_TIME_SEC: i64 = 10 * 60;
 

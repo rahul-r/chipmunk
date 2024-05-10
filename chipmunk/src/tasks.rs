@@ -1,9 +1,8 @@
 use std::time::Duration;
 
-use crate::database::tables::settings::Settings;
+use crate::config::{Config, ConfigItem};
 use crate::database::tables::token::Token;
 use crate::database::tables::Tables;
-use crate::database::DBTable;
 use crate::logger::{create_tables, get_car_id};
 use crate::{database, EnvVars};
 use backend::server::{MpscTopic, TeslaServer};
@@ -11,7 +10,7 @@ use tesla_api::stream::StreamingData;
 use tesla_api::vehicle_data::VehicleData;
 use tesla_api::{TeslaClient, TeslaError};
 use tokio::sync::mpsc::{self, unbounded_channel};
-use tokio::sync::{broadcast, oneshot, watch};
+use tokio::sync::{broadcast, oneshot};
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::TaskTracker;
 
@@ -31,18 +30,12 @@ enum DatabaseRespType {
     Tables(Tables),
 }
 
-#[derive(Debug, Clone)]
-enum Config {
-    AccessToken(String),
-    LoggingPeriodMs(i32),
-}
-
 async fn data_processor_task(
     mut vehicle_data_rx: mpsc::Receiver<DataTypes>,
     processed_data_tx: broadcast::Sender<Tables>,
     database_tx: mpsc::Sender<DatabaseDataType>,
     mut database_resp_rx: mpsc::Receiver<DatabaseRespType>,
-    _config_rx: watch::Receiver<Config>,
+    _config: Config,
     cancellation_token: CancellationToken,
     pool: &sqlx::PgPool,
 ) {
@@ -134,24 +127,20 @@ async fn data_processor_task(
 
 async fn data_streaming_task(
     data_tx: mpsc::Sender<DataTypes>,
-    mut config_rx: watch::Receiver<Config>,
+    config: Config,
     cancellation_token: CancellationToken,
     vehicle_id: u64,
 ) {
     use mpsc::error::*;
     let name = "data_stream_task";
     let (streaming_data_tx, mut streaming_data_rx) = tokio::sync::mpsc::channel::<StreamingData>(1);
-    let mut access_token = "".to_string();
-    // TODO: Use the default access token if the config_rx is not available instead of
-    // throwing error and breaking out of the loop
-    if let Ok(true) = config_rx.has_changed() {
-        access_token = match *config_rx.borrow_and_update() {
-            Config::AccessToken(ref at) => at.clone(),
-            _ => "".to_string(),
-        }
-    }
 
-    let access_token = access_token.to_string();
+    let ConfigItem::AccessToken(access_token) = config.get(&ConfigItem::AccessToken("".into()))
+    else {
+        log::error!("Invalid access token");
+        return;
+    };
+
     let streaming_data_tx = streaming_data_tx.clone();
     let cancellation_token_clone = cancellation_token.clone();
     let streaming_task = tokio::task::spawn_blocking(async move || {
@@ -201,7 +190,7 @@ async fn data_streaming_task(
 
 async fn data_polling_task(
     data_tx: mpsc::Sender<DataTypes>,
-    config_rx: watch::Receiver<Config>,
+    config: Config,
     cancellation_token: CancellationToken,
     mut tesla_client: TeslaClient,
     car_id: u64,
@@ -213,10 +202,11 @@ async fn data_polling_task(
             break;
         }
 
-        // TODO: Use the default logging period if the config_rx is not available instead of
-        // throwing error and breaking out of the loop
-        let Config::LoggingPeriodMs(logging_period_ms) = *config_rx.borrow() else {
-            log::error!("Error: cannot get logging period from config_rx");
+        let ConfigItem::LoggingPeriodMs(logging_period_ms) =
+            config.get(&ConfigItem::LoggingPeriodMs(0))
+        else {
+            // TODO: Use the default logging period if the config_rx is not available instead of
+            // breaking out of the loop
             break;
         };
 
@@ -265,7 +255,7 @@ async fn data_polling_task(
 async fn database_task(
     mut data_rx: mpsc::Receiver<DatabaseDataType>,
     data_resp_tx: mpsc::Sender<DatabaseRespType>,
-    _config_rx: watch::Receiver<Config>,
+    _config: Config,
     cancellation_token: CancellationToken,
     pool: &sqlx::PgPool,
 ) {
@@ -314,8 +304,7 @@ async fn database_task(
 
 async fn web_server_task(
     mut data_rx: broadcast::Receiver<Tables>,
-    _config_rx: watch::Receiver<Config>,
-    config_tx: broadcast::Sender<Config>,
+    mut config: Config,
     cancellation_token: CancellationToken,
     http_port: u16,
 ) {
@@ -338,19 +327,14 @@ async fn web_server_task(
                         // }
                     }
                     MpscTopic::RefreshToken(refresh_token) => {
-                        if let Err(e) = config_tx.send(Config::AccessToken(refresh_token.clone())) {
-                            log::error!("Error sending configuration: {e}");
-                        }
-                        let _tokens =
-                            match tesla_api::auth::refresh_access_token(refresh_token.as_str())
+                        if let Err(e) =
+                            tesla_api::auth::refresh_access_token(refresh_token.as_str())
                                 .await
-                            {
-                                Ok(t) => t,
-                                Err(e) => {
-                                    log::error!("{e}");
-                                    continue;
-                                }
-                            };
+                                .map(|t| config.set(ConfigItem::AccessToken(t.access_token)))
+                        {
+                            log::error!("{e}");
+                            continue;
+                        }
 
                         // TODO: Send token to database task
                         // let encryption_key = env.encryption_key.clone();
@@ -410,54 +394,6 @@ async fn web_server_task(
     tracing::warn!("exiting {name}");
 }
 
-/// Receive config messages from other tasks and re-broadcast the messages to make it available to
-/// all tasks
-async fn config_task(
-    pool: &sqlx::PgPool,
-    mut to_config_rx: broadcast::Receiver<Config>,
-    config_tx: watch::Sender<Config>,
-    cancellation_token: CancellationToken,
-) {
-    use broadcast::error::*;
-    let name = "config_task";
-
-    match Settings::db_get_last(pool).await {
-        Ok(settings) => {
-            if let Err(e) = config_tx.send(Config::LoggingPeriodMs(settings.logging_period_ms)) {
-                log::error!("Error sending configuration: {e}");
-            }
-        }
-        Err(e) => {
-            log::error!("{e}. Settings not updated");
-        }
-    }
-
-    loop {
-        match to_config_rx.recv().await {
-            Ok(config) => {
-                if let Err(e) = config_tx.send(config) {
-                    log::error!("Error sending configuration: {e}");
-                }
-            }
-            Err(RecvError::Closed) => {
-                // don't log error message if the channel was closed because of a cancellation request
-                if !cancellation_token.is_cancelled() {
-                    log::error!("data_rx channel closed, exiting {name}");
-                }
-                break;
-            }
-            Err(RecvError::Lagged(n)) => {
-                log::warn!("{name} lagged too far behind; {n} messages skipped")
-            }
-        }
-        if cancellation_token.is_cancelled() {
-            break;
-        }
-        tokio::task::yield_now().await;
-    }
-    tracing::warn!("exiting {name}");
-}
-
 fn handle_token_expiry(_pool: &sqlx::PgPool) {
     log::info!("Running `handle_token_expiry` callback");
 }
@@ -472,37 +408,18 @@ pub async fn run(env: &EnvVars, pool: &sqlx::PgPool) -> anyhow::Result<()> {
     // channel to receive response from database task
     let (database_resp_tx, database_resp_rx) = mpsc::channel::<DatabaseRespType>(1);
 
-    // channel to pass around system settings
-    let (config_tx, mut config_rx) =
-        watch::channel::<Config>(Config::AccessToken("".into()));
-
-    let (to_config_tx, to_config_rx) = broadcast::channel::<Config>(1);
+    let mut config = Config::new();
 
     let cancellation_token = CancellationToken::new();
     let task_tracker = TaskTracker::new();
 
     // Starts web server and use the processed data to show logging status to the user
     let web_server_task_handle = {
-        let config_rx = config_tx.subscribe();
+        let config = config.clone();
         let cancellation_token = cancellation_token.clone();
         let http_port = env.http_port;
         task_tracker.spawn(async move {
-            web_server_task(
-                data_rx,
-                config_rx,
-                to_config_tx,
-                cancellation_token,
-                http_port,
-            )
-            .await;
-        })
-    };
-
-    let config_task_handle = {
-        let pool_clone = pool.clone();
-        let cancellation_token = cancellation_token.clone();
-        task_tracker.spawn(async move {
-            config_task(&pool_clone, to_config_rx, config_tx, cancellation_token).await;
+            web_server_task(data_rx, config, cancellation_token, http_port).await;
         })
     };
 
@@ -513,14 +430,19 @@ pub async fn run(env: &EnvVars, pool: &sqlx::PgPool) -> anyhow::Result<()> {
         Err(e) => {
             log::error!("{e}");
             log::info!("Waiting for auth token from user. Enter the token using the web interface");
+
+            // Wait for the user to supply auth token via the web interface
+            config.set(ConfigItem::RefreshToken("".into()));
             loop {
-                // Wait for the user to supply auth token via the web interface
-                config_rx.mark_unchanged(); // Mark the current value as seen to prevent the
-                // `changed()` function from returning immediately when it was called the first time
-                config_rx.changed().await?;
-                let Config::AccessToken(ref refresh_token) = *config_rx.borrow_and_update() else {
+                tokio::time::sleep(Duration::from_millis(100)).await;
+                let ConfigItem::RefreshToken(refresh_token) =
+                    config.get(&ConfigItem::RefreshToken("".into()))
+                else {
                     continue;
                 };
+                if refresh_token.is_empty() {
+                    continue;
+                }
 
                 match tesla_api::auth::refresh_access_token(refresh_token.as_str()).await {
                     Ok(tokens) => {
@@ -545,54 +467,28 @@ pub async fn run(env: &EnvVars, pool: &sqlx::PgPool) -> anyhow::Result<()> {
 
     let (car_id, vehicle_id) = match get_ids(&mut tesla_client).await {
         Some((car_id, vehicle_id)) => (car_id, vehicle_id),
-        None => {
-            let ids;
-            loop {
-                // Wait for the user to supply auth token via the web interface
-                log::info!("Waiting for auth token from user. Enter the token using the web interface");
-                config_rx.mark_unchanged(); // Mark the current value as seen to prevent the
-                // `changed()` function from returning immediately when it was called the first time
-                config_rx.changed().await?;
-                let Config::AccessToken(ref refresh_token) = *config_rx.borrow_and_update() else {
-                    continue;
-                };
-                log::warn!("Token received: {refresh_token}");
-
-                let pool_clone = pool.clone();
-                tesla_client = tesla_api::get_tesla_client(
-                    tokens.clone(),
-                    Some(Box::new(move || handle_token_expiry(&pool_clone))),
-                )?;
-
-                let Some(_ids) = get_ids(&mut tesla_client).await else {
-                    continue;
-                };
-                ids = _ids;
-                break;
-            }
-            ids
-        }
+        None => anyhow::bail!("Cannot read vehicle IDs"),
     };
 
     // Transmits streaming data
     let data_stream_task_handle = {
         let vehicle_data_tx = vehicle_data_tx.clone();
-        let config_rx = config_rx.clone();
+        let config = config.clone();
         let cancellation_token = cancellation_token.clone();
         task_tracker.spawn(async move {
-            data_streaming_task(vehicle_data_tx, config_rx, cancellation_token, vehicle_id).await;
+            data_streaming_task(vehicle_data_tx, config, cancellation_token, vehicle_id).await;
         })
     };
 
     // Transmits polling data
     let data_polling_task_handle = {
         let vehicle_data_tx = vehicle_data_tx.clone();
-        let config_rx = config_rx.clone();
+        let config = config.clone();
         let cancellation_token = cancellation_token.clone();
         task_tracker.spawn(async move {
             data_polling_task(
                 vehicle_data_tx,
-                config_rx,
+                config,
                 cancellation_token,
                 tesla_client,
                 car_id,
@@ -605,7 +501,7 @@ pub async fn run(env: &EnvVars, pool: &sqlx::PgPool) -> anyhow::Result<()> {
     let data_processor_task_handle = {
         let cancellation_token = cancellation_token.clone();
         let data_tx = processed_data_tx.clone();
-        let config_rx = config_rx.clone();
+        let config = config.clone();
         let database_tx = database_tx.clone();
         let pool = pool.clone();
         task_tracker.spawn(async move {
@@ -614,7 +510,7 @@ pub async fn run(env: &EnvVars, pool: &sqlx::PgPool) -> anyhow::Result<()> {
                 data_tx,
                 database_tx,
                 database_resp_rx,
-                config_rx,
+                config,
                 cancellation_token,
                 &pool,
             )
@@ -624,13 +520,13 @@ pub async fn run(env: &EnvVars, pool: &sqlx::PgPool) -> anyhow::Result<()> {
 
     let database_task_handle = {
         let cancellation_token = cancellation_token.clone();
-        let config_rx = config_rx.clone();
+        let config = config.clone();
         let pool = pool.clone();
         task_tracker.spawn(async move {
             database_task(
                 database_rx,
                 database_resp_tx,
-                config_rx,
+                config,
                 cancellation_token,
                 &pool,
             )
@@ -644,7 +540,6 @@ pub async fn run(env: &EnvVars, pool: &sqlx::PgPool) -> anyhow::Result<()> {
     // Wait for any one of the tasks to exit
     tokio::select! {
         status = data_processor_task_handle => tracing::info!("logger task done: {:?}", status),
-        status = config_task_handle => tracing::info!("config task done: {:?}", status),
         status = data_stream_task_handle => tracing::info!("data stream task done: {:?}", status),
         status = data_polling_task_handle => tracing::info!("data polling task done: {:?}", status),
         status = database_task_handle => tracing::info!("database task done: {:?}", status),
