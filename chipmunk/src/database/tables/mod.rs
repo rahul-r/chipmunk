@@ -232,7 +232,7 @@ impl Tables {
         // If it was logged more than DELAYED_DATAPOINT_TIME_SEC seconds ago, return None to create a new charging process
         let charging_process = ChargingProcess::db_get_last(pool)
             .await
-            .map_err(|e| log::warn!("{e}"))
+            .map_err(|e| log::warn!("ChargingProcess: {e}"))
             .map(|cp| {
                 cp.end_date
                     .map(|end_time| time_now - end_time)
