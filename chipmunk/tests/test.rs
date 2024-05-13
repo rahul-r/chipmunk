@@ -13,6 +13,7 @@ use chipmunk::database::tables::position::Position;
 use chipmunk::database::tables::settings::Settings;
 use chipmunk::database::tables::state::{StateStatus, State};
 use rand::Rng;
+use tesla_api::auth::AuthResponse;
 use tokio::time::Duration;
 use tokio::time::sleep;
 
@@ -189,14 +190,15 @@ pub async fn test_tesla_mock() {
 
     let _tesla_mock = create_mock_tesla_server(data.clone(), Arc::new(Mutex::new(true))).await; // Assign the return value to a variable to keep the server alive
 
-    let client = tesla_api::get_tesla_client("").unwrap();
+    let tokens = AuthResponse::default();
+    let mut client = tesla_api::get_tesla_client(tokens, None).unwrap();
 
     data.lock().unwrap().drive_state.as_mut().unwrap().timestamp = Some(1234);
-    let res1 = tesla_api::get_vehicle_data(&client, 1).await.unwrap();
+    let res1 = tesla_api::get_vehicle_data(&mut client, 1).await.unwrap();
     let vd1 = VehicleData::from_response_json(&res1).unwrap();
 
     data.lock().unwrap().drive_state.as_mut().unwrap().timestamp = Some(4321);
-    let res2 = tesla_api::get_vehicle_data(&client, 1).await.unwrap();
+    let res2 = tesla_api::get_vehicle_data(&mut client, 1).await.unwrap();
     let vd2 = VehicleData::from_response_json(&res2).unwrap();
 
     assert_eq!(vd1.drive_state.unwrap().timestamp, Some(1234));
