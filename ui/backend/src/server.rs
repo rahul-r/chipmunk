@@ -42,14 +42,19 @@ pub enum MpscTopic {
 
 pub struct TeslaServer {
     clients: Clients,
-    pub status: LoggingStatus,
+    status: LoggingStatus,
+}
+
+#[derive(Clone)]
+pub enum DataToServer {
+    LoggingStatus(LoggingStatus),
 }
 
 impl TeslaServer {
     pub async fn start(
         port: u16,
         data_from_srv_tx: mpsc::UnboundedSender<MpscTopic>,
-        mut data_to_srv_rx: broadcast::Receiver<i32>,
+        mut data_to_srv_rx: broadcast::Receiver<DataToServer>,
         exit_signal_rx: oneshot::Receiver<()>,
     ) -> anyhow::Result<Arc<Mutex<TeslaServer>>> {
         let clients = Clients::default(); // Keep track of all connected clients
@@ -104,18 +109,24 @@ impl TeslaServer {
                 Err(e) => anyhow::bail!(e),
             };
 
+        let srv = Arc::new(Mutex::new(TeslaServer {
+            clients,
+            status: LoggingStatus::default(),
+        }));
+
         let message_handler_task = {
-            let clients = clients.clone();
+            let srv_clone = srv.clone();
             tokio::task::spawn(async move {
                 loop {
                     match data_to_srv_rx.recv().await {
-                        Ok(v) => {
-                            for (&_client_id, tx) in clients.read().await.iter() {
-                                if let Err(_disconnected) = tx.send(Message::text(v.to_string())) {
-                                    log::error!("Error {_disconnected}");
+                        Ok(v) => match v {
+                            DataToServer::LoggingStatus(status) => {
+                                match TeslaServer::get_status_str_1(status) {
+                                    Ok(s) => srv_clone.lock().await.broadcast(s).await,
+                                    Err(e) => log::error!("{e}"),
                                 }
                             }
-                        }
+                        },
                         Err(e) => {
                             log::warn!("{e}");
                             break;
@@ -125,24 +136,32 @@ impl TeslaServer {
             })
         };
 
+        // let srv_clone = srv.clone();
+        // let status_reporter = tokio::task::spawn(async move {
+        //     loop {
+        //         let srv = srv_clone.lock().await;
+        //         let msg = srv.get_status_str();
+        //         srv.broadcast(msg).await;
+        //         tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+        //     }
+        // });
+
         tokio::select! {
             _ = server => log::error!("Server exited"),
             status = message_handler_task => log::error!("Message handler exited: {status:?}"),
+            // _ = status_reporter => (),
         }
 
         tracing::error!("Exiting server task");
 
-        Ok(Arc::new(Mutex::new(TeslaServer {
-            clients,
-            status: LoggingStatus::default(),
-        })))
+        Ok(srv)
     }
 
     /// Broadcast message to all connected clients
     pub async fn broadcast(&self, msg: String) {
         for (&_client_id, tx) in self.clients.read().await.iter() {
-            if let Err(_disconnected) = tx.send(Message::text(&msg)) {
-                log::error!("Error {_disconnected}");
+            if let Err(disconnected) = tx.send(Message::text(&msg)) {
+                log::error!("Error {disconnected}");
             }
         }
     }
@@ -359,6 +378,16 @@ impl TeslaServer {
             },
         };
         msg.to_string().unwrap()
+    }
+
+    pub fn get_status_str_1(status: LoggingStatus) -> anyhow::Result<String> {
+        let msg = WsMessage {
+            id: Uuid::new_v4().to_string(),
+            r#type: MessageType::Response,
+            topic: Topic::LoggingStatus,
+            data: Some(status.to_value()?),
+        };
+        msg.to_string()
     }
 
     pub fn set_logging_status(&mut self, status: bool) {

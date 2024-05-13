@@ -348,6 +348,7 @@ dependencies = [
  "tokio-util",
  "tracing",
  "tracing-subscriber",
+ "ui_common",
 ]
 
 [[package]]

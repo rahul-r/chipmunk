@@ -3,23 +3,25 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub enum ConfigItem {
     #[default]
     None,
     AccessToken(String),
     RefreshToken(String),
     LoggingPeriodMs(i32),
+    LoggingEnabled(bool),
 }
 use ConfigItem as ci;
 
 impl ConfigItem {
     pub fn name(&self) -> &str {
         match self {
+            Self::None => "None",
             Self::AccessToken(_) => "AccessToken",
             Self::RefreshToken(_) => "RefreshToken",
             Self::LoggingPeriodMs(_) => "LoggingPeriodMs",
-            Self::None => "None",
+            Self::LoggingEnabled(_) => "LoggingEnabled",
         }
     }
 }
@@ -28,6 +30,7 @@ struct Fields {
     pub access_token: String,
     pub refresh_token: String,
     pub logging_period_ms: i32,
+    pub logging_enabled: bool,
 }
 
 type HandlerType = Box<dyn Fn(ConfigItem) + Send>;
@@ -51,6 +54,7 @@ impl Config {
                 access_token: "".to_string(),
                 refresh_token: "".to_string(),
                 logging_period_ms: 1000,
+                logging_enabled: true,
             })),
             handlers: Arc::new(Mutex::new(HashMap::new())),
         }
@@ -93,6 +97,7 @@ impl Config {
             ci::AccessToken(_) => ConfigItem::AccessToken(configs.access_token.clone()),
             ci::RefreshToken(_) => ConfigItem::RefreshToken(configs.refresh_token.clone()),
             ci::LoggingPeriodMs(_) => ConfigItem::LoggingPeriodMs(configs.logging_period_ms),
+            ci::LoggingEnabled(_) => ConfigItem::LoggingEnabled(configs.logging_enabled),
         }
     }
 
@@ -110,6 +115,7 @@ impl Config {
             ci::AccessToken(v) => configs.access_token = v,
             ci::RefreshToken(v) => configs.refresh_token = v,
             ci::LoggingPeriodMs(v) => configs.logging_period_ms = v,
+            ci::LoggingEnabled(v) => configs.logging_enabled = v,
         }
 
         self.emit(item);

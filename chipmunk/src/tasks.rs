@@ -5,7 +5,7 @@ use crate::database::tables::token::Token;
 use crate::database::tables::Tables;
 use crate::logger::{create_tables, get_car_id};
 use crate::{database, EnvVars};
-use backend::server::{MpscTopic, TeslaServer};
+use backend::server::{DataToServer, MpscTopic, TeslaServer};
 use tesla_api::stream::StreamingData;
 use tesla_api::vehicle_data::VehicleData;
 use tesla_api::{TeslaClient, TeslaError};
@@ -13,6 +13,7 @@ use tokio::sync::mpsc::{self, unbounded_channel};
 use tokio::sync::{broadcast, oneshot};
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::TaskTracker;
+use ui_common::LoggingStatus;
 
 #[derive(Debug, Clone)]
 enum DataTypes {
@@ -202,6 +203,11 @@ async fn data_polling_task(
             break;
         }
 
+        if config.get(&ConfigItem::LoggingEnabled(false)) == ConfigItem::LoggingEnabled(false) {
+            tokio::time::sleep(Duration::from_secs(1)).await;
+            continue;
+        }
+
         let ConfigItem::LoggingPeriodMs(logging_period_ms) =
             config.get(&ConfigItem::LoggingPeriodMs(0))
         else {
@@ -313,19 +319,15 @@ async fn web_server_task(
 
     let (data_from_server_tx, mut data_from_server_rx) = unbounded_channel();
     let (server_exit_signal_tx, server_exit_signal_rx) = oneshot::channel();
-    let (data_to_server_tx, data_to_server_rx) = broadcast::channel::<i32>(1); // TODO: remove this channel and directly use data_rx to send data to web server
+    let (data_to_server_tx, data_to_server_rx) = broadcast::channel::<DataToServer>(1); // TODO: remove this channel and directly use data_rx to send data to web server
 
     let message_handler_task = tokio::task::spawn(async move {
         let name = format!("{name}::message_handler_task");
+        let mut logging_status = ui_common::LoggingStatus::default();
         loop {
             match data_from_server_rx.try_recv() {
                 Ok(value) => match value {
-                    MpscTopic::Logging(_value) => {
-                        // TODO: Send log start command to logger task
-                        // if let Err(e) = logger_tx.send(value) {
-                        //     log::error!("{e}");
-                        // }
-                    }
+                    MpscTopic::Logging(value) => config.set(ConfigItem::LoggingEnabled(value)),
                     MpscTopic::RefreshToken(refresh_token) => {
                         if let Err(e) =
                             tesla_api::auth::refresh_access_token(refresh_token.as_str())
@@ -353,10 +355,28 @@ async fn web_server_task(
                 },
             }
 
+            let is_logging = match config.get(&ConfigItem::LoggingEnabled(false)) {
+                ConfigItem::LoggingEnabled(v) => v,
+                _ => false,
+            };
+
             match data_rx.try_recv() {
-                Ok(_data) => {
-                    if let Err(e) = data_to_server_tx.send(1234) {
-                        // TODO: Send data to web server
+                Ok(data) => {
+                    let odometer = data.position.unwrap().odometer.unwrap() as i32;
+                    logging_status = LoggingStatus {
+                        is_logging,
+                        current_points: logging_status.current_points + 1,
+                        total_points: logging_status.total_points + 1,
+                        current_miles: odometer,
+                        total_miles: odometer,
+                        is_user_present: true,
+                        odometer,
+                        charging_status: "TBD".into(),
+                        charge_state: "TBD".into(),
+                    };
+                    if let Err(e) =
+                        data_to_server_tx.send(DataToServer::LoggingStatus(logging_status.clone()))
+                    {
                         log::error!("Error sending data to web server: {e}");
                     }
                 }
@@ -423,8 +443,7 @@ pub async fn run(env: &EnvVars, pool: &sqlx::PgPool) -> anyhow::Result<()> {
         })
     };
 
-    // Read tokens from the database if exists, if not, get from the user and store it in the
-    // databse
+    // Read tokens from the database if exists, if not, get from the user and store in the databse
     let tokens = match Token::db_get_last(pool, &env.encryption_key).await {
         Ok(t) => t,
         Err(e) => {

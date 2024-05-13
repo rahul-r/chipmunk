@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 backend.workspace = true
+ui_common.workspace = true
 tesla_api.workspace = true
 log.workspace = true
 anyhow.workspace = true
