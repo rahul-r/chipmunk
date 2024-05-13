@@ -83,6 +83,7 @@ pub async fn create_mock_tesla_server(vehicle_data: Arc<Mutex<VehicleData>>, sen
 
     let srv1 = server
         .mock("GET", "/vehicles/1/vehicle_data")
+        .match_query(mockito::Matcher::Any)
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_chunked_body(vehicle_data_response)
@@ -142,6 +143,7 @@ pub async fn create_mock_tesla_server_vec(vehicle_data: Arc<Mutex<VecDeque<Vehic
 
     let srv1 = server
         .mock("GET", "/vehicles/1/vehicle_data")
+        .match_query(mockito::Matcher::Any)
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_chunked_body(vehicle_data_response)
