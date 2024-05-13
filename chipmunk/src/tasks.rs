@@ -364,6 +364,7 @@ async fn web_server_task(
                 Ok(data) => {
                     let odometer = data.position.unwrap().odometer.unwrap() as i32;
                     logging_status = LoggingStatus {
+                        timestamp: chrono::offset::Utc::now(),
                         is_logging,
                         current_points: logging_status.current_points + 1,
                         total_points: logging_status.total_points + 1,

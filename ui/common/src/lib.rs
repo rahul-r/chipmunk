@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
 #[derive(Debug, Default, Serialize, Deserialize, PartialEq, Clone)]
@@ -103,6 +104,7 @@ impl Json for WsMessageToken {}
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct LoggingStatus {
+    pub timestamp: DateTime<Utc>,
     pub is_logging: bool,
     pub current_points: i32,
     pub total_points: i32,

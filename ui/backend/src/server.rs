@@ -4,7 +4,7 @@ use std::{
     sync::{
         atomic::{AtomicUsize, Ordering},
         Arc,
-    },
+    }, time::Duration,
 };
 
 use futures_util::{SinkExt, StreamExt, TryFutureExt};
@@ -114,42 +114,49 @@ impl TeslaServer {
             status: LoggingStatus::default(),
         }));
 
+        // Handle the messages coming from other tasks
         let message_handler_task = {
-            let srv_clone = srv.clone();
+            let srv = srv.clone();
             tokio::task::spawn(async move {
                 loop {
                     match data_to_srv_rx.recv().await {
                         Ok(v) => match v {
                             DataToServer::LoggingStatus(status) => {
-                                match TeslaServer::get_status_str_1(status) {
-                                    Ok(s) => srv_clone.lock().await.broadcast(s).await,
-                                    Err(e) => log::error!("{e}"),
-                                }
+                                srv.lock().await.set_logging_status(status);
                             }
                         },
                         Err(e) => {
                             log::warn!("{e}");
-                            break;
+                            tokio::time::sleep(Duration::from_millis(500)).await;
                         }
                     }
                 }
             })
         };
 
-        // let srv_clone = srv.clone();
-        // let status_reporter = tokio::task::spawn(async move {
-        //     loop {
-        //         let srv = srv_clone.lock().await;
-        //         let msg = srv.get_status_str();
-        //         srv.broadcast(msg).await;
-        //         tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-        //     }
-        // });
+        // Send the logging status to all connected web interface clients
+        let status_reporter = tokio::task::spawn({
+            let srv = srv.clone();
+            async move {
+                loop {
+                    let srv = srv.lock().await;
+                    // We receive the status report from the logger task in regular interval and
+                    // store it in the `status` variable. This task will read this variable and
+                    // sends it to the clients. Since the logger task only sends the status updates
+                    // if it gets data from the vehicle, there is a chance that we don't have the
+                    // latest status. Use the `timestamp` field of the status struct to determine
+                    // how old the data is.
+                    let msg = srv.get_status_str();
+                    srv.broadcast(msg).await;
+                    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+                }
+            }
+        });
 
         tokio::select! {
             _ = server => log::error!("Server exited"),
             status = message_handler_task => log::error!("Message handler exited: {status:?}"),
-            // _ = status_reporter => (),
+            _ = status_reporter => (),
         }
 
         tracing::error!("Exiting server task");
@@ -390,7 +397,7 @@ impl TeslaServer {
         msg.to_string()
     }
 
-    pub fn set_logging_status(&mut self, status: bool) {
-        self.status.is_logging = status;
+    pub fn set_logging_status(&mut self, status: LoggingStatus) {
+        self.status = status;
     }
 }
