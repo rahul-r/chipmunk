@@ -99,7 +99,7 @@ pub async fn test_missing_charging_detection() {
     let charge_end = Charges::from(&vehicle_data, 0);
     **data.lock().as_mut().unwrap() = vehicle_data;
     *send_response.lock().unwrap() = true;
-    sleep(Duration::from_secs(1)).await; // Run the logger for some time
+    sleep(Duration::from_secs(2)).await; // Run the logger for some time
     // Stop sending vehicle data
     *send_response.lock().unwrap() = false;
     wait_for_db!(pool);
@@ -284,18 +284,16 @@ pub async fn test_charging_process() {
     assert!(charging_start_time - address.inserted_at < chrono::Duration::try_seconds(2).unwrap());
 
     assert_eq!(Car::db_num_rows(&pool).await.unwrap(), 1);
-
     assert_eq!(Drive::db_num_rows(&pool).await.unwrap(), 0);
     assert_eq!(Geofence::db_num_rows(&pool).await.unwrap(), 0);
     assert_eq!(SoftwareUpdate::db_num_rows(&pool).await.unwrap(), 0);
     assert_eq!(Settings::db_num_rows(&pool).await.unwrap(), 1);
+    assert_ne!(Position::db_num_rows(&pool).await.unwrap(), 0);
 
     assert_eq!(State::db_num_rows(&pool).await.unwrap(), 1);
     let state = State::db_get_last(&pool).await.unwrap();
     assert_eq!(state.state, StateStatus::Charging);
     assert_eq!(state.start_date, ts_no_nanos(charging_start_time));
-
-    assert_ne!(Position::db_num_rows(&pool).await.unwrap(), 0);
 
     assert_ne!(Charges::db_num_rows(&pool).await.unwrap(), 0);
     let charges = Charges::db_get_all(&pool).await.unwrap();
@@ -337,7 +335,7 @@ pub async fn test_charging_process() {
     let parked_data = test_data::data_with_shift(parking_start_time, Some(P));
     **data.lock().as_mut().unwrap() = parked_data;
     *send_response.lock().unwrap() = true;
-    sleep(Duration::from_secs(1)).await; // Run the logger for some time
+    sleep(Duration::from_secs(2)).await; // Run the logger for some time
     *send_response.lock().unwrap() = false; // Tell the mock server to stop sending vehicle data
     wait_for_db!(pool);
 
