@@ -35,7 +35,7 @@ jobs:
         uses: actions-rs/cargo@v1
         if: always()
         with:
-          command: xfmt
+          command: fmt
           args: --check
       # - name: Install cargo readme
       #   uses: baptiste0928/cargo-install@v1
@@ -81,10 +81,15 @@ jobs:
      #   with:
      #     command: test
      #     args: --doc --all-features
-      - name: Install latest nextest release
-        uses: taiki-e/install-action@nextest
-      - name: Test with latest nextest release
-        uses: actions-rs/cargo@v1
-        with:
-          command: nextest
-          args: run
+      # - name: Install latest nextest release
+      #   uses: taiki-e/install-action@nextest
+      # - name: Test with latest nextest release
+      #   uses: actions-rs/cargo@v1
+      #   with:
+      #     command: nextest
+      #     args: run
+      - name: Install required cargo
+        run: cargo install nextest
+      - name: Run tests
+        run:
+          cargo nextest run
