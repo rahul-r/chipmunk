@@ -11,9 +11,9 @@ jobs:
   lint:
     name: Lint
     runs-on: ubuntu-latest
-    if: always()
     env:
       RUSTFLAGS: -D warnings
+      CARGO_TERM_COLOR: always
     steps:
       - uses: actions/checkout@v2
         with:
@@ -33,6 +33,7 @@ jobs:
           args: --all-features --all-targets
       - name: Lint (rustfmt)
         uses: actions-rs/cargo@v1
+        if: always()
         with:
           command: xfmt
           args: --check
@@ -55,35 +56,21 @@ jobs:
           - ubuntu-latest
           - macos-latest
           - windows-latest
-        # 1.54 is the MSRV
         rust-version: [ nightly ]
       fail-fast: false
     env:
       RUSTFLAGS: -D warnings
+      CARGO_TERM_COLOR: always
     steps:
       - uses: actions/checkout@v2
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-      - uses: actions-rs/toolchain@v1
+      # - uses: actions-rs/toolchain@v1
+      - uses: actions-rs/toolchain@16499b5e05bf2e26879000db0c1d13f7e13fa3af #@v1
         with:
           toolchain: ${{ matrix.rust-version }}
           override: true
       - uses: Swatinem/rust-cache@c5ed9ba6b7e1bb8aff90d43acd2f0af4990fa57c
-      # - name: Build quick-junit
-      #   uses: actions-rs/cargo@v1
-      #   with:
-      #     command: build
-      #     args: --package quick-junit
-      # - name: Build nextest-metadata
-      #   uses: actions-rs/cargo@v1
-      #   with:
-      #     command: build
-      #     args: --package nextest-metadata
-      # - name: Build cargo-nextest
-      #   uses: actions-rs/cargo@v1
-      #   with:
-      #     command: build
-      #     args: --package cargo-nextest
       - name: Build all targets with all features
         uses: actions-rs/cargo@v1
         with:
@@ -94,11 +81,6 @@ jobs:
         with:
           command: test
           args: --doc --all-features
-      # - name: Test with locally built nextest
-      #   uses: actions-rs/cargo@v1
-      #   with:
-      #     command: local-nt
-      #     args: run --all-features --profile ci
       - name: Install latest nextest release
         uses: taiki-e/install-action@nextest
       - name: Test with latest nextest release
