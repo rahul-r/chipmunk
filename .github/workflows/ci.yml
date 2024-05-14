@@ -7,6 +7,9 @@ on:
 
 name: CI
 
+env:
+  CARGO_TERM_COLOR: always
+
 jobs:
   lint:
     name: Lint
@@ -84,7 +87,7 @@ jobs:
       - name: Install nextest
         uses: taiki-e/install-action@nextest
       - name: Test with nextest
-        uses: cargo nextest run
+        run: cargo nextest run
       #   uses: actions-rs/cargo@v1
       #   with:
       #     command: nextest
