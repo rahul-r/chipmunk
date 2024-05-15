@@ -13,6 +13,8 @@ env:
   DATABASE_PASSWORD: secret_password
   DATABASE_URL: postgres://chipmunk:secret_password@db:5432/chipmunk
   HTTP_PORT: 3072
+  SQLX_OFFLINE: true
+  RUST_LOG: debug
 
 jobs:
   lint:
