@@ -103,14 +103,14 @@ jobs:
       - name: Running containers
         run: docker ps -a
       - name: Docker logs
-        run: docker logs db
+        run: docker logs
       - name: Install nextest
         uses: taiki-e/install-action@nextest
-      # - name: Test with nextest
-      #   run: cargo nextest run --nocapture
       - name: Test with nextest
-        if: always()
-        uses: actions-rs/cargo@v1
-        with:
-          command: nextest
-          args: run --nocapture
+        run: cargo nextest run --nocapture
+      # - name: Test with nextest
+      #   if: always()
+      #   uses: actions-rs/cargo@v1
+      #   with:
+      #     command: nextest
+      #     args: run --nocapture
