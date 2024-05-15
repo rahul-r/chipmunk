@@ -1,3 +1,5 @@
+#![cfg_attr(rustfmt, rustfmt_skip)]
+
 use chipmunk::database::tables::{state::{State, StateStatus}, Tables};
 use chrono::Duration;
 use tesla_api::vehicle_data::ShiftState;

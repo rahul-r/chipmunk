@@ -1,3 +1,5 @@
+#![cfg_attr(rustfmt, rustfmt_skip)]
+
 use chipmunk::database::{tables::{charges::Charges, charging_process::ChargingProcess, drive::Drive, position::Position}, Teslamate};
 use chrono::Duration;
 

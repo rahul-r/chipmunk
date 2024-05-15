@@ -1,3 +1,5 @@
+#![cfg_attr(rustfmt, rustfmt_skip)]
+
 use chipmunk::database::tables::state::StateStatus;
 use chrono::{DateTime, Utc};
 use rand::{self, Rng};

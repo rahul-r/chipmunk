@@ -1,4 +1,5 @@
 #![feature(async_closure)]
+#![cfg_attr(rustfmt, rustfmt_skip)]
 
 pub mod common;
 

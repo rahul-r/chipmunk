@@ -1,3 +1,5 @@
+#![cfg_attr(rustfmt, rustfmt_skip)]
+
 pub mod common;
 
 use chipmunk::database::tables::{state::{StateStatus, State}, Tables};

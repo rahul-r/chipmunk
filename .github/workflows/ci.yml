@@ -46,7 +46,7 @@ jobs:
         uses: actions-rs/cargo@v1
         if: always()
         with:
-          command: rustfmt
+          command: fmt
           args: --check
       # - name: Install cargo readme
       #   uses: baptiste0928/cargo-install@v1
