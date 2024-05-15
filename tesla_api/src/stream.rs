@@ -93,10 +93,10 @@ struct WebSocketResponse {
 fn parse_client_error(msg: Option<String>) -> StreamError {
     if let Some(m) = msg {
         match m.split_once(':') {
-            Some((error, data)) if error == "owner_api error" => {
+            Some(("owner_api error", data)) => {
                 StreamError::OwnerApiError(data.to_string())
             }
-            Some((error, data)) if error == "Can't validate token" => {
+            Some(("Can't validate token", data)) => {
                 StreamError::TokensExpired(data.to_string())
             }
             Some((_, _)) => StreamError::UnknownError(m),
