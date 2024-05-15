@@ -14,6 +14,8 @@ pub enum ConfigItem {
 }
 use ConfigItem as ci;
 
+use crate::database::{tables::settings::Settings, DBTable};
+
 impl ConfigItem {
     pub fn name(&self) -> &str {
         match self {
@@ -43,12 +45,6 @@ pub struct Config {
 
 impl Default for Config {
     fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl Config {
-    pub fn new() -> Self {
         Config {
             fields: Arc::new(Mutex::new(Fields {
                 access_token: "".to_string(),
@@ -57,6 +53,26 @@ impl Config {
                 logging_enabled: true,
             })),
             handlers: Arc::new(Mutex::new(HashMap::new())),
+        }
+    }
+}
+
+impl Config {
+    pub async fn new(pool: &sqlx::PgPool) -> Self {
+        match Settings::db_get_last(pool).await {
+            Ok(settings) => Config {
+                fields: Arc::new(Mutex::new(Fields {
+                    access_token: "".to_string(), // TODO: Load from database
+                    refresh_token: "".to_string(), // TODO: Load from database
+                    logging_period_ms: settings.logging_period_ms,
+                    logging_enabled: true,
+                })),
+                handlers: Arc::new(Mutex::new(HashMap::new())),
+            },
+            Err(e) => {
+                log::error!("Error loading settings from database: {e}. Using default values");
+                Self::default()
+            }
         }
     }
 

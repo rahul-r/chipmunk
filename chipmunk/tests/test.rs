@@ -10,6 +10,7 @@ use std::io::Write;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
+use chipmunk::database::tables::car::Car;
 use chipmunk::database::tables::position::Position;
 use chipmunk::database::tables::settings::Settings;
 use chipmunk::database::tables::state::{StateStatus, State};
@@ -112,7 +113,7 @@ pub fn create_drive_from_gpx() -> (Vec<VehicleData>, usize, usize) {
     (data_points, drive_start_index, drive_end_index)
 }
 
-// #[tokio::test]
+#[tokio::test]
 pub async fn check_vehicle_data() -> anyhow::Result<()> {
     chipmunk::init_log();
     let random_http_port = rand::thread_rng().gen_range(4000..60000);
@@ -129,7 +130,8 @@ pub async fn check_vehicle_data() -> anyhow::Result<()> {
     let (vehicle_data_list, _drive_start_index, _drive_end_index) = create_drive_from_gpx();
 
     let vehicle_data_queue: VecDeque<VehicleData> = VecDeque::from(vehicle_data_list);
-    let _tesla_mock = create_mock_tesla_server_vec(Arc::new(Mutex::new(vehicle_data_queue)), Arc::new(Mutex::new(true))).await; // Assign the return value to a variable to keep the server alive
+    let vehicle_data_queue_lock = Arc::new(Mutex::new(vehicle_data_queue));
+    let _tesla_mock = create_mock_tesla_server_vec(vehicle_data_queue_lock.clone(), Arc::new(Mutex::new(true))).await; // Assign the return value to a variable to keep the server alive
 
     let env = load_env_vars().unwrap();
     let pool_clone = pool.clone();
@@ -139,8 +141,21 @@ pub async fn check_vehicle_data() -> anyhow::Result<()> {
         }
     });
 
-    // sleep(Duration::from_secs(5)).await; // Run the logger for some time
+    // Wait till all elements of the vehicle data queue are transferred
+    loop {
+        let l = vehicle_data_queue_lock.lock().unwrap().len();
+        if l > 0 {
+            tokio::time::sleep(Duration::from_secs(1)).await;
+        } else {
+            break;
+        }
+    }
+
     wait_for_db!(pool);
+
+    let car_from_db = Car::db_get_all(&pool).await.unwrap();
+    assert_eq!(car_from_db.len(), 1);
+    // TODO: Verify car's VIN, model, eid, etc.
 
     let drive_from_db = Drive::db_get_last(&pool).await.unwrap();
     let positions = Position::db_get_for_drive(&pool, 1, drive_from_db.id).await.unwrap();

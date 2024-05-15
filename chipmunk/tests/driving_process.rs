@@ -68,7 +68,7 @@ pub async fn test_driving_and_parking() {
     });
 
     // Start driving
-    sleep(Duration::from_secs(2)).await; // Run the logger for some time
+    sleep(Duration::from_secs(1)).await; // Run the logger for some time
     *send_response.lock().unwrap() = false; // Tell the mock server to stop sending vehicle data
     wait_for_db!(pool);
 
@@ -181,7 +181,7 @@ pub async fn test_driving_and_parking() {
     vehicle_data.vehicle_state.as_mut().unwrap().odometer = Some(odometer_mi);
     **data.lock().as_mut().unwrap() = vehicle_data;
     *send_response.lock().unwrap() = true;
-    sleep(Duration::from_secs(2)).await; // Run the logger for some time
+    sleep(Duration::from_secs(1)).await; // Run the logger for some time
     *send_response.lock().unwrap() = false; // Tell the mock server to stop sending vehicle data
     wait_for_db!(pool);
 
@@ -248,7 +248,7 @@ pub async fn test_driving_and_parking() {
     let vehicle_data = test_data::data_with_shift(drive2_start_time, Some(P));
     **data.lock().as_mut().unwrap() = vehicle_data;
     *send_response.lock().unwrap() = true;
-    sleep(Duration::from_secs(2)).await; // Run the logger for some time
+    sleep(Duration::from_secs(1)).await; // Run the logger for some time
     *send_response.lock().unwrap() = false; // Tell the mock server to stop sending vehicle data
     wait_for_db!(pool);
 

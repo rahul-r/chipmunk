@@ -100,7 +100,7 @@ pub async fn test_missing_charging_detection() {
     let charge_end = Charges::from(&vehicle_data, 0);
     **data.lock().as_mut().unwrap() = vehicle_data;
     *send_response.lock().unwrap() = true;
-    sleep(Duration::from_secs(2)).await; // Run the logger for some time
+    sleep(Duration::from_secs(1)).await; // Run the logger for some time
     // Stop sending vehicle data
     *send_response.lock().unwrap() = false;
     wait_for_db!(pool);
@@ -336,7 +336,7 @@ pub async fn test_charging_process() {
     let parked_data = test_data::data_with_shift(parking_start_time, Some(P));
     **data.lock().as_mut().unwrap() = parked_data;
     *send_response.lock().unwrap() = true;
-    sleep(Duration::from_secs(2)).await; // Run the logger for some time
+    sleep(Duration::from_secs(1)).await; // Run the logger for some time
     *send_response.lock().unwrap() = false; // Tell the mock server to stop sending vehicle data
     wait_for_db!(pool);
 
