@@ -102,8 +102,6 @@ jobs:
       #   run: docker compose -f docker-compose.yml run --rm --service-ports --detach --name db db
       - name: Running containers
         run: docker ps -a
-      - name: Docker logs
-        run: docker logs
       - name: Install nextest
         uses: taiki-e/install-action@nextest
       - name: Test with nextest
