@@ -94,12 +94,19 @@ impl DBTable for VehicleData {
 
     async fn db_insert(&self, pool: &PgPool) -> sqlx::Result<i64> {
         let Some(timestamp) = self.timestamp_epoch() else {
-            return Err(sqlx::Error::Protocol("No timestamp found in vehicle data".into()));
+            return Err(sqlx::Error::Protocol(
+                "No timestamp found in vehicle data".into(),
+            ));
         };
 
         let data_json = match serde_json::to_value(self) {
             Ok(val) => val,
-            Err(e) => return Err(sqlx::Error::Protocol(format!("Error converting vehicle data to JSON: {}", e))),
+            Err(e) => {
+                return Err(sqlx::Error::Protocol(format!(
+                    "Error converting vehicle data to JSON: {}",
+                    e
+                )))
+            }
         };
 
         sqlx::query!(

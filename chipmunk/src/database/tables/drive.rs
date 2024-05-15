@@ -1,6 +1,4 @@
-use crate::utils::{
-    avg_option, max_option, min_option, sub_option, time_diff_minutes_i16,
-};
+use crate::utils::{avg_option, max_option, min_option, sub_option, time_diff_minutes_i16};
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 

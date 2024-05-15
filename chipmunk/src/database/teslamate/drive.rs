@@ -39,7 +39,7 @@ impl Teslamate for Drive {
                 false as in_progress
             FROM drives
             ORDER BY id DESC LIMIT 1
-            "#
+            "#,
         )
         .fetch_one(pool)
         .await?;
@@ -76,7 +76,7 @@ impl Teslamate for Drive {
                 false as in_progress
             FROM drives
             WHERE id = $1
-            "#
+            "#,
         )
         .bind(id)
         .fetch_one(pool)

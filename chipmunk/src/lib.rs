@@ -6,12 +6,12 @@ use std::{env, io::Write};
 use anyhow::Context;
 
 pub mod charging;
+pub mod config;
 pub mod database;
 pub mod logger;
 pub mod openstreetmap;
-pub mod utils;
 pub mod tasks;
-pub mod config;
+pub mod utils;
 
 pub const DELAYED_DATAPOINT_TIME_SEC: i64 = 10 * 60;
 

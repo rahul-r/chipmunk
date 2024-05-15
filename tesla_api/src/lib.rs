@@ -225,8 +225,8 @@ pub async fn get_vehicles(tesla: &mut TeslaClient) -> Result<Vec<Vehicles>, Tesl
                         return Err(TeslaError::Retry(e));
                     }
                 }
-                e => return Err(e)
-            }
+                e => return Err(e),
+            },
         }
     }
 }
@@ -257,8 +257,8 @@ pub async fn get_vehicle_data(tesla: &mut TeslaClient, id: u64) -> Result<String
                         return Err(TeslaError::Retry(e));
                     }
                 }
-                e => return Err(e)
-            }
+                e => return Err(e),
+            },
         }
     }
 }

@@ -4,7 +4,8 @@ use std::{
     sync::{
         atomic::{AtomicUsize, Ordering},
         Arc,
-    }, time::Duration,
+    },
+    time::Duration,
 };
 
 use futures_util::{SinkExt, StreamExt, TryFutureExt};

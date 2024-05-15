@@ -1,8 +1,8 @@
 use sqlx::PgPool;
 
 pub mod tables;
-pub mod types;
 mod traits;
+pub mod types;
 
 pub use traits::DBTable;
 
@@ -14,9 +14,7 @@ pub async fn initialize(url: &str) -> anyhow::Result<PgPool> {
     let pool = PgPool::connect(url).await?;
 
     log::info!("Running database migrations");
-    sqlx::migrate!("./migrations")
-        .run(&pool)
-        .await?;
+    sqlx::migrate!("./migrations").run(&pool).await?;
 
     tables::initialize(&pool).await?;
 

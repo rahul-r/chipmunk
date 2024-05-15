@@ -57,9 +57,12 @@ pub struct InvalidResponseCode {
 }
 
 impl TeslaResponseCode {
-    pub fn from_http_status(status: reqwest::StatusCode) -> Result<TeslaResponseCode, InvalidResponseCode> {
+    pub fn from_http_status(
+        status: reqwest::StatusCode,
+    ) -> Result<TeslaResponseCode, InvalidResponseCode> {
         let code = TeslaResponseCode::from_u16(status.as_u16())?;
-        code.canonical_reason().ok_or_else(InvalidResponseCode::new)?;
+        code.canonical_reason()
+            .ok_or_else(InvalidResponseCode::new)?;
         Ok(code)
     }
 
@@ -442,6 +445,7 @@ const CODE_DIGITS: &str = "\
 980981982983984985986987988989990991992993994995996997998999";
 
 #[test]
+#[rustfmt::skip]
 fn status_code() {
     assert_eq!(TeslaResponseCode::DEVICE_UNEXPECTED_RESPONSE, TeslaResponseCode(NonZeroU16::new(540).unwrap()));
     assert_eq!(TeslaResponseCode::from_u16(200).unwrap(), TeslaResponseCode::OK);

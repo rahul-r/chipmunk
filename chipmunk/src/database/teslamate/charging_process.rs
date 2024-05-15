@@ -19,7 +19,8 @@ impl Teslamate for ChargingProcess {
     }
 
     async fn tm_get_id(pool: &PgPool, id: i64) -> sqlx::Result<Self> {
-        let res = sqlx::query(r#"
+        let res = sqlx::query(
+            r#"
             SELECT
                 id,
                 start_date,
@@ -39,10 +40,11 @@ impl Teslamate for ChargingProcess {
                 geofence_id,
                 charge_energy_used::FLOAT4,
                 cost
-            FROM charging_processes WHERE id = $1"#)
-            .bind(id as i32)
-            .fetch_one(pool)
-            .await?;
+            FROM charging_processes WHERE id = $1"#,
+        )
+        .bind(id as i32)
+        .fetch_one(pool)
+        .await?;
         Ok(ChargingProcess {
             id: res.get::<i32, _>("id"),
             start_date: res.get::<DateTime<Utc>, _>("start_date"),

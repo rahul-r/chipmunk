@@ -1,9 +1,11 @@
-use sqlx::PgPool;
 use chrono::{DateTime, Utc};
+use sqlx::PgPool;
 
-use crate::{charging::calculate_energy_used, database::types::ChargeStat, utils::time_diff_minutes_i64};
 use super::{charges::Charges, DBTable};
 use crate::charging::calculate_cost;
+use crate::{
+    charging::calculate_energy_used, database::types::ChargeStat, utils::time_diff_minutes_i64,
+};
 
 #[derive(Debug, Default, Clone, PartialEq, sqlx::FromRow)]
 pub struct ChargingProcess {
@@ -190,7 +192,10 @@ impl ChargingProcess {
         .await?;
 
         if res.rows_affected() != 1 {
-            log::error!("Error updating charging process. Expected to update 1 row, but updated {} rows", res.rows_affected());
+            log::error!(
+                "Error updating charging process. Expected to update 1 row, but updated {} rows",
+                res.rows_affected()
+            );
             Err(sqlx::Error::RowNotFound)
         } else {
             Ok(())

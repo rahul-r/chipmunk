@@ -161,8 +161,7 @@ impl DBTable for Address {
 
     async fn db_get_last(pool: &PgPool) -> sqlx::Result<Self> {
         sqlx::query_as!(Self, r#"SELECT * FROM addresses ORDER BY id DESC LIMIT 1"#)
-        .fetch_one(pool)
-        .await
+            .fetch_one(pool)
+            .await
     }
 }
-

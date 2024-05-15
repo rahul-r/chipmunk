@@ -2,7 +2,11 @@ use crate::database::tables::position::Position;
 use crate::database::DBTable;
 
 impl Position {
-    pub async fn tm_get_for_drive(pool: &sqlx::PgPool, car_id: i16, drive_id: i64) -> sqlx::Result<Vec<Self>> {
+    pub async fn tm_get_for_drive(
+        pool: &sqlx::PgPool,
+        car_id: i16,
+        drive_id: i64,
+    ) -> sqlx::Result<Vec<Self>> {
         sqlx::query_as::<_, Position>(
             format!(
                 r#"SELECT

@@ -64,7 +64,10 @@ impl DBTable for CarSettings {
     }
 
     async fn db_get_last(pool: &PgPool) -> sqlx::Result<Self> {
-        sqlx::query_as!(Self, r#"SELECT * FROM car_settings ORDER BY id DESC LIMIT 1"#)
+        sqlx::query_as!(
+            Self,
+            r#"SELECT * FROM car_settings ORDER BY id DESC LIMIT 1"#
+        )
         .fetch_one(pool)
         .await
     }
