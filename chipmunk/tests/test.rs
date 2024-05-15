@@ -4,10 +4,10 @@
 pub mod common;
 
 use std::collections::VecDeque;
+use std::env;
 use std::fs::File;
 use std::io::BufReader;
 use std::io::Write;
-use std::path::Path;
 use std::sync::{Arc, Mutex};
 
 use chipmunk::database::tables::car::Car;
@@ -35,7 +35,10 @@ pub fn create_drive_from_gpx() -> (Vec<VehicleData>, usize, usize) {
     let data = test_data::get_data(chrono::Utc::now());
 
     // Load gpx file
-    let path = Path::new("/chipmunk/chipmunk/tests/common/route.gpx");
+    let mut path = env::current_dir().unwrap();
+    path.push("tests");
+    path.push("common");
+    path.push("route.gpx");
     let file = File::open(path).unwrap();
     let reader = BufReader::new(file);
     let gpx = gpx::read(reader).unwrap();
