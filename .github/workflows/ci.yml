@@ -88,11 +88,7 @@ jobs:
      #     command: test
      #     args: --doc --all-features
       - name: Starting database container
-        run: docker compose -f docker-compose.yml run \
-                      --rm \
-                      --service-ports \
-                      --name db \
-                      db
+        run: docker compose -f docker-compose.yml run --rm --service-ports --name db db
       - name: Install nextest
         uses: taiki-e/install-action@nextest
       - name: Test with nextest
