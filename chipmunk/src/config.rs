@@ -62,7 +62,7 @@ impl Config {
         match Settings::db_get_last(pool).await {
             Ok(settings) => Config {
                 fields: Arc::new(Mutex::new(Fields {
-                    access_token: "".to_string(), // TODO: Load from database
+                    access_token: "".to_string(),  // TODO: Load from database
                     refresh_token: "".to_string(), // TODO: Load from database
                     logging_period_ms: settings.logging_period_ms,
                     logging_enabled: true,
