@@ -11,7 +11,7 @@ env:
   CARGO_TERM_COLOR: always
   TOKEN_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef
   DATABASE_PASSWORD: secret_password
-  DATABASE_URL: postgres://chipmunk:${DATABASE_PASSWORD}@localhost:5432/chipmunk
+  DATABASE_URL: postgres://chipmunk:secret_password@db:5432/chipmunk
   HTTP_PORT: 3072
 
 jobs:
@@ -20,7 +20,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       RUSTFLAGS: -D warnings
-      CARGO_TERM_COLOR: always
     steps:
       - uses: actions/checkout@v2
         with:
@@ -67,7 +66,6 @@ jobs:
       fail-fast: false
     env:
       RUSTFLAGS: -D warnings
-      CARGO_TERM_COLOR: always
     steps:
       - uses: actions/checkout@v2
         with:
@@ -95,6 +93,7 @@ jobs:
       - name: Test with nextest
         run: cargo nextest run
       - name: Another way of testing
+        if: always()
         uses: actions-rs/cargo@v1
         with:
           command: nextest
