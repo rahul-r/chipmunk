@@ -11,8 +11,8 @@ env:
   CARGO_TERM_COLOR: always
   TOKEN_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef
   DATABASE_PASSWORD: secret_password
-  DATABASE_URL: postgres://chipmunk:secret_password@db:5432/chipmunk
-  TEST_DATABASE_URL: postgres://chipmunk:${DATABASE_PASSWORD}@db:5432/chipmunk
+  DATABASE_URL: postgres://chipmunk:secret_password@localhost:5432/chipmunk
+  TEST_DATABASE_URL: postgres://chipmunk:secret_password@localhost:5432/chipmunk
   HTTP_PORT: 3072
   SQLX_OFFLINE: true
   RUST_LOG: debug
