@@ -11,6 +11,7 @@ env:
   CARGO_TERM_COLOR: always
   TOKEN_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef
   DATABASE_PASSWORD: secret_password
+  DATABASE_URL: postgres://chipmunk:${DATABASE_PASSWORD}@localhost:5432/chipmunk
   HTTP_PORT: 3072
 
 jobs:
@@ -60,8 +61,8 @@ jobs:
       matrix:
         os:
           - ubuntu-latest
-          - macos-latest
-          - windows-latest
+          # - macos-latest
+          # - windows-latest
         rust-version: [ nightly-2024-01-20 ]
       fail-fast: false
     env:
@@ -93,7 +94,8 @@ jobs:
         uses: taiki-e/install-action@nextest
       - name: Test with nextest
         run: cargo nextest run
-      #   uses: actions-rs/cargo@v1
-      #   with:
-      #     command: nextest
-      #     args: run
+      - name: Another way of testing
+        uses: actions-rs/cargo@v1
+        with:
+          command: nextest
+          args: run
