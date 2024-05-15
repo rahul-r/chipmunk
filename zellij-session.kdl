@@ -2,7 +2,7 @@ layout {
     cwd "."
     tab name="Editor" focus=true hide_floating_panes=true {
         pane command="nvim" cwd="." focus=true {
-            args "--cmd" "lua" "vim.g.loaded_node_provider=0;vim.g.loaded_perl_provider=0;vim.g.loaded_python_provider=0;vim.g.python3_host_prog='nvim-python3';vim.g.ruby_host_prog='nvim-ruby'" "chipmunk/src/main.rs"
+            args "chipmunk/src/main.rs"
             start_suspended true
         }
         pane size=1 borderless=true {
