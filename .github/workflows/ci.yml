@@ -84,26 +84,24 @@ jobs:
       - uses: actions/checkout@v2
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-      # - uses: actions-rs/toolchain@v1
-      - uses: actions-rs/toolchain@16499b5e05bf2e26879000db0c1d13f7e13fa3af #@v1
+      - uses: actions-rs/toolchain@v1
+      # - uses: actions-rs/toolchain@16499b5e05bf2e26879000db0c1d13f7e13fa3af #@v1
         with:
           toolchain: ${{ matrix.rust-version }}
           override: true
       - uses: Swatinem/rust-cache@c5ed9ba6b7e1bb8aff90d43acd2f0af4990fa57c
         with:
           cache-on-failure: "true"
-     # - name: Build all targets with all features
-     #   uses: actions-rs/cargo@v1
-     #   with:
-     #     command: build
-     #     args: --all-targets --all-features
-     # - name: Doctests
-     #   uses: actions-rs/cargo@v1
-     #   with:
-     #     command: test
-     #     args: --doc --all-features
-      # - name: Starting database container
-      #   run: docker compose -f docker-compose.yml run --rm --service-ports --detach --name db db
+      - name: Build all targets with all features
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --all-targets --all-features
+      - name: Doctests
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --doc --all-features
       - name: Running containers
         run: docker ps -a
       - name: Install nextest
