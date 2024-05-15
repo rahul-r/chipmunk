@@ -88,6 +88,8 @@ jobs:
           toolchain: ${{ matrix.rust-version }}
           override: true
       - uses: Swatinem/rust-cache@c5ed9ba6b7e1bb8aff90d43acd2f0af4990fa57c
+        with:
+            cache-on-failure: "true"
      # - name: Build all targets with all features
      #   uses: actions-rs/cargo@v1
      #   with:
