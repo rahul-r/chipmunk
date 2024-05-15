@@ -174,6 +174,7 @@ impl Token {
 #[tokio::test]
 async fn test_key_insertion_and_retrieval() {
     dotenvy::dotenv().ok();
+    crate::init_log();
     let url = &env::var("TEST_DATABASE_URL")
         .expect("Cannot get test database URL from environment variable, Please set env `TEST_DATABASE_URL`");
     let pool = initialize(url).await.expect("Error initializing database");

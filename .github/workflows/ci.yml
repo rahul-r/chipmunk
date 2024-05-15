@@ -93,7 +93,7 @@ jobs:
       - name: Install nextest
         uses: taiki-e/install-action@nextest
       - name: Test with nextest
-        run: cargo nextest run
+        run: cargo nextest run --nocapture
       - name: Another way of testing
         if: always()
         uses: actions-rs/cargo@v1
