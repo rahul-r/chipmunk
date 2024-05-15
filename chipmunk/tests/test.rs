@@ -115,7 +115,7 @@ pub fn create_drive_from_gpx() -> (Vec<VehicleData>, usize, usize) {
 
 #[tokio::test]
 pub async fn check_vehicle_data() -> anyhow::Result<()> {
-    chipmunk::init_log();
+    // chipmunk::init_log();
     let random_http_port = rand::thread_rng().gen_range(4000..60000);
     std::env::set_var("HTTP_PORT", random_http_port.to_string());
 
