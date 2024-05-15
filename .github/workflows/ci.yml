@@ -107,7 +107,10 @@ jobs:
       - name: Install nextest
         uses: taiki-e/install-action@nextest
       - name: Test with nextest
-        run: cargo nextest run
+        run: |
+          mkdir -p target/debug/deps/dist/
+          cp ui/frontend/index.html target/debug/deps/dist/
+          cargo nextest run
       # - name: Test with nextest
       #   if: always()
       #   uses: actions-rs/cargo@v1
