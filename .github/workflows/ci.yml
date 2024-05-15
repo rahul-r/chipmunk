@@ -69,6 +69,15 @@ jobs:
       fail-fast: false
     env:
       RUSTFLAGS: -D warnings
+    services:
+      db:
+        image: postgres:16
+        ports:
+          - 5432:5432
+        environment:
+          POSTGRES_USER: chipmunk
+          POSTGRES_PASSWORD: $DATABASE_PASSWORD
+          POSTGRES_DB: chipmunk
     steps:
       - uses: actions/checkout@v2
         with:
@@ -89,8 +98,8 @@ jobs:
      #   with:
      #     command: test
      #     args: --doc --all-features
-      - name: Starting database container
-        run: docker compose -f docker-compose.yml run --rm --service-ports --detach --name db db
+      # - name: Starting database container
+      #   run: docker compose -f docker-compose.yml run --rm --service-ports --detach --name db db
       - name: Running containers
         run: docker ps -a
       - name: Docker logs
