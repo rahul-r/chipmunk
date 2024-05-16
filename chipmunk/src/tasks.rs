@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use crate::config::{Config, ConfigItem};
+use crate::config::{Config, ConfigItem as ci};
 use crate::database::tables::token::Token;
 use crate::database::tables::Tables;
 use crate::logger::{create_tables, get_car_id};
@@ -136,8 +136,7 @@ async fn data_streaming_task(
     let name = "data_stream_task";
     let (streaming_data_tx, mut streaming_data_rx) = tokio::sync::mpsc::channel::<StreamingData>(1);
 
-    let ConfigItem::AccessToken(access_token) = config.get(&ConfigItem::AccessToken("".into()))
-    else {
+    let ci::AccessToken(access_token) = config.get(&ci::AccessToken("".into())) else {
         log::error!("Invalid access token");
         return;
     };
@@ -203,18 +202,12 @@ async fn data_polling_task(
             break;
         }
 
-        if config.get(&ConfigItem::LoggingEnabled(false)) == ConfigItem::LoggingEnabled(false) {
+        if !config.get(&ci::LoggingEnabled(false)).get_bool() {
             tokio::time::sleep(Duration::from_secs(1)).await;
             continue;
         }
 
-        let ConfigItem::LoggingPeriodMs(logging_period_ms) =
-            config.get(&ConfigItem::LoggingPeriodMs(0))
-        else {
-            // TODO: Use the default logging period if the config_rx is not available instead of
-            // breaking out of the loop
-            break;
-        };
+        let logging_period_ms = config.get(&ci::LoggingPeriodMs(0)).get_i32();
 
         match tesla_api::get_vehicle_data(&mut tesla_client, car_id).await {
             Ok(data) => {
@@ -327,12 +320,12 @@ async fn web_server_task(
         loop {
             match data_from_server_rx.try_recv() {
                 Ok(value) => match value {
-                    MpscTopic::Logging(value) => config.set(ConfigItem::LoggingEnabled(value)),
+                    MpscTopic::Logging(value) => config.set(ci::LoggingEnabled(value)),
                     MpscTopic::RefreshToken(refresh_token) => {
                         if let Err(e) =
                             tesla_api::auth::refresh_access_token(refresh_token.as_str())
                                 .await
-                                .map(|t| config.set(ConfigItem::AccessToken(t.access_token)))
+                                .map(|t| config.set(ci::AccessToken(t.access_token)))
                         {
                             log::error!("{e}");
                             continue;
@@ -355,10 +348,7 @@ async fn web_server_task(
                 },
             }
 
-            let is_logging = match config.get(&ConfigItem::LoggingEnabled(false)) {
-                ConfigItem::LoggingEnabled(v) => v,
-                _ => false,
-            };
+            let is_logging = config.get(&ci::LoggingEnabled(false)).get_bool();
 
             match data_rx.try_recv() {
                 Ok(data) => {
@@ -452,15 +442,12 @@ pub async fn run(env: &EnvVars, pool: &sqlx::PgPool) -> anyhow::Result<()> {
             log::info!("Waiting for auth token from user. Enter the token using the web interface");
 
             // Wait for the user to supply auth token via the web interface
-            config.set(ConfigItem::RefreshToken("".into()));
+            config.set(ci::RefreshToken("".into()));
             loop {
                 tokio::time::sleep(Duration::from_millis(100)).await;
-                let ConfigItem::RefreshToken(refresh_token) =
-                    config.get(&ConfigItem::RefreshToken("".into()))
-                else {
-                    continue;
-                };
+                let refresh_token = config.get(&ci::RefreshToken("".into())).get_string();
                 if refresh_token.is_empty() {
+                    log::warn!("Invalid refresh token");
                     continue;
                 }
 

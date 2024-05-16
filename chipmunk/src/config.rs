@@ -26,6 +26,28 @@ impl ConfigItem {
             Self::LoggingEnabled(_) => "LoggingEnabled",
         }
     }
+
+    pub fn get_bool(&self) -> bool {
+        match &self {
+            ci::LoggingEnabled(v) => *v,
+            _ => panic!("{self:?} is not of type bool"),
+        }
+    }
+
+    pub fn get_i32(&self) -> i32 {
+        match &self {
+            ci::LoggingPeriodMs(v) => *v,
+            _ => panic!("{self:?} is not of type i32"),
+        }
+    }
+
+    pub fn get_string(&self) -> String {
+        match self {
+            ci::AccessToken(v) => v.clone(),
+            ci::RefreshToken(v) => v.clone(),
+            _ => panic!("{self:?} is not of type String"),
+        }
+    }
 }
 
 struct Fields {
