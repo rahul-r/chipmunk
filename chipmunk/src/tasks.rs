@@ -325,7 +325,10 @@ async fn web_server_task(
                         if let Err(e) =
                             tesla_api::auth::refresh_access_token(refresh_token.as_str())
                                 .await
-                                .map(|t| config.set(ci::AccessToken(t.access_token)))
+                                .map(|t| {
+                                    config.set(ci::AccessToken(t.access_token));
+                                    config.set(ci::RefreshToken(t.refresh_token));
+                                })
                         {
                             log::error!("{e}");
                             continue;
@@ -444,10 +447,10 @@ pub async fn run(env: &EnvVars, pool: &sqlx::PgPool) -> anyhow::Result<()> {
             // Wait for the user to supply auth token via the web interface
             config.set(ci::RefreshToken("".into()));
             loop {
-                tokio::time::sleep(Duration::from_millis(100)).await;
+                tokio::time::sleep(Duration::from_millis(1000)).await;
                 let refresh_token = config.get(&ci::RefreshToken("".into())).get_string();
                 if refresh_token.is_empty() {
-                    log::warn!("Invalid refresh token");
+                    println!("Token is empty");
                     continue;
                 }
 
