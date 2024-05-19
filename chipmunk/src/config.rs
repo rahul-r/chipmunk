@@ -12,9 +12,16 @@ pub enum ConfigItem {
     LoggingPeriodMs(i32),
     LoggingEnabled(bool),
 }
+use tesla_api::auth::AuthResponse;
 use ConfigItem as ci;
 
-use crate::database::{tables::settings::Settings, DBTable};
+use crate::{
+    database::{
+        tables::{settings::Settings, token::Token},
+        DBTable,
+    },
+    EnvVars,
+};
 
 impl ConfigItem {
     pub fn name(&self) -> &str {
@@ -80,21 +87,31 @@ impl Default for Config {
 }
 
 impl Config {
-    pub async fn new(pool: &sqlx::PgPool) -> Self {
-        match Settings::db_get_last(pool).await {
-            Ok(settings) => Config {
-                fields: Arc::new(Mutex::new(Fields {
-                    access_token: "".to_string(),  // TODO: Load from database
-                    refresh_token: "".to_string(), // TODO: Load from database
-                    logging_period_ms: settings.logging_period_ms,
-                    logging_enabled: true,
-                })),
-                handlers: Arc::new(Mutex::new(HashMap::new())),
-            },
+    pub async fn new(env: &EnvVars, pool: &sqlx::PgPool) -> Self {
+        let tokens = match Token::db_get_last(pool, &env.encryption_key).await {
+            Ok(t) => t,
+            Err(e) => {
+                log::error!("{e}");
+                AuthResponse::default()
+            }
+        };
+
+        let settings = match Settings::db_get_last(pool).await {
+            Ok(settings) => settings,
             Err(e) => {
                 log::error!("Error loading settings from database: {e}. Using default values");
-                Self::default()
+                Settings::default()
             }
+        };
+
+        Config {
+            fields: Arc::new(Mutex::new(Fields {
+                access_token: tokens.access_token,
+                refresh_token: tokens.refresh_token,
+                logging_period_ms: settings.logging_period_ms,
+                logging_enabled: true,
+            })),
+            handlers: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 

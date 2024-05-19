@@ -418,7 +418,7 @@ pub async fn run(env: &EnvVars, pool: &sqlx::PgPool) -> anyhow::Result<()> {
     // channel to receive response from database task
     let (database_resp_tx, database_resp_rx) = mpsc::channel::<DatabaseRespType>(1);
 
-    let mut config = Config::new(pool).await;
+    let mut config = Config::new(env, pool).await;
 
     let cancellation_token = CancellationToken::new();
     let task_tracker = TaskTracker::new();
