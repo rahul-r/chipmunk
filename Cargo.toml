@@ -1,11 +1,10 @@
 [workspace]
-members = ["chipmunk", "tesla_api", "ui/frontend", "ui/backend", "ui/common"]
+members = ["chipmunk", "tesla_api", "ui/frontend", "ui/common"]
 default-members = ["chipmunk"]
 resolver = "2"
 
 [workspace.dependencies]
 tesla_api = { path = "tesla_api" }
-backend = { path = "ui/backend" }
 ui_common = { path = "ui/common" }
 log = "0.4.19"
 anyhow = "1.0.71"

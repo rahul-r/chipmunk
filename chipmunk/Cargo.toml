@@ -4,7 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-backend.workspace = true
 ui_common.workspace = true
 tesla_api.workspace = true
 log.workspace = true
@@ -30,6 +29,12 @@ clap = { version = "=4.2.1", features = ["derive"] }
 openssl = "0.10.50"
 rand = "0.8.5"
 futures = "0.3.28"
+
+# for server
+uuid.workspace = true
+futures-util = "0.3.28"
+tokio-stream = "0.1.14"
+warp = "0.3.5"
 
 [dev-dependencies]
 gpx = "0.10.0"
