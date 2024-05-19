@@ -19,6 +19,8 @@ use warp::Filter;
 
 use ui_common::{Json, LoggingStatus, MessageType, Topic, WsMessage, WsMessageToken};
 
+use crate::config::{Config, ConfigItem};
+
 // static SERVER: OnceLock<TeslaServer> = OnceLock::new();
 
 // pub fn get_server(port: u16, tx: mpsc::UnboundedSender<MpscTopic>) -> &'static TeslaServer {
@@ -44,6 +46,7 @@ pub enum MpscTopic {
 pub struct TeslaServer {
     clients: Clients,
     status: LoggingStatus,
+    config: Config,
 }
 
 #[derive(Clone)]
@@ -53,6 +56,7 @@ pub enum DataToServer {
 
 impl TeslaServer {
     pub async fn start(
+        config: Config,
         port: u16,
         data_from_srv_tx: mpsc::UnboundedSender<MpscTopic>,
         mut data_to_srv_rx: broadcast::Receiver<DataToServer>,
@@ -113,6 +117,7 @@ impl TeslaServer {
         let srv = Arc::new(Mutex::new(TeslaServer {
             clients,
             status: LoggingStatus::default(),
+            config,
         }));
 
         // Handle the messages coming from other tasks
@@ -373,11 +378,19 @@ impl TeslaServer {
     }
 
     pub fn get_status_str(&self) -> String {
+        let status = LoggingStatus {
+            is_logging: self
+                .config
+                .get(&ConfigItem::LoggingEnabled(false))
+                .get_bool(),
+            ..self.status.clone()
+        };
+
         let msg = WsMessage {
             id: Uuid::new_v4().to_string(),
             r#type: MessageType::Response,
             topic: Topic::LoggingStatus,
-            data: match self.status.to_value() {
+            data: match status.to_value() {
                 Ok(v) => Some(v),
                 Err(e) => {
                     log::error!("{e}");

@@ -303,7 +303,7 @@ async fn database_task(
 
 async fn web_server_task(
     mut data_rx: broadcast::Receiver<Tables>,
-    mut config: Config,
+    config: Config,
     cancellation_token: CancellationToken,
     http_port: u16,
 ) {
@@ -312,92 +312,88 @@ async fn web_server_task(
 
     let (data_from_server_tx, mut data_from_server_rx) = unbounded_channel();
     let (server_exit_signal_tx, server_exit_signal_rx) = oneshot::channel();
-    let (data_to_server_tx, data_to_server_rx) = broadcast::channel::<DataToServer>(1); // TODO: remove this channel and directly use data_rx to send data to web server
+    let (data_to_server_tx, data_to_server_rx) = broadcast::channel::<DataToServer>(1);
 
-    let message_handler_task = tokio::task::spawn(async move {
-        let name = format!("{name}::message_handler_task");
-        let mut logging_status = ui_common::LoggingStatus::default();
-        loop {
-            match data_from_server_rx.try_recv() {
-                Ok(value) => match value {
-                    MpscTopic::Logging(value) => config.set(ci::LoggingEnabled(value)),
-                    MpscTopic::RefreshToken(refresh_token) => {
-                        if let Err(e) =
-                            tesla_api::auth::refresh_access_token(refresh_token.as_str())
-                                .await
-                                .map(|t| {
-                                    config.set(ci::AccessToken(t.access_token));
-                                    config.set(ci::RefreshToken(t.refresh_token));
-                                })
-                        {
-                            log::error!("{e}");
-                            continue;
+    let message_handler_task = tokio::task::spawn({
+        let mut config = config.clone();
+        async move {
+            let name = format!("{name}::message_handler_task");
+            let mut logging_status = ui_common::LoggingStatus::default();
+            loop {
+                match data_from_server_rx.try_recv() {
+                    Ok(value) => match value {
+                        MpscTopic::Logging(value) => config.set(ci::LoggingEnabled(value)),
+                        MpscTopic::RefreshToken(refresh_token) => {
+                            if let Err(e) =
+                                tesla_api::auth::refresh_access_token(refresh_token.as_str())
+                                    .await
+                                    .map(|t| {
+                                        config.set(ci::AccessToken(t.access_token));
+                                        config.set(ci::RefreshToken(t.refresh_token));
+                                    })
+                            {
+                                log::error!("{e}");
+                                continue;
+                            }
                         }
+                    },
+                    Err(e) => match e {
+                        tokio::sync::mpsc::error::TryRecvError::Disconnected => {
+                            log::error!("server_rx channel closed, exiting {name}");
+                            break;
+                        }
+                        tokio::sync::mpsc::error::TryRecvError::Empty => (),
+                    },
+                }
 
-                        // TODO: Send token to database task
-                        // let encryption_key = env.encryption_key.clone();
-                        // if let Err(e) = Token::db_insert(&pool, &tokens, encryption_key.as_str()).await
-                        // {
-                        //     log::error!("{e}");
-                        // }
+                let is_logging = config.get(&ci::LoggingEnabled(false)).get_bool();
+
+                match data_rx.try_recv() {
+                    Ok(data) => {
+                        let odometer = data.position.unwrap().odometer.unwrap() as i32;
+                        logging_status = LoggingStatus {
+                            timestamp: chrono::offset::Utc::now(),
+                            is_logging,
+                            current_points: logging_status.current_points + 1,
+                            total_points: logging_status.total_points + 1,
+                            current_miles: odometer,
+                            total_miles: odometer,
+                            is_user_present: true,
+                            odometer,
+                            charging_status: "TBD".into(),
+                            charge_state: "TBD".into(),
+                        };
+                        if let Err(e) = data_to_server_tx
+                            .send(DataToServer::LoggingStatus(logging_status.clone()))
+                        {
+                            log::error!("Error sending data to web server: {e}");
+                        }
                     }
-                },
-                Err(e) => match e {
-                    tokio::sync::mpsc::error::TryRecvError::Disconnected => {
-                        log::error!("server_rx channel closed, exiting {name}");
+                    Err(TryRecvError::Closed) => {
+                        // don't log error message if the channel was closed because of a cancellation request
+                        if !cancellation_token.is_cancelled() {
+                            log::error!("data_rx channel closed, exiting {name}");
+                        }
                         break;
                     }
-                    tokio::sync::mpsc::error::TryRecvError::Empty => (),
-                },
-            }
-
-            let is_logging = config.get(&ci::LoggingEnabled(false)).get_bool();
-
-            match data_rx.try_recv() {
-                Ok(data) => {
-                    let odometer = data.position.unwrap().odometer.unwrap() as i32;
-                    logging_status = LoggingStatus {
-                        timestamp: chrono::offset::Utc::now(),
-                        is_logging,
-                        current_points: logging_status.current_points + 1,
-                        total_points: logging_status.total_points + 1,
-                        current_miles: odometer,
-                        total_miles: odometer,
-                        is_user_present: true,
-                        odometer,
-                        charging_status: "TBD".into(),
-                        charge_state: "TBD".into(),
-                    };
-                    if let Err(e) =
-                        data_to_server_tx.send(DataToServer::LoggingStatus(logging_status.clone()))
-                    {
-                        log::error!("Error sending data to web server: {e}");
+                    Err(TryRecvError::Empty) => (),
+                    Err(TryRecvError::Lagged(n)) => {
+                        log::warn!("{name} lagged too far behind; {n} messages skipped")
                     }
                 }
-                Err(TryRecvError::Closed) => {
-                    // don't log error message if the channel was closed because of a cancellation request
-                    if !cancellation_token.is_cancelled() {
-                        log::error!("data_rx channel closed, exiting {name}");
+                if cancellation_token.is_cancelled() {
+                    if let Err(e) = server_exit_signal_tx.send(()) {
+                        log::error!("Error sending exit signal to server: {e:?}")
                     }
                     break;
                 }
-                Err(TryRecvError::Empty) => (),
-                Err(TryRecvError::Lagged(n)) => {
-                    log::warn!("{name} lagged too far behind; {n} messages skipped")
-                }
+                tokio::task::yield_now().await;
             }
-            if cancellation_token.is_cancelled() {
-                if let Err(e) = server_exit_signal_tx.send(()) {
-                    log::error!("Error sending exit signal to server: {e:?}")
-                }
-                break;
-            }
-            tokio::task::yield_now().await;
         }
     });
 
     tokio::select! {
-        result = TeslaServer::start(http_port, data_from_server_tx, data_to_server_rx, server_exit_signal_rx) => {
+        result = TeslaServer::start(config, http_port, data_from_server_tx, data_to_server_rx, server_exit_signal_rx) => {
             match result {
                 Ok(_) => log::warn!("web server exited"),
                 Err(e) => log::error!("Web server exited: {e}"),
@@ -450,7 +446,6 @@ pub async fn run(env: &EnvVars, pool: &sqlx::PgPool) -> anyhow::Result<()> {
                 tokio::time::sleep(Duration::from_millis(1000)).await;
                 let refresh_token = config.get(&ci::RefreshToken("".into())).get_string();
                 if refresh_token.is_empty() {
-                    println!("Token is empty");
                     continue;
                 }
 
