@@ -109,15 +109,16 @@ impl DBTable for VehicleData {
             }
         };
 
-        sqlx::query!(
-            r#"INSERT INTO car_data (timestamp,data) VALUES ($1, $2)"#,
+        let timestamp = sqlx::query!(
+            r#"INSERT INTO car_data (timestamp,data) VALUES ($1, $2) RETURNING timestamp"#,
             timestamp as i64,
             data_json,
         )
-        .execute(pool)
-        .await?;
+        .fetch_one(pool)
+        .await?
+        .timestamp;
 
-        Ok(0i64) // TODO: return the row ID
+        Ok(timestamp) // vehicle_data table doesn't have the id field. return timestamp instead
     }
 
     async fn db_get_last(pool: &PgPool) -> sqlx::Result<VehicleData> {
