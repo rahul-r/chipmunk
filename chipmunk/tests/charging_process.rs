@@ -19,14 +19,14 @@ use chipmunk::{database::{tables::{
     settings::Settings,
     state::{State, StateStatus},
     swupdate::SoftwareUpdate,
-}, DBTable}, tasks};
+}, DBTable}, tasks, DELAYED_DATAPOINT_TIME_SEC};
 use common::utils::{create_mock_osm_server, create_mock_tesla_server};
 use rand::Rng;
 use tesla_api::vehicle_data::ShiftState;
 use tokio::time::{sleep, Duration};
 use futures::future::{Abortable, AbortHandle};
 
-use crate::common::{test_data, utils::{create_charging_from_charges, init_test_database, ts_no_nanos}, DELAYED_DATAPOINT_TIME_SEC};
+use crate::common::{test_data, utils::{create_charging_from_charges, init_test_database, ts_no_nanos}};
 
 #[tokio::test]
 pub async fn test_missing_charging_detection() {

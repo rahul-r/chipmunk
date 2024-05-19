@@ -1,10 +1,10 @@
 #![cfg_attr(rustfmt, rustfmt_skip)]
 
-use chipmunk::database::tables::{state::{State, StateStatus}, Tables};
+use chipmunk::{database::tables::{state::{State, StateStatus}, Tables}, DELAYED_DATAPOINT_TIME_SEC};
 use chrono::Duration;
 use tesla_api::vehicle_data::ShiftState;
 
-use crate::common::{test_data::{data_charging, data_with_shift, data_with_state}, utils::ts_no_nanos, DELAYED_DATAPOINT_TIME_SEC};
+use crate::common::{test_data::{data_charging, data_with_shift, data_with_state}, utils::ts_no_nanos};
 
 pub mod common;
 

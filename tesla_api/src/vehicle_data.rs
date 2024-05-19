@@ -447,3 +447,21 @@ impl VehicleData {
             .unwrap_or(false)
     }
 }
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct Vehicles {
+    pub id: Option<u64>,
+    pub vehicle_id: Option<u64>,
+    pub vin: Option<String>,
+    pub display_name: Option<String>,
+    pub option_codes: Option<String>,
+    pub color: Option<String>,
+    pub tokens: Option<Vec<String>>,
+    pub state: Option<String>,
+    pub in_service: Option<bool>,
+    pub id_s: Option<String>,
+    pub calendar_enabled: Option<bool>,
+    pub api_version: Option<i32>,
+    pub backseat_token: Option<String>,
+    pub backseat_token_updated_at: Option<i32>,
+}

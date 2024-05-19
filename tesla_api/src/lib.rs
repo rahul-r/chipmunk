@@ -9,6 +9,7 @@ pub mod utils;
 pub mod vehicle_data;
 
 pub use response_codes::TeslaResponseCode;
+use vehicle_data::Vehicles;
 
 const BASE_URL: &str = "https://owner-api.teslamotors.com/api/1";
 const AUTH_URL: &str = "https://auth.tesla.com/oauth2/v3/token";
@@ -191,25 +192,6 @@ pub fn get_tesla_client(
     })
 }
 
-// TODO: merge this with the VehicleData struct in vehicle_data.rs
-#[derive(Debug, Default, Serialize, Deserialize)]
-pub struct Vehicles {
-    pub id: Option<u64>,
-    pub vehicle_id: Option<u64>,
-    pub vin: Option<String>,
-    pub display_name: Option<String>,
-    pub option_codes: Option<String>,
-    pub color: Option<String>,
-    pub tokens: Option<Vec<String>>,
-    pub state: Option<String>,
-    pub in_service: Option<bool>,
-    pub id_s: Option<String>,
-    pub calendar_enabled: Option<bool>,
-    pub api_version: Option<i32>,
-    pub backseat_token: Option<String>,
-    pub backseat_token_updated_at: Option<i32>,
-}
-
 pub async fn get_vehicles(tesla: &mut TeslaClient) -> Result<Vec<Vehicles>, TeslaError> {
     let mut retry_count = NUM_RETRY;
     loop {
@@ -312,7 +294,7 @@ impl Vehicle {
         };
 
         let Some(trim_badging) = trim_badging else {
-            // log::warn!("trim_badging is `None`"); // TODO: uncomment this
+            log::warn!("trim_badging is `None`");
             return None;
         };
 

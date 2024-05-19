@@ -9,7 +9,7 @@ use chrono::{DateTime, Utc};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use chipmunk::charging::calculate_energy_used;
-use tesla_api::{auth::AuthResponse, Vehicles, vehicle_data::VehicleData};
+use tesla_api::{auth::AuthResponse, vehicle_data::{VehicleData, Vehicles}};
 
 /// Asserts that two floats are approximately equal.
 #[macro_export]

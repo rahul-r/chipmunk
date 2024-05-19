@@ -2,11 +2,11 @@
 
 pub mod common;
 
-use chipmunk::database::tables::{state::{StateStatus, State}, Tables};
+use chipmunk::{database::tables::{state::{State, StateStatus}, Tables}, DELAYED_DATAPOINT_TIME_SEC};
 use chrono::Duration;
 use tesla_api::vehicle_data::ShiftState;
 
-use crate::common::{test_data::{data_with_state, data_with_shift, data_charging}, DELAYED_DATAPOINT_TIME_SEC, utils::ts_no_nanos};
+use crate::common::{test_data::{data_with_state, data_with_shift, data_charging}, utils::ts_no_nanos};
 
 
 #[tokio::test]

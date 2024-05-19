@@ -14,12 +14,12 @@ use chipmunk::database::tables::car::Car;
 use chipmunk::database::tables::position::Position;
 use chipmunk::database::tables::settings::Settings;
 use chipmunk::database::tables::state::{StateStatus, State};
+use chipmunk::DELAYED_DATAPOINT_TIME_SEC;
 use rand::Rng;
 use tesla_api::auth::AuthResponse;
 use tokio::time::Duration;
 use tokio::time::sleep;
 
-use crate::common::DELAYED_DATAPOINT_TIME_SEC;
 use crate::common::test_data::data_with_shift;
 use crate::common::utils::{create_drive_from_positions, create_mock_tesla_server, create_mock_tesla_server_vec, ts_no_nanos};
 use crate::common::utils::{create_mock_osm_server, init_test_database};
@@ -158,7 +158,15 @@ pub async fn check_vehicle_data() -> anyhow::Result<()> {
 
     let car_from_db = Car::db_get_all(&pool).await.unwrap();
     assert_eq!(car_from_db.len(), 1);
-    // TODO: Verify car's VIN, model, eid, etc.
+    assert_eq!(car_from_db[0].eid, 1234567890123456);
+    assert_eq!(car_from_db[0].vid, 1);
+    assert_eq!(car_from_db[0].vin, Some("EWABCD123UWE23456".into()));
+    assert_eq!(car_from_db[0].name, Some("My Tesla".into()));
+    assert_eq!(car_from_db[0].trim_badging, Some("74D".into()));
+    assert_eq!(car_from_db[0].exterior_color, Some("Cherry".into()));
+    assert_eq!(car_from_db[0].spoiler_type, Some("None".into()));
+    assert_eq!(car_from_db[0].wheel_type, Some("Pinwheel20".into()));
+    assert_eq!(car_from_db[0].marketing_name, Some("LR AWD".into()));
 
     let drive_from_db = Drive::db_get_last(&pool).await.unwrap();
     let positions = Position::db_get_for_drive(&pool, 1, drive_from_db.id).await.unwrap();

@@ -19,14 +19,14 @@ use chipmunk::{database::{tables::{
     settings::Settings,
     state::{State, StateStatus},
     swupdate::SoftwareUpdate,
-}, DBTable}, tasks};
+}, DBTable}, tasks, DELAYED_DATAPOINT_TIME_SEC};
 use common::utils::{create_mock_osm_server, create_mock_tesla_server};
 use rand::Rng;
 use tesla_api::utils::miles_to_km;
 use tesla_api::vehicle_data::{ShiftState, VehicleData};
 use tokio::time::{sleep, Duration};
 
-use crate::common::{test_data, utils::{ts_no_nanos, init_test_database}, DELAYED_DATAPOINT_TIME_SEC};
+use crate::common::{test_data, utils::{ts_no_nanos, init_test_database}};
 
 #[tokio::test]
 pub async fn test_driving_and_parking() {
