@@ -10,6 +10,7 @@ use std::io::BufReader;
 use std::io::Write;
 use std::sync::{Arc, Mutex};
 
+use chipmunk::config::Config;
 use chipmunk::database::tables::car::Car;
 use chipmunk::database::tables::position::Position;
 use chipmunk::database::tables::settings::Settings;
@@ -137,9 +138,11 @@ pub async fn check_vehicle_data() -> anyhow::Result<()> {
     let _tesla_mock = create_mock_tesla_server_vec(vehicle_data_queue_lock.clone(), Arc::new(Mutex::new(true))).await; // Assign the return value to a variable to keep the server alive
 
     let env = load_env_vars().unwrap();
+    let mut config = Config::new(&env, &pool).await;
+
     let pool_clone = pool.clone();
     let _logger_task = tokio::task::spawn(async move {
-        if let Err(e) = chipmunk::tasks::run(&env, &pool_clone).await {
+        if let Err(e) = chipmunk::tasks::run(&env, &pool_clone, &mut config).await {
             log::error!("{e:?}");
         }
     });

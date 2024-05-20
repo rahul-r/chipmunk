@@ -408,7 +408,7 @@ fn handle_token_expiry(_pool: &sqlx::PgPool) {
     log::info!("Running `handle_token_expiry` callback");
 }
 
-pub async fn run(env: &EnvVars, pool: &sqlx::PgPool) -> anyhow::Result<()> {
+pub async fn run(env: &EnvVars, pool: &sqlx::PgPool, config: &mut Config) -> anyhow::Result<()> {
     // Channel for vehicle data and streaming data
     let (vehicle_data_tx, vehicle_data_rx) = mpsc::channel::<DataTypes>(1);
     // channel for parsed data
@@ -417,8 +417,6 @@ pub async fn run(env: &EnvVars, pool: &sqlx::PgPool) -> anyhow::Result<()> {
     let (database_tx, database_rx) = mpsc::channel::<DatabaseDataType>(1);
     // channel to receive response from database task
     let (database_resp_tx, database_resp_rx) = mpsc::channel::<DatabaseRespType>(1);
-
-    let mut config = Config::new(env, pool).await;
 
     let cancellation_token = CancellationToken::new();
     let task_tracker = TaskTracker::new();

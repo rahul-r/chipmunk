@@ -8,7 +8,7 @@ use std::{
     io::Write,
 };
 
-use chipmunk::{database::{tables::{
+use chipmunk::{config::Config, database::{tables::{
     address::Address,
     car::Car,
     charges::Charges,
@@ -46,6 +46,8 @@ pub async fn test_missing_charging_detection() {
     settings.logging_period_ms = 1;
     settings.db_insert(&pool).await.unwrap();
 
+    let mut config = Config::new(&env, &pool).await;
+
     let drive1_start_time = chrono::Utc::now();
     let data = test_data::data_with_shift(drive1_start_time, Some(D));
     let starting_odometer_mi = data.vehicle_state.as_ref().unwrap().odometer.unwrap();
@@ -57,7 +59,7 @@ pub async fn test_missing_charging_detection() {
     let pool_clone = pool.clone();
 
     let _logger_task = tokio::task::spawn(async move {
-        tasks::run(&env, &pool_clone).await.unwrap();
+        tasks::run(&env, &pool_clone, &mut config).await.unwrap();
     });
 
     // Start driving
@@ -176,9 +178,11 @@ pub async fn test_delayed_data_during_missing_charging_detection() {
     settings.logging_period_ms = 1;
     settings.db_insert(&pool).await.unwrap();
 
+    let mut config = Config::new(&env, &pool).await;
+
     let pool_clone = pool.clone();
     let _logger_task = tokio::task::spawn(async move {
-        tasks::run(&env, &pool_clone).await.unwrap();
+        tasks::run(&env, &pool_clone, &mut config).await.unwrap();
     });
 
     // Set up a pointer to send vehicle data to the mock server
@@ -260,6 +264,8 @@ pub async fn test_charging_process() {
     settings.logging_period_ms = 1;
     settings.db_insert(&pool).await.unwrap();
 
+    let mut config = Config::new(&env, &pool).await;
+
     // Set up a pointer to send vehicle data to the mock server
     let charging_start_time = chrono::Utc::now();
     let data = test_data::data_charging(charging_start_time, 25);
@@ -270,7 +276,7 @@ pub async fn test_charging_process() {
 
     let pool_clone = pool.clone();
     let _logger_task = tokio::task::spawn(async move {
-        if let Err(e) = tasks::run(&env, &pool_clone).await {
+        if let Err(e) = tasks::run(&env, &pool_clone, &mut config).await {
             log::error!("{e:?}");
         }
     });
@@ -409,10 +415,13 @@ pub async fn test_continue_previous_charging_session() {
     settings.logging_period_ms = 1;
     settings.db_insert(&pool).await.unwrap();
 
+    let mut config = Config::new(&env, &pool).await;
+
     let pool_clone = pool.clone();
     let env_clone = env.clone();
     let (abort_handle, abort_registration) = AbortHandle::new_pair();
-    let future = Abortable::new(async move { tasks::run(&env_clone, &pool_clone).await.unwrap(); }, abort_registration);
+    let mut config_clone = config.clone();
+    let future = Abortable::new(async move { tasks::run(&env_clone, &pool_clone, &mut config_clone).await.unwrap(); }, abort_registration);
     let _logger_task = tokio::task::spawn(async move {
         future.await.ok();
     });
@@ -439,7 +448,8 @@ pub async fn test_continue_previous_charging_session() {
     let pool_clone = pool.clone();
     let env_clone = env.clone();
     let (abort_handle, abort_registration) = AbortHandle::new_pair();
-    let future = Abortable::new(async move { tasks::run(&env_clone, &pool_clone).await.unwrap(); }, abort_registration);
+    let mut config_clone = config.clone();
+    let future = Abortable::new(async move { tasks::run(&env_clone, &pool_clone, &mut config_clone).await.unwrap(); }, abort_registration);
     let _logger_task = tokio::task::spawn(async move {
         future.await.ok();
     });
@@ -466,7 +476,7 @@ pub async fn test_continue_previous_charging_session() {
     let pool_clone = pool.clone();
     let env_clone = env.clone();
     let (_abort_handle, abort_registration) = AbortHandle::new_pair();
-    let future = Abortable::new(async move { tasks::run(&env_clone, &pool_clone).await.unwrap(); }, abort_registration);
+    let future = Abortable::new(async move { tasks::run(&env_clone, &pool_clone, &mut config).await.unwrap(); }, abort_registration);
     let _logger_task = tokio::task::spawn(async move {
         future.await.ok();
     });

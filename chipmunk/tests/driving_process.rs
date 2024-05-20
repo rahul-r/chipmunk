@@ -8,7 +8,7 @@ use std::{
     io::Write,
 };
 
-use chipmunk::{database::{tables::{
+use chipmunk::{config::Config, database::{tables::{
     address::Address,
     car::Car,
     charges::Charges,
@@ -46,6 +46,8 @@ pub async fn test_driving_and_parking() {
     settings.logging_period_ms = 1;
     settings.db_insert(&pool).await.unwrap();
 
+    let mut config = Config::new(&env, &pool).await;
+
     // Set up a pointer to send vehicle data to the mock server
     let drive1_start_time = chrono::Utc::now();
     let data = test_data::data_with_shift(drive1_start_time, Some(D));
@@ -64,7 +66,7 @@ pub async fn test_driving_and_parking() {
     let pool_clone = pool.clone();
 
     let _logger_task = tokio::task::spawn(async move {
-        tasks::run(&env, &pool_clone).await.unwrap();
+        tasks::run(&env, &pool_clone, &mut config).await.unwrap();
     });
 
     // Start driving

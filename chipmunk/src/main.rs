@@ -3,6 +3,7 @@
 #![feature(stmt_expr_attributes)]
 
 use chipmunk::{
+    config::Config,
     database::{self, tables::token::Token},
     load_env_vars,
 };
@@ -60,6 +61,8 @@ async fn main() -> anyhow::Result<()> {
 
     let cli = Cli::parse();
 
+    let mut config = Config::new(&env, &pool).await;
+
     // If token is provided, store it in the database
     if let Some(refresh_token) = cli.token {
         match tesla_api::auth::refresh_access_token(refresh_token.as_str()).await {
@@ -70,7 +73,7 @@ async fn main() -> anyhow::Result<()> {
 
     if let Some(option) = cli.option.as_deref() {
         match option {
-            "tasks" => chipmunk::tasks::run(&env, &pool)
+            "tasks" => chipmunk::tasks::run(&env, &pool, &mut config)
                 .await
                 .unwrap_or_else(print_err_and_exit!()),
             unknown => log::error!("Unknown command line argument `{unknown}`"),
