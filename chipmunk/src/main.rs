@@ -4,7 +4,6 @@
 
 use chipmunk::{
     config::Config,
-    convert_db,
     database::{self, tables::token::Token},
     load_env_vars,
 };
@@ -77,7 +76,7 @@ async fn main() -> anyhow::Result<()> {
             "tasks" => chipmunk::tasks::run(&env, &pool, &mut config)
                 .await
                 .unwrap_or_else(print_err_and_exit!()),
-            "convertdb" => convert_db(&env, &pool, &config, cli.num_rows)
+            "convertdb" => chipmunk::tasks::convert_db(&env, &pool, &config, cli.num_rows)
                 .await
                 .unwrap_or_else(print_err_and_exit!()),
             unknown => log::error!("Unknown command line argument `{unknown}`"),

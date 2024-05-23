@@ -1,8 +1,10 @@
+use anyhow::anyhow;
+use std::ops::Deref;
 use std::time::Duration;
 
 use crate::config::{Config, ConfigItem as ci};
 use crate::database::tables::token::Token;
-use crate::database::tables::Tables;
+use crate::database::tables::{vehicle_data, Tables};
 use crate::logger::{create_tables, get_car_id};
 use crate::server::{DataToServer, MpscTopic, TeslaServer};
 use crate::{database, EnvVars};
@@ -585,10 +587,18 @@ async fn get_ids(tesla_client: &mut TeslaClient) -> Option<(u64, u64)> {
 }
 
 pub async fn convert_db(
+    env: &EnvVars,
     pool: &sqlx::PgPool,
     config: &Config,
-    vehicle_data_rx: mpsc::Receiver<DataTypes>,
+    num_rows_to_fetch: i64,
 ) -> anyhow::Result<()> {
+    let Some(ref car_data_database_url) = env.car_data_database_url else {
+        anyhow::bail!("Please provide CAR_DATA_DATABASE_URL");
+    };
+    let car_data_pool = database::initialize_car_data(car_data_database_url).await?;
+
+    // Channel for vehicle data and streaming data
+    let (vehicle_data_tx, vehicle_data_rx) = mpsc::channel::<DataTypes>(1);
     // channel for parsed data
     let (processed_data_tx, _data_rx) = broadcast::channel::<Tables>(1);
     // channel to send date to database task
@@ -636,6 +646,41 @@ pub async fn convert_db(
         })
     };
 
+    let num_rows = vehicle_data::num_car_data_rows(&car_data_pool).await?;
+    let batch_size = if num_rows_to_fetch < 10_000 {
+        num_rows_to_fetch
+    } else {
+        10_000
+    };
+    let mut row_offset = num_rows - num_rows_to_fetch;
+
+    let fetch_data_task = tokio::task::spawn({
+        async move {
+            while (row_offset - batch_size) < num_rows {
+                let data_list = vehicle_data::db_get(&car_data_pool, batch_size, row_offset)
+                    .await
+                    .map_err(|e| anyhow!(e))?;
+
+                for data in data_list {
+                    let data_str = match serde_json::to_string::<VehicleData>(data.deref()) {
+                        Ok(v) => v,
+                        Err(e) => {
+                            log::error!("Error converting vehicle data to string: {e}");
+                            anyhow::bail!("Error converting vehicle data to string: {e}");
+                        }
+                    };
+
+                    if let Err(e) = vehicle_data_tx.send(DataTypes::VehicleData(data_str)).await {
+                        log::error!("{e}");
+                        anyhow::bail!(e);
+                    }
+                }
+                row_offset += batch_size;
+            }
+            Ok(())
+        }
+    });
+
     // After spawning all the tasks, close the tracker
     task_tracker.close();
 
@@ -643,10 +688,11 @@ pub async fn convert_db(
     tokio::select! {
         status = data_processor_task_handle => tracing::info!("logger task done: {:?}", status),
         status = database_task_handle => tracing::info!("database task done: {:?}", status),
+        status = fetch_data_task => log::warn!("fetch data task exited: {status:?}"),
         _ = tokio::signal::ctrl_c() => tracing::info!("Ctrl+C received"),
     }
 
-    tracing::info!("stopping tasks and exiting...");
+    tracing::info!("stopping tasks and exiting convertdb...");
     // One or more tasks exited, tell the remaining tasks to exit
     cancellation_token.cancel();
     // Wait for all tasks to exit
