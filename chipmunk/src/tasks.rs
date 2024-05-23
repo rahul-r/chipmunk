@@ -16,7 +16,7 @@ use tokio_util::task::TaskTracker;
 use ui_common::LoggingStatus;
 
 #[derive(Debug, Clone)]
-enum DataTypes {
+pub enum DataTypes {
     VehicleData(String),
     StreamingData(StreamingData),
 }
@@ -582,4 +582,75 @@ async fn get_ids(tesla_client: &mut TeslaClient) -> Option<(u64, u64)> {
             None
         }
     }
+}
+
+pub async fn convert_db(
+    pool: &sqlx::PgPool,
+    config: &Config,
+    vehicle_data_rx: mpsc::Receiver<DataTypes>,
+) -> anyhow::Result<()> {
+    // channel for parsed data
+    let (processed_data_tx, _data_rx) = broadcast::channel::<Tables>(1);
+    // channel to send date to database task
+    let (database_tx, database_rx) = mpsc::channel::<DatabaseDataType>(1);
+    // channel to receive response from database task
+    let (database_resp_tx, database_resp_rx) = mpsc::channel::<DatabaseRespType>(1);
+
+    let cancellation_token = CancellationToken::new();
+    let task_tracker = TaskTracker::new();
+
+    // Receives polling and streaming data, parse the data and transmits the processed data
+    let data_processor_task_handle = {
+        let cancellation_token = cancellation_token.clone();
+        let data_tx = processed_data_tx.clone();
+        let config = config.clone();
+        let database_tx = database_tx.clone();
+        let pool = pool.clone();
+        task_tracker.spawn(async move {
+            data_processor_task(
+                vehicle_data_rx,
+                data_tx,
+                database_tx,
+                database_resp_rx,
+                config,
+                cancellation_token,
+                &pool,
+            )
+            .await;
+        })
+    };
+
+    let database_task_handle = {
+        let cancellation_token = cancellation_token.clone();
+        let config = config.clone();
+        let pool = pool.clone();
+        task_tracker.spawn(async move {
+            database_task(
+                database_rx,
+                database_resp_tx,
+                config,
+                cancellation_token,
+                &pool,
+            )
+            .await;
+        })
+    };
+
+    // After spawning all the tasks, close the tracker
+    task_tracker.close();
+
+    // Wait for any one of the tasks to exit
+    tokio::select! {
+        status = data_processor_task_handle => tracing::info!("logger task done: {:?}", status),
+        status = database_task_handle => tracing::info!("database task done: {:?}", status),
+        _ = tokio::signal::ctrl_c() => tracing::info!("Ctrl+C received"),
+    }
+
+    tracing::info!("stopping tasks and exiting...");
+    // One or more tasks exited, tell the remaining tasks to exit
+    cancellation_token.cancel();
+    // Wait for all tasks to exit
+    task_tracker.wait().await;
+
+    Ok(())
 }

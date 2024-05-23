@@ -43,17 +43,15 @@ pub async fn num_car_data_rows(pool: &PgPool) -> sqlx::Result<i64> {
 * This function will fetch `num_rows_to_fetch` number of data points starting at offset `starting_row`
 */
 #[allow(dead_code)]
-pub async fn get_car_data(
+pub async fn db_get(
     pool: &PgPool,
-    num_rows_to_fetch: i64,
+    batch_size: i64,
     row_offset: i64,
 ) -> sqlx::Result<Vec<VehicleDataRow>> {
     sqlx::query_as!(
             VehicleDataRow,
             r#"SELECT data as "data!:sqlx::types::Json<VehicleData>" FROM car_data ORDER BY timestamp ASC LIMIT $1 OFFSET $2"#,
-            // r#"SELECT data as "data!:sqlx::types::Json<VehicleData>" FROM car_data WHERE timestamp BETWEEN 1684802874435 AND 1685059200000 ORDER BY timestamp ASC LIMIT $1 OFFSET $2"#, // to test charging
-            // r#"SELECT data as "data!:sqlx::types::Json<VehicleData>" FROM car_data WHERE timestamp BETWEEN 1685441531000 AND 1685527931000 ORDER BY timestamp ASC"#,
-            num_rows_to_fetch,
+            batch_size,
             row_offset
         )
         .fetch_all(pool)
@@ -61,14 +59,13 @@ pub async fn get_car_data(
 }
 
 #[allow(dead_code)]
-pub async fn get_car_data_between(
+pub async fn db_get_between(
     pool: &PgPool,
     start_time: i64,
     end_time: i64,
 ) -> sqlx::Result<Vec<VehicleDataRow>> {
     sqlx::query_as!(
             VehicleDataRow,
-            // r#"SELECT data as "data!:sqlx::types::Json<VehicleData>" FROM car_data WHERE timestamp BETWEEN 1700784000000 AND 1700870400000 ORDER BY timestamp ASC"#,
             r#"SELECT data as "data!:sqlx::types::Json<VehicleData>" FROM car_data WHERE timestamp BETWEEN $1 AND $2 ORDER BY timestamp ASC"#,
             start_time,
             end_time
