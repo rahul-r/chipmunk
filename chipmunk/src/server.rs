@@ -19,7 +19,7 @@ use warp::Filter;
 
 use ui_common::{Json, LoggingStatus, MessageType, Topic, WsMessage, WsMessageToken};
 
-use crate::config::{Config, ConfigItem};
+use crate::{config::Config, get_config};
 
 // static SERVER: OnceLock<TeslaServer> = OnceLock::new();
 
@@ -379,10 +379,13 @@ impl TeslaServer {
 
     pub fn get_status_str(&self) -> String {
         let status = LoggingStatus {
-            is_logging: self
-                .config
-                .get(&ConfigItem::LoggingEnabled(false))
-                .get_bool(),
+            is_logging: match get_config!(self.config.logging_enabled) {
+                Ok(v) => v,
+                Err(e) => {
+                    log::error!("Error getting config value `is_logging`: {e}");
+                    false
+                }
+            },
             ..self.status.clone()
         };
 

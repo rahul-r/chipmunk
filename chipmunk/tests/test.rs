@@ -138,7 +138,7 @@ pub async fn check_vehicle_data() -> anyhow::Result<()> {
     let _tesla_mock = create_mock_tesla_server_vec(vehicle_data_queue_lock.clone(), Arc::new(Mutex::new(true))).await; // Assign the return value to a variable to keep the server alive
 
     let env = load_env_vars().unwrap();
-    let mut config = Config::new(&env, &pool).await;
+    let mut config = Config::new(&pool).await;
 
     let pool_clone = pool.clone();
     let _logger_task = tokio::task::spawn(async move {

@@ -46,7 +46,7 @@ pub async fn test_missing_charging_detection() {
     settings.logging_period_ms = 1;
     settings.db_insert(&pool).await.unwrap();
 
-    let mut config = Config::new(&env, &pool).await;
+    let mut config = Config::new(&pool).await;
 
     let drive1_start_time = chrono::Utc::now();
     let data = test_data::data_with_shift(drive1_start_time, Some(D));
@@ -178,7 +178,7 @@ pub async fn test_delayed_data_during_missing_charging_detection() {
     settings.logging_period_ms = 1;
     settings.db_insert(&pool).await.unwrap();
 
-    let mut config = Config::new(&env, &pool).await;
+    let mut config = Config::new(&pool).await;
 
     let pool_clone = pool.clone();
     let _logger_task = tokio::task::spawn(async move {
@@ -264,7 +264,7 @@ pub async fn test_charging_process() {
     settings.logging_period_ms = 1;
     settings.db_insert(&pool).await.unwrap();
 
-    let mut config = Config::new(&env, &pool).await;
+    let mut config = Config::new(&pool).await;
 
     // Set up a pointer to send vehicle data to the mock server
     let charging_start_time = chrono::Utc::now();
@@ -415,7 +415,7 @@ pub async fn test_continue_previous_charging_session() {
     settings.logging_period_ms = 1;
     settings.db_insert(&pool).await.unwrap();
 
-    let mut config = Config::new(&env, &pool).await;
+    let mut config = Config::new(&pool).await;
 
     let pool_clone = pool.clone();
     let env_clone = env.clone();

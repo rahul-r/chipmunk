@@ -61,7 +61,7 @@ async fn main() -> anyhow::Result<()> {
 
     let cli = Cli::parse();
 
-    let mut config = Config::new(&env, &pool).await;
+    let mut config = Config::new(&pool).await;
 
     // If token is provided, store it in the database
     if let Some(refresh_token) = cli.token {

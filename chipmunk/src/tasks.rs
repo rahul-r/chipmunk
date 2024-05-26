@@ -1,13 +1,14 @@
 use anyhow::anyhow;
+use sqlx::postgres::PgPoolOptions;
 use std::ops::Deref;
 use std::time::Duration;
 
-use crate::config::{Config, ConfigItem as ci};
+use crate::config::Config;
 use crate::database::tables::token::Token;
 use crate::database::tables::{vehicle_data, Tables};
 use crate::logger::{create_tables, get_car_id};
 use crate::server::{DataToServer, MpscTopic, TeslaServer};
-use crate::{database, EnvVars};
+use crate::{database, get_config, set_config, EnvVars};
 use tesla_api::stream::StreamingData;
 use tesla_api::vehicle_data::VehicleData;
 use tesla_api::{TeslaClient, TeslaError};
@@ -138,9 +139,12 @@ async fn data_streaming_task(
     let name = "data_stream_task";
     let (streaming_data_tx, mut streaming_data_rx) = tokio::sync::mpsc::channel::<StreamingData>(1);
 
-    let ci::AccessToken(access_token) = config.get(&ci::AccessToken("".into())) else {
-        log::error!("Invalid access token");
-        return;
+    let access_token = match get_config!(config.access_token) {
+        Ok(v) => v,
+        Err(e) => {
+            log::error!("Error getting config `access_token`: {e}");
+            return;
+        }
     };
 
     let streaming_data_tx = streaming_data_tx.clone();
@@ -204,12 +208,23 @@ async fn data_polling_task(
             break;
         }
 
-        if !config.get(&ci::LoggingEnabled(false)).get_bool() {
-            tokio::time::sleep(Duration::from_secs(1)).await;
-            continue;
+        match get_config!(config.logging_enabled) {
+            Ok(false) => {
+                //tokio::time::sleep(Duration::from_secs(1)).await;
+                continue;
+            }
+            Ok(true) => (),
+            Err(e) => {
+                log::error!("Error getting config value `logging_enabled`: {e}");
+                //tokio::time::sleep(Duration::from_secs(1)).await;
+                continue;
+            }
         }
 
-        let logging_period_ms = config.get(&ci::LoggingPeriodMs(0)).get_i32();
+        let Ok(logging_period_ms) = get_config!(config.logging_period_ms) else {
+            log::error!("Error reading config value `logging_period_ms`");
+            return;
+        };
 
         match tesla_api::get_vehicle_data(&mut tesla_client, car_id).await {
             Ok(data) => {
@@ -262,10 +277,36 @@ async fn database_task(
 ) {
     use mpsc::error::*;
     let name = "database_task";
+
+    // TODO: get the URL from config
+    let car_data_database_url = std::env::var("CAR_DATA_DATABASE_URL")
+        .map_err(|_e| log::warn!("Cannot load env variable `CAR_DATA_DATABASE_URL`"))
+        .ok();
+
+    let car_data_db_pool = if let Some(ref url) = car_data_database_url {
+        log::info!("Connecting to car data database `{url}`");
+        PgPoolOptions::new()
+            .max_connections(5)
+            .acquire_timeout(std::time::Duration::from_millis(100))
+            .connect(url)
+            .await
+            .map_err(|e| log::error!("Error connecting to `{car_data_database_url:?}`: {e}"))
+            .ok()
+    } else {
+        None
+    };
+
     loop {
         match data_rx.try_recv() {
             Ok(data) => match data {
                 DatabaseDataType::RawData(d) => {
+                    if let Some(ref car_data_pool) = car_data_db_pool {
+                        if let Err(e) =
+                            database::tables::vehicle_data::db_insert_json(&d, car_data_pool).await
+                        {
+                            log::error!("Error logging to `{car_data_database_url:?}`: {e}");
+                        };
+                    }
                     if let Err(e) = database::tables::vehicle_data::db_insert_json(&d, pool).await {
                         log::error!("{e}");
                     };
@@ -317,21 +358,23 @@ async fn web_server_task(
     let (data_to_server_tx, data_to_server_rx) = broadcast::channel::<DataToServer>(1);
 
     let message_handler_task = tokio::task::spawn({
-        let mut config = config.clone();
+        let config = config.clone();
         async move {
             let name = format!("{name}::message_handler_task");
             let mut logging_status = ui_common::LoggingStatus::default();
             loop {
                 match data_from_server_rx.try_recv() {
                     Ok(value) => match value {
-                        MpscTopic::Logging(value) => config.set(ci::LoggingEnabled(value)),
+                        MpscTopic::Logging(value) => {
+                            set_config!(config.logging_enabled, value);
+                        }
                         MpscTopic::RefreshToken(refresh_token) => {
                             if let Err(e) =
                                 tesla_api::auth::refresh_access_token(refresh_token.as_str())
                                     .await
                                     .map(|t| {
-                                        config.set(ci::AccessToken(t.access_token));
-                                        config.set(ci::RefreshToken(t.refresh_token));
+                                        set_config!(config.access_token, t.access_token);
+                                        set_config!(config.refresh_token, t.refresh_token);
                                     })
                             {
                                 log::error!("{e}");
@@ -348,7 +391,13 @@ async fn web_server_task(
                     },
                 }
 
-                let is_logging = config.get(&ci::LoggingEnabled(false)).get_bool();
+                let is_logging = match get_config!(config.logging_enabled) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        log::error!("Error reading config value `logging_enabled`: {e}");
+                        false
+                    }
+                };
 
                 match data_rx.try_recv() {
                     Ok(data) => {
@@ -441,10 +490,16 @@ pub async fn run(env: &EnvVars, pool: &sqlx::PgPool, config: &mut Config) -> any
             log::info!("Waiting for auth token from user. Enter the token using the web interface");
 
             // Wait for the user to supply auth token via the web interface
-            config.set(ci::RefreshToken("".into()));
+            set_config!(config.refresh_token, "".into());
             loop {
                 tokio::time::sleep(Duration::from_millis(1000)).await;
-                let refresh_token = config.get(&ci::RefreshToken("".into())).get_string();
+                let refresh_token = match get_config!(config.refresh_token) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        log::error!("Error getting config value for `refresh_token`: {e}");
+                        "".into()
+                    }
+                };
                 if refresh_token.is_empty() {
                     continue;
                 }

@@ -46,7 +46,7 @@ pub async fn test_driving_and_parking() {
     settings.logging_period_ms = 1;
     settings.db_insert(&pool).await.unwrap();
 
-    let mut config = Config::new(&env, &pool).await;
+    let mut config = Config::new(&pool).await;
 
     // Set up a pointer to send vehicle data to the mock server
     let drive1_start_time = chrono::Utc::now();
