@@ -11,6 +11,7 @@ use std::io::Write;
 use std::sync::{Arc, Mutex};
 
 use chipmunk::config::Config;
+use chipmunk::database;
 use chipmunk::database::tables::car::Car;
 use chipmunk::database::tables::position::Position;
 use chipmunk::database::tables::settings::Settings;
@@ -22,6 +23,7 @@ use tokio::time::Duration;
 use tokio::time::sleep;
 
 use crate::common::test_data::data_with_shift;
+use crate::common::utils::init_car_data_database;
 use crate::common::utils::{create_drive_from_positions, create_mock_tesla_server, create_mock_tesla_server_vec, ts_no_nanos};
 use crate::common::utils::{create_mock_osm_server, init_test_database};
 use chipmunk::database::tables::drive::Drive;
@@ -124,6 +126,8 @@ pub async fn check_vehicle_data() -> anyhow::Result<()> {
     std::env::set_var("HTTP_PORT", random_http_port.to_string());
 
     let pool = init_test_database("check_vehicle_data").await;
+    let car_data_db_url = init_car_data_database("check_vehicle_data_car_data").await;
+    std::env::set_var("CAR_DATA_DATABASE_URL", &car_data_db_url);
     let _osm_mock = create_mock_osm_server().await;
 
     // Make the logging period shorter to speed up the test
@@ -199,6 +203,10 @@ pub async fn check_vehicle_data() -> anyhow::Result<()> {
     assert_eq!(drive_from_db.end_address_id, Some(2));
     assert_eq!(drive_from_db.start_geofence_id, None);
     assert_eq!(drive_from_db.end_geofence_id, None);
+
+    //let car_data_database_url = std::env::var("CAR_DATA_DATABASE_URL").unwrap();
+    let car_data_pool = database::initialize_car_data(&car_data_db_url).await.unwrap();
+    assert_eq!(VehicleData::db_num_rows(&pool).await.unwrap(), VehicleData::db_num_rows(&car_data_pool).await.unwrap());
     Ok(())
 }
 

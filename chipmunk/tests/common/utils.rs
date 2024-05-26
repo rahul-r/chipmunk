@@ -254,6 +254,38 @@ pub async fn init_test_database(db_name: &str) -> sqlx::Pool<sqlx::Postgres> {
     pool
 }
 
+pub async fn init_car_data_database(db_name: &str) -> String {
+    dotenvy::dotenv().ok();
+    let url = std::env::var("TEST_DATABASE_URL")
+        .expect("Cannot get test database URL from environment variable, Please set env `TEST_DATABASE_URL`");
+    let mut parsed_url = Url::parse(&url).unwrap();
+    let username = parsed_url.username();
+
+    let pool = sqlx::PgPool::connect(&url).await.unwrap();
+    sqlx::query(format!("DROP DATABASE IF EXISTS {db_name}").as_str())
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query(format!("CREATE DATABASE {db_name} OWNER={username}").as_str())
+        .execute(&pool)
+        .await
+        .unwrap();
+    pool.close().await;
+
+    parsed_url.set_path(db_name);
+    let new_url = parsed_url.as_str();
+
+    let pool = database::initialize(new_url).await.unwrap();
+    // delete all entries from database tables before running tests
+    sqlx::query!("TRUNCATE TABLE car_data RESTART IDENTITY CASCADE")
+        .execute(&pool)
+        .await
+        .unwrap();
+    pool.close().await;
+
+    new_url.into()
+}
+
 pub fn ts_no_nanos(ts: DateTime<Utc>) -> DateTime<Utc> {
     let timestamp = ts.timestamp_millis();
     let secs = timestamp / 1000;
