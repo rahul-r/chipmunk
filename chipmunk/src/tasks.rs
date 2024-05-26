@@ -287,7 +287,7 @@ async fn database_task(
         log::info!("Connecting to car data database `{url}`");
         PgPoolOptions::new()
             .max_connections(5)
-            .acquire_timeout(std::time::Duration::from_millis(100))
+            .acquire_timeout(std::time::Duration::from_millis(3000))
             .connect(url)
             .await
             .map_err(|e| log::error!("Error connecting to `{car_data_database_url:?}`: {e}"))

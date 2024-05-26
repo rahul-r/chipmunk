@@ -15,7 +15,7 @@ layout {
             datetime_format "%A, %d %b %Y %H:%M"
             datetime_timezone "America/Los_Angeles"
             format_left "{mode}#[fg=white,bg=blue,bold] {session} #[fg=blue,bg=#181825]{tabs}"
-            format_right "#[fg=#181825,bg=#b1bbfa]{datetime}"
+            // format_right "#[fg=#181825,bg=#b1bbfa]{datetime}"
             format_space "#[bg=#181825]"
             mode_default_to_mode "resize"
             mode_locked "#[bg=gray,fg=#FF00D9,bold] {name} "

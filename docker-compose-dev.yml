@@ -130,4 +130,5 @@ services:
       TOKEN_ENCRYPTION_KEY: ${TOKEN_ENCRYPTION_KEY} # This comes from the .env file
       # Postgres URL format: postgres://[user[:password]@][netloc][:port][/dbname][?param1=value1&...]
       DATABASE_URL: "postgres://chipmunk:${DATABASE_PASSWORD}@db:5432/chipmunk"
+      CAR_DATA_DATABASE_URL: "postgres://chipmunk:${DATABASE_PASSWORD}@db:5432/chipmunk"
       TEST_DATABASE_URL: "postgres://chipmunk:${DATABASE_PASSWORD}@db:5432/chipmunk"
