@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "TRUNCATE TABLE car_data RESTART IDENTITY CASCADE",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "ebccb83001cee97e15778f8c48749dda78cd89bbf262baf8d279131d8e0f7621"
+}
