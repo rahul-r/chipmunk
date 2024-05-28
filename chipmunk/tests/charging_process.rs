@@ -39,7 +39,6 @@ pub async fn test_missing_charging_detection() {
 
     let _osm_mock = create_mock_osm_server().await;
     let pool = init_test_database("test_missing_charging_detection").await;
-    let env = chipmunk::config::load_env_vars().unwrap();
 
     // Make the logging period shorter to speed up the test
     let mut settings = Settings::db_get_last(&pool).await.unwrap();
@@ -59,7 +58,7 @@ pub async fn test_missing_charging_detection() {
     let pool_clone = pool.clone();
 
     let _logger_task = tokio::task::spawn(async move {
-        tasks::run(&env, &pool_clone, &mut config).await.unwrap();
+        tasks::run(&pool_clone, &mut config).await.unwrap();
     });
 
     // Start driving
@@ -171,7 +170,6 @@ pub async fn test_delayed_data_during_missing_charging_detection() {
 
     let _osm_mock = create_mock_osm_server().await;
     let pool = init_test_database("test_delayed_data_during_missing_charging_detection").await;
-    let env = chipmunk::config::load_env_vars().unwrap();
 
     // Make the logging period shorter to speed up the test
     let mut settings = Settings::db_get_last(&pool).await.unwrap();
@@ -182,7 +180,7 @@ pub async fn test_delayed_data_during_missing_charging_detection() {
 
     let pool_clone = pool.clone();
     let _logger_task = tokio::task::spawn(async move {
-        tasks::run(&env, &pool_clone, &mut config).await.unwrap();
+        tasks::run(&pool_clone, &mut config).await.unwrap();
     });
 
     // Set up a pointer to send vehicle data to the mock server
@@ -257,7 +255,6 @@ pub async fn test_charging_process() {
 
     let _osm_mock = create_mock_osm_server().await;
     let pool = init_test_database("test_charging_process").await;
-    let env = chipmunk::config::load_env_vars().unwrap();
 
     // Make the logging period shorter to speed up the test
     let mut settings = Settings::db_get_last(&pool).await.unwrap();
@@ -276,7 +273,7 @@ pub async fn test_charging_process() {
 
     let pool_clone = pool.clone();
     let _logger_task = tokio::task::spawn(async move {
-        if let Err(e) = tasks::run(&env, &pool_clone, &mut config).await {
+        if let Err(e) = tasks::run(&pool_clone, &mut config).await {
             log::error!("{e:?}");
         }
     });
@@ -408,7 +405,6 @@ pub async fn test_continue_previous_charging_session() {
 
     let _osm_mock = create_mock_osm_server().await;
     let pool = init_test_database("test_continue_previous_charging_session").await;
-    let env = chipmunk::config::load_env_vars().unwrap();
 
     // Make the logging period shorter to speed up the test
     let mut settings = Settings::db_get_last(&pool).await.unwrap();
@@ -418,10 +414,9 @@ pub async fn test_continue_previous_charging_session() {
     let mut config = Config::new(&pool).await;
 
     let pool_clone = pool.clone();
-    let env_clone = env.clone();
     let (abort_handle, abort_registration) = AbortHandle::new_pair();
     let mut config_clone = config.clone();
-    let future = Abortable::new(async move { tasks::run(&env_clone, &pool_clone, &mut config_clone).await.unwrap(); }, abort_registration);
+    let future = Abortable::new(async move { tasks::run(&pool_clone, &mut config_clone).await.unwrap(); }, abort_registration);
     let _logger_task = tokio::task::spawn(async move {
         future.await.ok();
     });
@@ -446,10 +441,9 @@ pub async fn test_continue_previous_charging_session() {
     // Simulate charging interruption by stopping and re-starting logger task
     abort_handle.abort();
     let pool_clone = pool.clone();
-    let env_clone = env.clone();
     let (abort_handle, abort_registration) = AbortHandle::new_pair();
     let mut config_clone = config.clone();
-    let future = Abortable::new(async move { tasks::run(&env_clone, &pool_clone, &mut config_clone).await.unwrap(); }, abort_registration);
+    let future = Abortable::new(async move { tasks::run(&pool_clone, &mut config_clone).await.unwrap(); }, abort_registration);
     let _logger_task = tokio::task::spawn(async move {
         future.await.ok();
     });
@@ -474,9 +468,8 @@ pub async fn test_continue_previous_charging_session() {
     // Simulate charging interruption by stopping and re-starting logger task
     abort_handle.abort();
     let pool_clone = pool.clone();
-    let env_clone = env.clone();
     let (_abort_handle, abort_registration) = AbortHandle::new_pair();
-    let future = Abortable::new(async move { tasks::run(&env_clone, &pool_clone, &mut config).await.unwrap(); }, abort_registration);
+    let future = Abortable::new(async move { tasks::run(&pool_clone, &mut config).await.unwrap(); }, abort_registration);
     let _logger_task = tokio::task::spawn(async move {
         future.await.ok();
     });

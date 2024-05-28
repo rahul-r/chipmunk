@@ -459,7 +459,7 @@ fn handle_token_expiry(_pool: &sqlx::PgPool) {
     log::info!("Running `handle_token_expiry` callback");
 }
 
-pub async fn run(env: &EnvVars, pool: &sqlx::PgPool, config: &mut Config) -> anyhow::Result<()> {
+pub async fn run(pool: &sqlx::PgPool, config: &mut Config) -> anyhow::Result<()> {
     // Channel for vehicle data and streaming data
     let (vehicle_data_tx, vehicle_data_rx) = mpsc::channel::<DataTypes>(1);
     // channel for parsed data
@@ -476,14 +476,27 @@ pub async fn run(env: &EnvVars, pool: &sqlx::PgPool, config: &mut Config) -> any
     let web_server_task_handle = {
         let config = config.clone();
         let cancellation_token = cancellation_token.clone();
-        let http_port = env.http_port;
+        let http_port = match config.http_port.lock().map(|c| c.get()) {
+            Ok(v) => v,
+            Err(e) => {
+                log::error!("{e}");
+                anyhow::bail!("{e}");
+            }
+        };
         task_tracker.spawn(async move {
             web_server_task(data_rx, config, cancellation_token, http_port).await;
         })
     };
 
+    let encryption_key = match config.encryption_key.lock().map(|c| c.get()) {
+        Ok(v) => v,
+        Err(e) => {
+            log::error!("{e}");
+            anyhow::bail!("{e}");
+        }
+    };
     // Read tokens from the database if exists, if not, get from the user and store in the databse
-    let tokens = match Token::db_get_last(pool, &env.encryption_key).await {
+    let tokens = match Token::db_get_last(pool, &encryption_key).await {
         Ok(t) => t,
         Err(e) => {
             log::error!("{e}");
@@ -506,7 +519,7 @@ pub async fn run(env: &EnvVars, pool: &sqlx::PgPool, config: &mut Config) -> any
 
                 match tesla_api::auth::refresh_access_token(refresh_token.as_str()).await {
                     Ok(tokens) => {
-                        Token::db_insert(pool, &tokens, env.encryption_key.as_str()).await?;
+                        Token::db_insert(pool, &tokens, encryption_key.as_str()).await?;
                         break;
                     }
                     Err(e) => {
@@ -515,7 +528,7 @@ pub async fn run(env: &EnvVars, pool: &sqlx::PgPool, config: &mut Config) -> any
                     }
                 };
             }
-            Token::db_get_last(pool, &env.encryption_key).await?
+            Token::db_get_last(pool, &encryption_key).await?
         }
     };
 

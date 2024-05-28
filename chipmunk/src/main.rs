@@ -72,7 +72,7 @@ async fn main() -> anyhow::Result<()> {
 
     if let Some(option) = cli.option.as_deref() {
         match option {
-            "tasks" => chipmunk::tasks::run(&env, &pool, &mut config)
+            "tasks" => chipmunk::tasks::run(&pool, &mut config)
                 .await
                 .unwrap_or_else(print_err_and_exit!()),
             "convertdb" => chipmunk::tasks::convert_db(&env, &pool, &config, cli.num_rows)

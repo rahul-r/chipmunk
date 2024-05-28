@@ -147,6 +147,10 @@ pub struct Config {
     pub logging_period_ms: Arc<Mutex<Field<i32>>>,
     pub access_token: Arc<Mutex<Field<String>>>,
     pub refresh_token: Arc<Mutex<Field<String>>>,
+    pub encryption_key: Arc<Mutex<Field<String>>>,
+    pub database_url: Arc<Mutex<Field<String>>>,
+    pub car_data_database_url: Arc<Mutex<Field<Option<String>>>>,
+    pub http_port: Arc<Mutex<Field<u16>>>,
 }
 
 impl Config {
@@ -180,6 +184,10 @@ impl Config {
             logging_period_ms: Arc::new(Mutex::new(Field::new(settings.logging_period_ms))),
             access_token: Arc::new(Mutex::new(Field::new(tokens.access_token))),
             refresh_token: Arc::new(Mutex::new(Field::new(tokens.refresh_token))),
+            encryption_key: Arc::new(Mutex::new(Field::new(env_vars.encryption_key))),
+            database_url: Arc::new(Mutex::new(Field::new(env_vars.database_url))),
+            car_data_database_url: Arc::new(Mutex::new(Field::new(env_vars.car_data_database_url))),
+            http_port: Arc::new(Mutex::new(Field::new(env_vars.http_port))),
         }
     }
 }

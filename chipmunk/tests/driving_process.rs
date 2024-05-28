@@ -39,7 +39,6 @@ pub async fn test_driving_and_parking() {
 
     let _osm_mock = create_mock_osm_server().await;
     let pool = init_test_database("test_driving_and_parking").await;
-    let env = chipmunk::config::load_env_vars().unwrap();
 
     // Make the logging period shorter to speed up the test
     let mut settings = Settings::db_get_last(&pool).await.unwrap();
@@ -66,7 +65,7 @@ pub async fn test_driving_and_parking() {
     let pool_clone = pool.clone();
 
     let _logger_task = tokio::task::spawn(async move {
-        tasks::run(&env, &pool_clone, &mut config).await.unwrap();
+        tasks::run(&pool_clone, &mut config).await.unwrap();
     });
 
     // Start driving
