@@ -386,11 +386,11 @@ async fn web_server_task(
                         }
                     },
                     Err(e) => match e {
-                        tokio::sync::mpsc::error::TryRecvError::Disconnected => {
+                        mpsc::error::TryRecvError::Disconnected => {
                             log::error!("server_rx channel closed, exiting {name}");
                             break;
                         }
-                        tokio::sync::mpsc::error::TryRecvError::Empty => (),
+                        mpsc::error::TryRecvError::Empty => (),
                     },
                 }
 
