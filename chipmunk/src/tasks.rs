@@ -3,7 +3,7 @@ use sqlx::postgres::PgPoolOptions;
 use std::ops::Deref;
 use std::time::Duration;
 
-use crate::config::{Config, EnvVars};
+use crate::config::Config;
 use crate::database::tables::token::Token;
 use crate::database::tables::{vehicle_data, Tables};
 use crate::logger::{create_tables, get_car_id};
@@ -271,17 +271,20 @@ async fn data_polling_task(
 async fn database_task(
     mut data_rx: mpsc::Receiver<DatabaseDataType>,
     data_resp_tx: mpsc::Sender<DatabaseRespType>,
-    _config: Config,
+    config: Config,
     cancellation_token: CancellationToken,
     pool: &sqlx::PgPool,
 ) {
     use mpsc::error::*;
     let name = "database_task";
 
-    // TODO: get the URL from config
-    let car_data_database_url = std::env::var("CAR_DATA_DATABASE_URL")
-        .map_err(|_e| log::warn!("Cannot load env variable `CAR_DATA_DATABASE_URL`"))
-        .ok();
+    let car_data_database_url = config
+        .car_data_database_url
+        .lock()
+        .map(|c| c.get())
+        .map_err(|e| log::error!("Error reading `car_data_database_url` from config: {e}"))
+        .ok()
+        .flatten();
 
     let car_data_db_pool = if let Some(ref url) = car_data_database_url {
         log::info!("Connecting to car data database `{url}`");
@@ -655,12 +658,19 @@ async fn get_ids(tesla_client: &mut TeslaClient) -> Option<(u64, u64)> {
 }
 
 pub async fn convert_db(
-    env: &EnvVars,
     pool: &sqlx::PgPool,
     config: &Config,
     num_rows_to_fetch: i64,
 ) -> anyhow::Result<()> {
-    let Some(ref car_data_database_url) = env.car_data_database_url else {
+    let car_data_database_url = config
+        .car_data_database_url
+        .lock()
+        .map(|c| c.get())
+        .map_err(|e| log::error!("Error reading `car_data_database_url` from config: {e}"))
+        .ok()
+        .flatten();
+
+    let Some(ref car_data_database_url) = car_data_database_url else {
         anyhow::bail!("Please provide CAR_DATA_DATABASE_URL");
     };
     let car_data_pool = database::initialize_car_data(car_data_database_url).await?;

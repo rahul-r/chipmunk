@@ -75,7 +75,7 @@ async fn main() -> anyhow::Result<()> {
             "tasks" => chipmunk::tasks::run(&pool, &mut config)
                 .await
                 .unwrap_or_else(print_err_and_exit!()),
-            "convertdb" => chipmunk::tasks::convert_db(&env, &pool, &config, cli.num_rows)
+            "convertdb" => chipmunk::tasks::convert_db(&pool, &config, cli.num_rows)
                 .await
                 .unwrap_or_else(print_err_and_exit!()),
             unknown => log::error!("Unknown command line argument `{unknown}`"),
