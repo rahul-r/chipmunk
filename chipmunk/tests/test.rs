@@ -10,6 +10,7 @@ use std::io::BufReader;
 use std::io::Write;
 use std::sync::{Arc, Mutex};
 
+use chipmunk::config::load_env_vars;
 use chipmunk::config::Config;
 use chipmunk::database;
 use chipmunk::database::tables::car::Car;
@@ -29,7 +30,7 @@ use crate::common::utils::{create_mock_osm_server, init_test_database};
 use chipmunk::database::tables::drive::Drive;
 use chipmunk::database::tables::Tables;
 use chipmunk::database::DBTable;
-use chipmunk::{load_env_vars, openstreetmap};
+use chipmunk::openstreetmap;
 use common::test_data;
 use tesla_api::vehicle_data::{DriveState, ShiftState, VehicleData};
 

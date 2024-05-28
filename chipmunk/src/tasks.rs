@@ -3,12 +3,12 @@ use sqlx::postgres::PgPoolOptions;
 use std::ops::Deref;
 use std::time::Duration;
 
-use crate::config::Config;
+use crate::config::{Config, EnvVars};
 use crate::database::tables::token::Token;
 use crate::database::tables::{vehicle_data, Tables};
 use crate::logger::{create_tables, get_car_id};
 use crate::server::{DataToServer, MpscTopic, TeslaServer};
-use crate::{database, get_config, set_config, EnvVars};
+use crate::{database, get_config, set_config};
 use tesla_api::stream::StreamingData;
 use tesla_api::vehicle_data::VehicleData;
 use tesla_api::{TeslaClient, TeslaError};

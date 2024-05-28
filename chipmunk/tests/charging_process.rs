@@ -39,7 +39,7 @@ pub async fn test_missing_charging_detection() {
 
     let _osm_mock = create_mock_osm_server().await;
     let pool = init_test_database("test_missing_charging_detection").await;
-    let env = chipmunk::load_env_vars().unwrap();
+    let env = chipmunk::config::load_env_vars().unwrap();
 
     // Make the logging period shorter to speed up the test
     let mut settings = Settings::db_get_last(&pool).await.unwrap();
@@ -171,7 +171,7 @@ pub async fn test_delayed_data_during_missing_charging_detection() {
 
     let _osm_mock = create_mock_osm_server().await;
     let pool = init_test_database("test_delayed_data_during_missing_charging_detection").await;
-    let env = chipmunk::load_env_vars().unwrap();
+    let env = chipmunk::config::load_env_vars().unwrap();
 
     // Make the logging period shorter to speed up the test
     let mut settings = Settings::db_get_last(&pool).await.unwrap();
@@ -257,7 +257,7 @@ pub async fn test_charging_process() {
 
     let _osm_mock = create_mock_osm_server().await;
     let pool = init_test_database("test_charging_process").await;
-    let env = chipmunk::load_env_vars().unwrap();
+    let env = chipmunk::config::load_env_vars().unwrap();
 
     // Make the logging period shorter to speed up the test
     let mut settings = Settings::db_get_last(&pool).await.unwrap();
@@ -408,7 +408,7 @@ pub async fn test_continue_previous_charging_session() {
 
     let _osm_mock = create_mock_osm_server().await;
     let pool = init_test_database("test_continue_previous_charging_session").await;
-    let env = chipmunk::load_env_vars().unwrap();
+    let env = chipmunk::config::load_env_vars().unwrap();
 
     // Make the logging period shorter to speed up the test
     let mut settings = Settings::db_get_last(&pool).await.unwrap();

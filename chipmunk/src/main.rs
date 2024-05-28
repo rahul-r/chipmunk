@@ -3,9 +3,8 @@
 #![feature(stmt_expr_attributes)]
 
 use chipmunk::{
-    config::Config,
+    config::{load_env_vars, Config},
     database::{self, tables::token::Token},
-    load_env_vars,
 };
 use clap::Parser;
 
@@ -59,11 +58,11 @@ async fn main() -> anyhow::Result<()> {
         .unwrap_or_else(print_err_and_exit!());
     log::info!("Database initialized");
 
-    let cli = Cli::parse();
-
     let mut config = Config::new(&pool).await;
 
-    // If token is provided, store it in the database
+    let cli = Cli::parse();
+
+    // If a token is provided, store it in the database
     if let Some(refresh_token) = cli.token {
         match tesla_api::auth::refresh_access_token(refresh_token.as_str()).await {
             Ok(tokens) => Token::db_insert(&pool, &tokens, env.encryption_key.as_str()).await?,

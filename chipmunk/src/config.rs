@@ -13,14 +13,14 @@ use crate::database::{
 
 #[allow(dead_code)]
 #[derive(Clone)]
-struct EnvVars {
+pub struct EnvVars {
     pub encryption_key: String,
     pub database_url: String,
     pub car_data_database_url: Option<String>,
     pub http_port: u16,
 }
 
-fn load_env_vars() -> anyhow::Result<EnvVars> {
+pub fn load_env_vars() -> anyhow::Result<EnvVars> {
     let encryption_key =
         env::var("TOKEN_ENCRYPTION_KEY").context("Please provide TOKEN_ENCRYPTION_KEY")?;
     let database_url = env::var("DATABASE_URL").context("Please provide DATABASE_URL")?;
@@ -95,17 +95,6 @@ macro_rules! get_config {
     }};
 }
 
-//pub trait FieldTrait<T>
-//where
-//    T: Clone + Default + 'static + Sync + Send,
-//{
-//    fn new(value: T) -> Self;
-//    fn get(&self) -> T;
-//    fn set(&mut self, value: T);
-//    fn subscribe(&mut self, handler: fn(T));
-//    fn emit(&self);
-//}
-
 pub struct Field<T> {
     f: T,
     handlers: Arc<Mutex<Vec<HandlerType<T>>>>,
@@ -153,7 +142,8 @@ where
 #[derive(Clone)]
 pub struct Config {
     pub logging_enabled: Arc<Mutex<Field<bool>>>,
-    pub logging_period_ms1: Arc<AtomicU32>,
+    //pub logging_enabled: Arc<Field<Arc<AtomicBool>>>,
+    pub test_flag: Arc<Field<Arc<AtomicU32>>>,
     pub logging_period_ms: Arc<Mutex<Field<i32>>>,
     pub access_token: Arc<Mutex<Field<String>>>,
     pub refresh_token: Arc<Mutex<Field<String>>>,
@@ -184,7 +174,9 @@ impl Config {
 
         Self {
             logging_enabled: Arc::new(Mutex::new(Field::new(true))),
-            logging_period_ms1: Arc::new(AtomicU32::new(settings.logging_period_ms as u32)),
+            test_flag: Arc::new(Field::new(Arc::new(AtomicU32::new(
+                settings.logging_period_ms as u32,
+            )))),
             logging_period_ms: Arc::new(Mutex::new(Field::new(settings.logging_period_ms))),
             access_token: Arc::new(Mutex::new(Field::new(tokens.access_token))),
             refresh_token: Arc::new(Mutex::new(Field::new(tokens.refresh_token))),

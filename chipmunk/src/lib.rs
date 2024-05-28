@@ -1,9 +1,7 @@
 #![feature(async_closure)]
 #![feature(stmt_expr_attributes)]
 
-use std::{env, io::Write};
-
-use anyhow::Context;
+use std::io::Write;
 
 pub mod charging;
 pub mod config;
@@ -15,53 +13,6 @@ pub mod tasks;
 pub mod utils;
 
 pub const DELAYED_DATAPOINT_TIME_SEC: i64 = 10 * 60;
-
-#[derive(Clone)]
-pub struct EnvVars {
-    pub encryption_key: String,
-    pub database_url: String,
-    pub car_data_database_url: Option<String>,
-    pub http_port: u16,
-}
-
-// TODO: move this function to config.rs
-pub fn load_env_vars() -> anyhow::Result<EnvVars> {
-    let encryption_key =
-        env::var("TOKEN_ENCRYPTION_KEY").context("Please provide TOKEN_ENCRYPTION_KEY")?;
-    let database_url = env::var("DATABASE_URL").context("Please provide DATABASE_URL")?;
-    let car_data_database_url = match env::var("CAR_DATA_DATABASE_URL") {
-        Ok(v) => Some(v),
-        Err(e) => match e {
-            env::VarError::NotPresent => None,
-            env::VarError::NotUnicode(e) => {
-                anyhow::bail!(
-                    "Invalid value for environment variable CAR_DATA_DATABASE_URL: {e:?}"
-                );
-            }
-        },
-    };
-
-    const DEFAULT_PORT: u16 = 3072;
-    let http_port = match env::var("HTTP_PORT") {
-        Ok(port) => port.parse().unwrap_or_else(|e| {
-            log::error!("Invalid HTTP_PORT `{port}`: {e}");
-            log::info!("Using default port {DEFAULT_PORT}");
-            DEFAULT_PORT
-        }),
-        Err(e) => {
-            log::warn!("Error reading HTTP_PORT from environment: {e}");
-            log::info!("Using default port {DEFAULT_PORT}");
-            DEFAULT_PORT
-        }
-    };
-
-    Ok(EnvVars {
-        encryption_key,
-        database_url,
-        car_data_database_url,
-        http_port,
-    })
-}
 
 fn get_file_name(path_str: Option<&str>) -> String {
     if let Some(path_str_val) = path_str {
