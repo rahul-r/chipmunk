@@ -6,7 +6,7 @@ use futures::{
     SinkExt, StreamExt,
 };
 use gloo_net::websocket::{futures::WebSocket, Message};
-use ui_common::{Json, WsMessage};
+use ui_common::WsMessage;
 use wasm_bindgen_futures::spawn_local;
 
 use crate::get_host;

@@ -1,4 +1,4 @@
-use ui_common::{Json, LoggingStatus, Topic};
+use ui_common::{LoggingStatus, Topic};
 use yew::{function_component, html, use_context, Html};
 
 use crate::WsContext;

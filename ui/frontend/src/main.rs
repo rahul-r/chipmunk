@@ -5,7 +5,7 @@ mod websocket;
 
 use async_channel::Sender;
 use stylist::Style;
-use ui_common::{Json, LoggingStatus, Topic, WsMessage};
+use ui_common::{LoggingStatus, Topic, WsMessage};
 use wasm_bindgen_futures::spawn_local;
 use web_sys::MouseEvent;
 use yew::{function_component, html, use_effect, use_state, Callback, ContextProvider, Html};
