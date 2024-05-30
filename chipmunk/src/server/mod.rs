@@ -17,7 +17,7 @@ use uuid::Uuid;
 use warp::ws::{Message, WebSocket};
 use warp::Filter;
 
-use ui_common::{Json, LoggingStatus, MessageType, Topic, WsMessage, WsMessageToken};
+use ui_common::{LoggingStatus, MessageType, Topic, WsMessage, WsMessageToken};
 
 use crate::{config::Config, get_config};
 

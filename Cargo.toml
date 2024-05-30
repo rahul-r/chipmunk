@@ -1,11 +1,12 @@
 [workspace]
-members = ["chipmunk", "tesla_api", "ui/frontend", "ui/common"]
+members = ["chipmunk", "tesla_api", "ui/frontend", "ui/common", "macros"]
 default-members = ["chipmunk"]
 resolver = "2"
 
 [workspace.dependencies]
 tesla_api = { path = "tesla_api" }
 ui_common = { path = "ui/common" }
+macros = { path = "macros" }
 log = "0.4.19"
 anyhow = "1.0.71"
 serde = { version = "1.0.164", features = ["derive"] }
