@@ -157,7 +157,7 @@ impl Config {
     pub async fn new(pool: &sqlx::PgPool) -> Self {
         let env_vars = match load_env_vars() {
             Ok(v) => v,
-            Err(e) => panic!("{e}"), // TODO: return Result/Err instead of panicing
+            Err(e) => panic!("{e}"), // TODO: return Result/Err instead of panicking
         };
 
         let tokens = match Token::db_get_last(pool, &env_vars.encryption_key).await {

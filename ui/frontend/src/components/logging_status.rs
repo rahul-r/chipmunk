@@ -1,4 +1,4 @@
-use ui_common::{LoggingStatus, Topic};
+use ui_common::Topic;
 use yew::{function_component, html, use_context, Html};
 
 use crate::WsContext;
@@ -9,19 +9,16 @@ pub fn Status() -> Html {
     if let Some(c) = ctx {
         match c.msg.topic {
             Topic::LoggingStatus => {
-                let status = LoggingStatus::from_value(c.msg.data.unwrap()).unwrap();
+                let status = ui_common::Status::from_value(c.msg.data.unwrap()).unwrap();
                 return html! {
                     <>
                         <h1>{"Logger Status"}</h1>
-                        <div>{"charge_state: "}{status.charge_state}</div>
-                        <div>{"charging_status: "}{status.charging_status}</div>
-                        <div>{"current_miles: "}{status.current_miles}</div>
-                        <div>{"current_points: "}{status.current_points}</div>
-                        <div>{"is_logging: "}{status.is_logging}</div>
-                        <div>{"is_user_present: "}{status.is_user_present}</div>
-                        <div>{"odometer: "}{status.odometer}</div>
-                        <div>{"total_miles: "}{status.total_miles}</div>
-                        <div>{"total_points: "}{status.total_points}</div>
+                        <div>{"charge_state: "}{status.charging.map(|c| c.charge_added)}</div>
+                        <div>{"current_points: "}{status.logging.current_num_points}</div>
+                        <div>{"is_logging: "}{status.logging.enabled}</div>
+                        <div>{"is_user_present: "}{status.vehicle.is_user_nearby}</div>
+                        <div>{"odometer: "}{status.vehicle.odometer}</div>
+                        <div>{"total_points: "}{status.logging.total_num_points}</div>
                     </>
                 };
             }

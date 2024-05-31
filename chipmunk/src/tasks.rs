@@ -16,7 +16,6 @@ use tokio::sync::mpsc::{self, unbounded_channel};
 use tokio::sync::{broadcast, oneshot};
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::TaskTracker;
-use ui_common::LoggingStatus;
 
 #[derive(Debug, Clone)]
 pub enum DataTypes {
@@ -364,7 +363,6 @@ async fn web_server_task(
         let config = config.clone();
         async move {
             let name = format!("{name}::message_handler_task");
-            let mut logging_status = ui_common::LoggingStatus::default();
             loop {
                 match data_from_server_rx.try_recv() {
                     Ok(value) => match value {
@@ -394,32 +392,9 @@ async fn web_server_task(
                     },
                 }
 
-                let is_logging = match get_config!(config.logging_enabled) {
-                    Ok(v) => v,
-                    Err(e) => {
-                        log::error!("Error reading config value `logging_enabled`: {e}");
-                        false
-                    }
-                };
-
                 match data_rx.try_recv() {
                     Ok(data) => {
-                        let odometer = data.position.unwrap().odometer.unwrap() as i32;
-                        logging_status = LoggingStatus {
-                            timestamp: chrono::offset::Utc::now(),
-                            is_logging,
-                            current_points: logging_status.current_points + 1,
-                            total_points: logging_status.total_points + 1,
-                            current_miles: odometer,
-                            total_miles: odometer,
-                            is_user_present: true,
-                            odometer,
-                            charging_status: "TBD".into(),
-                            charge_state: "TBD".into(),
-                        };
-                        if let Err(e) = data_to_server_tx
-                            .send(DataToServer::LoggingStatus(logging_status.clone()))
-                        {
+                        if let Err(e) = data_to_server_tx.send(DataToServer::Tables(data)) {
                             log::error!("Error sending data to web server: {e}");
                         }
                     }
@@ -498,7 +473,7 @@ pub async fn run(pool: &sqlx::PgPool, config: &mut Config) -> anyhow::Result<()>
             anyhow::bail!("{e}");
         }
     };
-    // Read tokens from the database if exists, if not, get from the user and store in the databse
+    // Read tokens from the database if exists, if not, get from the user and store in the database
     let tokens = match Token::db_get_last(pool, &encryption_key).await {
         Ok(t) => t,
         Err(e) => {

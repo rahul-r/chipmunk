@@ -1,11 +1,10 @@
 mod status;
 
-use chrono::{DateTime, Utc};
 use macros::Json;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-pub use status::Status;
+pub use status::{Charging, Driving, Logging, Offline, Parked, Sleeping, State, Status, Vehicle};
 
 #[derive(Debug, Default, Serialize, Deserialize, PartialEq, Clone)]
 pub enum Topic {
@@ -67,23 +66,4 @@ impl WsMessage {
 #[derive(Debug, Serialize, Deserialize, Json)]
 pub struct WsMessageToken {
     pub token: String,
-}
-
-#[derive(Debug, Serialize, Deserialize, Default, Clone, Json)]
-pub struct LoggingStatus {
-    pub timestamp: DateTime<Utc>,
-    pub is_logging: bool,
-    pub current_points: i32,
-    pub total_points: i32,
-    pub current_miles: i32,
-    pub total_miles: i32,
-    // pub session_start_time: DateTime<Utc>,
-    // pub app_start_time: DateTime<Utc>,
-    pub is_user_present: bool,
-    pub odometer: i32,
-    // Remove?
-    pub charging_status: String,
-    // pub Vehicle states
-    // pub drive_state: DriveState,
-    pub charge_state: String,
 }

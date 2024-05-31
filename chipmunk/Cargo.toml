@@ -6,6 +6,8 @@ edition = "2021"
 [dependencies]
 ui_common.workspace = true
 tesla_api.workspace = true
+macros.workspace = true
+
 log.workspace = true
 anyhow.workspace = true
 serde.workspace = true

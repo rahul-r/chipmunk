@@ -5,7 +5,7 @@ use serde::Serialize;
 
 use macros::Json;
 
-#[derive(Debug, Serialize, Deserialize, Default, Clone)]
+#[derive(Debug, Serialize, Deserialize, Default, Clone, Eq, PartialEq)]
 pub enum State {
     Driving,
     Charging,
@@ -18,61 +18,60 @@ pub enum State {
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone, Json)]
 pub struct Driving {
-    pub location: String,
     pub start_time: DateTime<Utc>,
     pub duration_sec: u32,
     pub miles_driven: u32,
-    pub charge_used: f32,
-    pub destination: String,
+    pub starting_battery_level: Option<i16>,
+    pub current_battery_level: Option<i16>,
+    pub charge_used: i16,
+    pub battery_level_at_destination: f32,
+    pub destination: Option<String>,
     pub time_remaining_sec: u32,
-    pub charge_at_destination: f32,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone, Json)]
 pub struct Charging {
-    pub location: String,
     pub start_time: DateTime<Utc>,
-    pub duration_sec: u32,
-    pub charge_added: u32,
-    pub cost: String,
+    pub duration_sec: i64,
+    pub starting_battery_level: Option<i16>,
+    pub current_battery_level: Option<i16>,
+    pub charge_added: f32,
+    pub cost: u32,
     pub time_remaining_sec: u32,
-    pub interior_temperature: u32,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone, Json)]
 pub struct Parked {
-    pub location: String,
     pub start_time: DateTime<Utc>,
-    pub duration_sec: u32,
-    pub charge: u32,
-    pub charge_used: u32,
-    pub interior_temperature: u32,
+    pub duration_sec: i64,
+    pub starting_battery_level: Option<i16>,
+    pub current_battery_level: Option<i16>,
+    pub charge_used: i16,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone, Json)]
 pub struct Offline {
     pub start_time: DateTime<Utc>,
-    pub duration_sec: u32,
-    pub last_known_location: String,
-    pub last_known_charge: u32,
+    pub duration_sec: i64,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone, Json)]
 pub struct Sleeping {
     pub start_time: DateTime<Utc>,
-    pub duration_sec: u32,
-    pub location: String,
-    pub last_known_charge: u32,
+    pub duration_sec: i64,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone, Json)]
 pub struct Vehicle {
-    pub odometer: i32,
+    pub odometer: f32,
     pub is_user_nearby: bool,
+    pub location: Option<String>,
+    pub battery_level: Option<i16>,
+    pub interior_temperature: Option<f32>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone, Json)]
-pub struct LoggingStatus {
+pub struct Logging {
     pub enabled: bool,
     pub current_num_points: i32,
     pub total_num_points: i32,
@@ -83,7 +82,7 @@ pub struct Status {
     pub timestamp: DateTime<Utc>,
     pub app_start_time: DateTime<Utc>,
     pub state: State,
-    pub logging: LoggingStatus,
+    pub logging: Logging,
     pub vehicle: Vehicle,
     pub driving: Option<Driving>,
     pub charging: Option<Charging>,

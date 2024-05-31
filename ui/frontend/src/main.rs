@@ -5,7 +5,7 @@ mod websocket;
 
 use async_channel::Sender;
 use stylist::Style;
-use ui_common::{LoggingStatus, Topic, WsMessage};
+use ui_common::{Topic, WsMessage};
 use wasm_bindgen_futures::spawn_local;
 use web_sys::MouseEvent;
 use yew::{function_component, html, use_effect, use_state, Callback, ContextProvider, Html};
@@ -123,9 +123,9 @@ fn ws() -> Html {
     let msg = (*ws_context).clone().msg;
     match msg.topic {
         Topic::LoggingStatus => {
-            let status = LoggingStatus::from_value(msg.data.unwrap()).unwrap();
-            if *is_logging != status.is_logging {
-                is_logging.set(status.is_logging);
+            let status = ui_common::Status::from_value(msg.data.unwrap()).unwrap();
+            if *is_logging != status.logging.enabled {
+                is_logging.set(status.logging.enabled);
             }
         }
         _ => (),

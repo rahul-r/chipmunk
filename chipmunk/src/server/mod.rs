@@ -1,3 +1,5 @@
+pub mod status;
+
 use std::{
     collections::HashMap,
     net::{IpAddr, Ipv4Addr, SocketAddr},
@@ -10,6 +12,7 @@ use std::{
 
 use futures_util::{SinkExt, StreamExt, TryFutureExt};
 use serde_json::json;
+use status::LoggingStatus;
 use tokio::sync::Mutex;
 use tokio::sync::{broadcast, mpsc, oneshot, RwLock};
 use tokio_stream::wrappers::UnboundedReceiverStream;
@@ -17,9 +20,9 @@ use uuid::Uuid;
 use warp::ws::{Message, WebSocket};
 use warp::Filter;
 
-use ui_common::{LoggingStatus, MessageType, Topic, WsMessage, WsMessageToken};
+use ui_common::{MessageType, Topic, WsMessage, WsMessageToken};
 
-use crate::{config::Config, get_config};
+use crate::{config::Config, database::tables::Tables};
 
 // static SERVER: OnceLock<TeslaServer> = OnceLock::new();
 
@@ -51,7 +54,7 @@ pub struct TeslaServer {
 
 #[derive(Clone)]
 pub enum DataToServer {
-    LoggingStatus(LoggingStatus),
+    Tables(Tables),
 }
 
 impl TeslaServer {
@@ -114,11 +117,24 @@ impl TeslaServer {
                 Err(e) => anyhow::bail!(e),
             };
 
-        let srv = Arc::new(Mutex::new(TeslaServer {
+        let _srv = TeslaServer {
             clients,
             status: LoggingStatus::default(),
-            config,
-        }));
+            config: config.clone(),
+        };
+
+        //TODO: Subscribe to config.is_logging and update LoggingStatus when the config changes
+        //match config.logging_enabled.lock() {
+        //    Ok(mut v) => {
+        //        v.subscribe_closure(|status| {
+        //            log::info!("Logging enabled status changed to `{status}`. Updating server status with the new value");
+        //            _srv.status.set_logging_status(status);
+        //        });
+        //    }
+        //    Err(e) => log::error!("Error subscribing to config value `logging_enabled`: {e}"),
+        //}
+
+        let srv = Arc::new(Mutex::new(_srv));
 
         // Handle the messages coming from other tasks
         let message_handler_task = {
@@ -127,9 +143,7 @@ impl TeslaServer {
                 loop {
                     match data_to_srv_rx.recv().await {
                         Ok(v) => match v {
-                            DataToServer::LoggingStatus(status) => {
-                                srv.lock().await.set_logging_status(status);
-                            }
+                            DataToServer::Tables(tables) => srv.lock().await.status.update(&tables),
                         },
                         Err(e) => {
                             log::warn!("{e}");
@@ -378,22 +392,11 @@ impl TeslaServer {
     }
 
     pub fn get_status_str(&self) -> String {
-        let status = LoggingStatus {
-            is_logging: match get_config!(self.config.logging_enabled) {
-                Ok(v) => v,
-                Err(e) => {
-                    log::error!("Error getting config value `is_logging`: {e}");
-                    false
-                }
-            },
-            ..self.status.clone()
-        };
-
         let msg = WsMessage {
             id: Uuid::new_v4().to_string(),
             r#type: MessageType::Response,
             topic: Topic::LoggingStatus,
-            data: match status.to_value() {
+            data: match self.status.to_value() {
                 Ok(v) => Some(v),
                 Err(e) => {
                     log::error!("{e}");
@@ -402,19 +405,5 @@ impl TeslaServer {
             },
         };
         msg.to_string().unwrap()
-    }
-
-    pub fn get_status_str_1(status: LoggingStatus) -> anyhow::Result<String> {
-        let msg = WsMessage {
-            id: Uuid::new_v4().to_string(),
-            r#type: MessageType::Response,
-            topic: Topic::LoggingStatus,
-            data: Some(status.to_value()?),
-        };
-        msg.to_string()
-    }
-
-    pub fn set_logging_status(&mut self, status: LoggingStatus) {
-        self.status = status;
     }
 }
