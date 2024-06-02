@@ -150,11 +150,11 @@ fn sleeping(state: &State, curr_status: Option<&Sleeping>) -> Option<Sleeping> {
     Some(status)
 }
 
-fn vehicle(tables: &Tables, curr_status: &Vehicle) -> Vehicle {
-    let location = if curr_status.location.is_none() {
-        tables.address.as_ref().and_then(|a| a.display_name.clone())
-    } else {
-        None
+fn vehicle(tables: &Tables, curr_status: Vehicle) -> Vehicle {
+    // TODO: Also update the the location when the state changes
+    let location = match curr_status.location {
+        Some(l) => Some(l),
+        None => tables.address.as_ref().and_then(|a| a.display_name.clone()),
     };
 
     Vehicle {
@@ -175,7 +175,7 @@ fn vehicle(tables: &Tables, curr_status: &Vehicle) -> Vehicle {
     }
 }
 
-fn logging(curr_status: &Logging, config: &Config) -> Logging {
+fn logging(curr_status: Option<&Logging>, config: &Config) -> Logging {
     Logging {
         enabled: config
             .logging_enabled
@@ -183,8 +183,8 @@ fn logging(curr_status: &Logging, config: &Config) -> Logging {
             .map(|l| l.get())
             .map_err(|e| log::error!("{e}"))
             .unwrap_or(true),
-        current_num_points: curr_status.current_num_points + 1,
-        total_num_points: curr_status.total_num_points + 1,
+        current_num_points: curr_status.map(|s| s.current_num_points + 1).unwrap_or(0),
+        total_num_points: curr_status.map(|s| s.total_num_points + 1).unwrap_or(0),
     }
 }
 
@@ -204,8 +204,8 @@ impl LoggingStatus {
                 timestamp: chrono::offset::Utc::now(),
                 app_start_time: chrono::offset::Utc::now(),
                 state: state.clone(),
-                logging: logging(&curr_status.logging, config),
-                vehicle: vehicle(&tables, &curr_status.vehicle),
+                logging: logging(None, config),
+                vehicle: vehicle(&tables, curr_status.vehicle),
                 driving: driving(&tables, &state, curr_status.driving.as_ref()),
                 charging: charging(&tables, &state, curr_status.charging.as_ref()),
                 parked: parked(&tables, &state, curr_status.parked.as_ref()),
@@ -222,7 +222,7 @@ impl LoggingStatus {
             timestamp: chrono::offset::Utc::now(),
             app_start_time: chrono::offset::Utc::now(),
             state: state.clone(),
-            logging: logging(&self.status.logging, config),
+            logging: logging(Some(&self.status.logging), config),
             vehicle: vehicle(tables, &self.status.vehicle),
             driving: driving(tables, &state, self.status.driving.as_ref()),
             charging: charging(tables, &state, self.status.charging.as_ref()),
