@@ -135,34 +135,8 @@ where
     }
 
     pub fn watch(&self) -> watch::Receiver<T> {
-        //let (sender, receiver) = watch::channel(T::default());
-
-        //match self.watchers.lock() {
-        //    Ok(mut watchers) => watchers.push(receiver),
-        //    Err(e) => log::error!("{e}"),
-        //};
         self.watcher.subscribe()
     }
-
-    // pub fn subscribe_closure<F>(&mut self, handler: F)
-    // where
-    //     F: Fn(T) + Send + 'static,
-    // {
-    //     match self.handlers.lock() {
-    //         Ok(mut handlers) => handlers.push(Box::new(handler)),
-    //         Err(e) => log::error!("{e}"),
-    //     };
-    // }
-
-    //pub fn subscribe_async<F>(&mut self, handler: impl futures::Future<Output = ()> + Send)
-    //where
-    //    F: Fn(T) + Send + 'static,
-    //{
-    //    match self.handlers_async.lock() {
-    //        Ok(mut handlers) => handlers.push(Box::new(handler)),
-    //        Err(e) => log::error!("{e}"),
-    //    };
-    //}
 
     fn emit(&self) {
         match self.handlers.lock() {
