@@ -13,7 +13,6 @@ use std::{
 use futures_util::{SinkExt, StreamExt, TryFutureExt};
 use serde_json::json;
 use status::LoggingStatus;
-use tokio::sync::Mutex;
 use tokio::sync::{broadcast, mpsc, oneshot, RwLock};
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use uuid::Uuid;
@@ -64,7 +63,7 @@ impl TeslaServer {
         data_from_srv_tx: mpsc::UnboundedSender<MpscTopic>,
         mut data_to_srv_rx: broadcast::Receiver<DataToServer>,
         exit_signal_rx: oneshot::Receiver<()>,
-    ) -> anyhow::Result<Arc<Mutex<TeslaServer>>> {
+    ) -> anyhow::Result<()> {
         let clients = Clients::default(); // Keep track of all connected clients
         let clients_copy = clients.clone();
         let with_clients = warp::any().map(move || clients_copy.clone());
@@ -117,24 +116,24 @@ impl TeslaServer {
                 Err(e) => anyhow::bail!(e),
             };
 
-        let _srv = TeslaServer {
-            clients,
-            status: LoggingStatus::default(),
-            config: config.clone(),
-        };
+        let status = LoggingStatus::default();
 
-        //TODO: Subscribe to config.is_logging and update LoggingStatus when the config changes
+        let srv = Arc::new(tokio::sync::Mutex::new(TeslaServer {
+            clients,
+            status,
+            config: config.clone(),
+        }));
+
         //match config.logging_enabled.lock() {
         //    Ok(mut v) => {
-        //        v.subscribe_closure(|status| {
-        //            log::info!("Logging enabled status changed to `{status}`. Updating server status with the new value");
-        //            _srv.status.set_logging_status(status);
+        //        let srv = srv.clone();
+        //        v.subscribe_async(async move |s| {
+        //            log::info!("Logging enabled status changed to `{s}`. Updating server status with the new value");
+        //            srv.lock().await.status.set_logging_status(s);
         //        });
         //    }
         //    Err(e) => log::error!("Error subscribing to config value `logging_enabled`: {e}"),
         //}
-
-        let srv = Arc::new(Mutex::new(_srv));
 
         // Handle the messages coming from other tasks
         let message_handler_task = {
@@ -156,18 +155,18 @@ impl TeslaServer {
 
         // Send the logging status to all connected web interface clients
         let status_reporter = tokio::task::spawn({
-            let srv = srv.clone();
             async move {
                 loop {
-                    let srv = srv.lock().await;
                     // We receive the status report from the logger task in regular interval and
                     // store it in the `status` variable. This task will read this variable and
                     // sends it to the clients. Since the logger task only sends the status updates
                     // if it gets data from the vehicle, there is a chance that we don't have the
                     // latest status. Use the `timestamp` field of the status struct to determine
                     // how old the data is.
-                    let msg = srv.get_status_str();
-                    srv.broadcast(msg).await;
+                    {
+                        let srv_locked = srv.lock().await;
+                        srv_locked.broadcast(srv_locked.get_status_msg()).await;
+                    }
                     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
                 }
             }
@@ -181,7 +180,7 @@ impl TeslaServer {
 
         tracing::error!("Exiting server task");
 
-        Ok(srv)
+        Ok(())
     }
 
     /// Broadcast message to all connected clients
@@ -391,7 +390,7 @@ impl TeslaServer {
         Ok(())
     }
 
-    pub fn get_status_str(&self) -> String {
+    pub fn get_status_msg(&self) -> String {
         let msg = WsMessage {
             id: Uuid::new_v4().to_string(),
             r#type: MessageType::Response,

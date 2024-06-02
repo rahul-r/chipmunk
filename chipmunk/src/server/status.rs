@@ -230,6 +230,10 @@ impl LoggingStatus {
         self.status.to_value()
     }
 
+    pub fn to_string(&self) -> anyhow::Result<String> {
+        self.status.to_string()
+    }
+
     pub fn set_logging_status(&mut self, status: bool) {
         self.status.logging.enabled = status;
     }

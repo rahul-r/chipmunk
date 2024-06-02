@@ -1,5 +1,6 @@
 use std::{
     env,
+    marker::Send,
     sync::{atomic::AtomicU32, Arc, Mutex},
 };
 
@@ -98,6 +99,8 @@ macro_rules! get_config {
 pub struct Field<T> {
     f: T,
     handlers: Arc<Mutex<Vec<HandlerType<T>>>>,
+    handlers_async: Arc<Mutex<Vec<Box<dyn futures::Future<Output = ()> + Send>>>>,
+    // Box<dyn Fn() -> Pin<Box<dyn Future<Output = Result<(), E>> + Send + Sync>> + Send + Sync>,
 }
 
 impl<T> Field<T>
@@ -108,6 +111,7 @@ where
         Self {
             f: value,
             handlers: Arc::new(Mutex::new(vec![])),
+            handlers_async: Arc::new(Mutex::new(vec![])),
         }
     }
 
@@ -126,6 +130,26 @@ where
             Err(e) => log::error!("{e}"),
         };
     }
+
+    // pub fn subscribe_closure<F>(&mut self, handler: F)
+    // where
+    //     F: Fn(T) + Send + 'static,
+    // {
+    //     match self.handlers.lock() {
+    //         Ok(mut handlers) => handlers.push(Box::new(handler)),
+    //         Err(e) => log::error!("{e}"),
+    //     };
+    // }
+
+    //pub fn subscribe_async<F>(&mut self, handler: impl futures::Future<Output = ()> + Send)
+    //where
+    //    F: Fn(T) + Send + 'static,
+    //{
+    //    match self.handlers_async.lock() {
+    //        Ok(mut handlers) => handlers.push(Box::new(handler)),
+    //        Err(e) => log::error!("{e}"),
+    //    };
+    //}
 
     fn emit(&self) {
         match self.handlers.lock() {
