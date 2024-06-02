@@ -150,10 +150,10 @@ fn sleeping(state: &State, curr_status: Option<&Sleeping>) -> Option<Sleeping> {
     Some(status)
 }
 
-fn vehicle(tables: &Tables, curr_status: Vehicle) -> Vehicle {
+fn vehicle(tables: &Tables, curr_status: &Vehicle) -> Vehicle {
     // TODO: Also update the the location when the state changes
     let location = match curr_status.location {
-        Some(l) => Some(l),
+        Some(ref l) => Some(l.clone()),
         None => tables.address.as_ref().and_then(|a| a.display_name.clone()),
     };
 
@@ -205,7 +205,7 @@ impl LoggingStatus {
                 app_start_time: chrono::offset::Utc::now(),
                 state: state.clone(),
                 logging: logging(None, config),
-                vehicle: vehicle(&tables, curr_status.vehicle),
+                vehicle: vehicle(&tables, &curr_status.vehicle),
                 driving: driving(&tables, &state, curr_status.driving.as_ref()),
                 charging: charging(&tables, &state, curr_status.charging.as_ref()),
                 parked: parked(&tables, &state, curr_status.parked.as_ref()),
