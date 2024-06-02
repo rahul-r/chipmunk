@@ -60,8 +60,6 @@ pub fn load_env_vars() -> anyhow::Result<EnvVars> {
     })
 }
 
-type HandlerType<T> = Box<dyn Fn(T) + Send>;
-
 #[macro_export]
 macro_rules! set_config {
     ($config_param:expr, $value:expr) => {{
@@ -99,7 +97,6 @@ macro_rules! get_config {
 
 pub struct Field<T> {
     f: T,
-    handlers: Arc<Mutex<Vec<HandlerType<T>>>>,
     watcher: watch::Sender<T>,
     _receiver: watch::Receiver<T>,
 }
@@ -112,7 +109,6 @@ where
         let w = watch::channel(T::default());
         Self {
             f: value,
-            handlers: Arc::new(Mutex::new(vec![])),
             watcher: w.0,
             _receiver: w.1,
         }
@@ -127,27 +123,11 @@ where
         self.emit();
     }
 
-    pub fn subscribe(&mut self, handler: fn(T)) {
-        match self.handlers.lock() {
-            Ok(mut handlers) => handlers.push(Box::new(handler)),
-            Err(e) => log::error!("{e}"),
-        };
-    }
-
     pub fn watch(&self) -> watch::Receiver<T> {
         self.watcher.subscribe()
     }
 
     fn emit(&self) {
-        match self.handlers.lock() {
-            Ok(handlers) => {
-                for handler in handlers.iter() {
-                    handler(self.f.clone());
-                }
-            }
-            Err(e) => log::error!("{e}"),
-        }
-
         if let Err(e) = self.watcher.send(self.f.clone()) {
             log::error!("{e}");
         }
