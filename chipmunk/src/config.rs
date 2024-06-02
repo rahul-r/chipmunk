@@ -6,6 +6,7 @@ use std::{
 
 use anyhow::Context;
 use tesla_api::auth::AuthResponse;
+use tokio::sync::watch;
 
 use crate::database::{
     tables::{settings::Settings, token::Token},
@@ -99,8 +100,7 @@ macro_rules! get_config {
 pub struct Field<T> {
     f: T,
     handlers: Arc<Mutex<Vec<HandlerType<T>>>>,
-    handlers_async: Arc<Mutex<Vec<Box<dyn futures::Future<Output = ()> + Send>>>>,
-    // Box<dyn Fn() -> Pin<Box<dyn Future<Output = Result<(), E>> + Send + Sync>> + Send + Sync>,
+    watchers: Arc<Mutex<Vec<watch::Sender<T>>>>,
 }
 
 impl<T> Field<T>
@@ -111,7 +111,7 @@ where
         Self {
             f: value,
             handlers: Arc::new(Mutex::new(vec![])),
-            handlers_async: Arc::new(Mutex::new(vec![])),
+            watchers: Arc::new(Mutex::new(vec![])),
         }
     }
 
@@ -129,6 +129,15 @@ where
             Ok(mut handlers) => handlers.push(Box::new(handler)),
             Err(e) => log::error!("{e}"),
         };
+    }
+
+    pub fn watch(&self) -> watch::Receiver<T> {
+        let (sender, receiver) = watch::channel(T::default());
+        match self.watchers.lock() {
+            Ok(mut watchers) => watchers.push(sender),
+            Err(e) => log::error!("{e}"),
+        };
+        receiver
     }
 
     // pub fn subscribe_closure<F>(&mut self, handler: F)
@@ -156,6 +165,15 @@ where
             Ok(handlers) => {
                 for handler in handlers.iter() {
                     handler(self.f.clone());
+                }
+            }
+            Err(e) => log::error!("{e}"),
+        }
+
+        match self.watchers.lock() {
+            Ok(watchers) => {
+                for watcher in watchers.iter() {
+                    watcher.send(self.f.clone()).unwrap();
                 }
             }
             Err(e) => log::error!("{e}"),

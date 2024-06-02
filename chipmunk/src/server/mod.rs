@@ -13,7 +13,7 @@ use std::{
 use futures_util::{SinkExt, StreamExt, TryFutureExt};
 use serde_json::json;
 use status::LoggingStatus;
-use tokio::sync::{broadcast, mpsc, oneshot, RwLock};
+use tokio::sync::{broadcast, mpsc, oneshot, watch, RwLock};
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use uuid::Uuid;
 use warp::ws::{Message, WebSocket};
@@ -48,7 +48,7 @@ pub enum MpscTopic {
 pub struct TeslaServer {
     clients: Clients,
     status: LoggingStatus,
-    config: Config,
+    logging_enabled_watcher: watch::Receiver<bool>,
 }
 
 #[derive(Clone)]
@@ -118,22 +118,19 @@ impl TeslaServer {
 
         let status = LoggingStatus::default();
 
+        let logging_enabled_watcher = match config.logging_enabled.lock() {
+            Ok(v) => v.watch(),
+            Err(e) => {
+                log::error!("Error subscribing to config value `logging_enabled`: {e}");
+                panic!("{e}");
+            }
+        };
+
         let srv = Arc::new(tokio::sync::Mutex::new(TeslaServer {
             clients,
             status,
-            config: config.clone(),
+            logging_enabled_watcher,
         }));
-
-        //match config.logging_enabled.lock() {
-        //    Ok(mut v) => {
-        //        let srv = srv.clone();
-        //        v.subscribe_async(async move |s| {
-        //            log::info!("Logging enabled status changed to `{s}`. Updating server status with the new value");
-        //            srv.lock().await.status.set_logging_status(s);
-        //        });
-        //    }
-        //    Err(e) => log::error!("Error subscribing to config value `logging_enabled`: {e}"),
-        //}
 
         // Handle the messages coming from other tasks
         let message_handler_task = {
@@ -164,8 +161,9 @@ impl TeslaServer {
                     // latest status. Use the `timestamp` field of the status struct to determine
                     // how old the data is.
                     {
-                        let srv_locked = srv.lock().await;
-                        srv_locked.broadcast(srv_locked.get_status_msg()).await;
+                        let mut srv_locked = srv.lock().await;
+                        let status_msg = srv_locked.get_status_msg();
+                        srv_locked.broadcast(status_msg).await;
                     }
                     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
                 }
@@ -244,8 +242,8 @@ impl TeslaServer {
     fn send(client: &mpsc::UnboundedSender<Message>, msg: &WsMessage) -> anyhow::Result<()> {
         let msg_str = msg.to_string()?;
 
-        if let Err(_disconnected) = client.send(Message::text(msg_str)) {
-            log::info!("Error {_disconnected}");
+        if let Err(disconnected) = client.send(Message::text(msg_str)) {
+            log::info!("Error {disconnected}");
         }
 
         Ok(())
@@ -390,18 +388,22 @@ impl TeslaServer {
         Ok(())
     }
 
-    pub fn get_status_msg(&self) -> String {
+    pub fn get_status_msg(&mut self) -> String {
+        if self
+            .logging_enabled_watcher
+            .has_changed()
+            .map_err(|e| log::error!("{e}"))
+            .unwrap_or(false)
+        {
+            let new_status = *self.logging_enabled_watcher.borrow_and_update();
+            self.status.set_logging_status(new_status);
+        }
+
         let msg = WsMessage {
             id: Uuid::new_v4().to_string(),
             r#type: MessageType::Response,
             topic: Topic::LoggingStatus,
-            data: match self.status.to_value() {
-                Ok(v) => Some(v),
-                Err(e) => {
-                    log::error!("{e}");
-                    None
-                }
-            },
+            data: self.status.to_value().map_err(|e| log::error!("{e}")).ok(),
         };
         msg.to_string().unwrap()
     }
