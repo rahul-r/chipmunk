@@ -100,7 +100,8 @@ macro_rules! get_config {
 pub struct Field<T> {
     f: T,
     handlers: Arc<Mutex<Vec<HandlerType<T>>>>,
-    watchers: Arc<Mutex<Vec<watch::Sender<T>>>>,
+    watcher: watch::Sender<T>,
+    _receiver: watch::Receiver<T>,
 }
 
 impl<T> Field<T>
@@ -108,10 +109,12 @@ where
     T: Clone + Default + 'static + Sync + Send,
 {
     pub fn new(value: T) -> Self {
+        let w = watch::channel(T::default());
         Self {
             f: value,
             handlers: Arc::new(Mutex::new(vec![])),
-            watchers: Arc::new(Mutex::new(vec![])),
+            watcher: w.0,
+            _receiver: w.1,
         }
     }
 
@@ -132,12 +135,13 @@ where
     }
 
     pub fn watch(&self) -> watch::Receiver<T> {
-        let (sender, receiver) = watch::channel(T::default());
-        match self.watchers.lock() {
-            Ok(mut watchers) => watchers.push(sender),
-            Err(e) => log::error!("{e}"),
-        };
-        receiver
+        //let (sender, receiver) = watch::channel(T::default());
+
+        //match self.watchers.lock() {
+        //    Ok(mut watchers) => watchers.push(receiver),
+        //    Err(e) => log::error!("{e}"),
+        //};
+        self.watcher.subscribe()
     }
 
     // pub fn subscribe_closure<F>(&mut self, handler: F)
@@ -170,13 +174,8 @@ where
             Err(e) => log::error!("{e}"),
         }
 
-        match self.watchers.lock() {
-            Ok(watchers) => {
-                for watcher in watchers.iter() {
-                    watcher.send(self.f.clone()).unwrap();
-                }
-            }
-            Err(e) => log::error!("{e}"),
+        if let Err(e) = self.watcher.send(self.f.clone()) {
+            log::error!("{e}");
         }
     }
 }
