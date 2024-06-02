@@ -116,7 +116,7 @@ impl TeslaServer {
                 Err(e) => anyhow::bail!(e),
             };
 
-        let status = LoggingStatus::default();
+        let status = LoggingStatus::new(&config);
 
         let logging_enabled_watcher = match config.logging_enabled.lock() {
             Ok(v) => v.watch(),
@@ -139,7 +139,9 @@ impl TeslaServer {
                 loop {
                     match data_to_srv_rx.recv().await {
                         Ok(v) => match v {
-                            DataToServer::Tables(tables) => srv.lock().await.status.update(&tables),
+                            DataToServer::Tables(tables) => {
+                                srv.lock().await.status.update(&tables, &config)
+                            }
                         },
                         Err(e) => {
                             log::warn!("{e}");

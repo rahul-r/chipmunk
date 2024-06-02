@@ -1,6 +1,6 @@
 use ui_common::{Charging, Driving, Logging, Offline, Parked, Sleeping, State, Status, Vehicle};
 
-use crate::database::tables::Tables;
+use crate::{config::Config, database::tables::Tables};
 
 fn driving(tables: &Tables, state: &State, curr_status: Option<&Driving>) -> Option<Driving> {
     if *state != State::Parked {
@@ -175,48 +175,54 @@ fn vehicle(tables: &Tables, curr_status: &Vehicle) -> Vehicle {
     }
 }
 
-fn logging(curr_status: &Logging) -> Logging {
+fn logging(curr_status: &Logging, config: &Config) -> Logging {
     Logging {
-        enabled: curr_status.enabled,
+        enabled: config
+            .logging_enabled
+            .lock()
+            .map(|l| l.get())
+            .map_err(|e| log::error!("{e}"))
+            .unwrap_or(true),
         current_num_points: curr_status.current_num_points + 1,
         total_num_points: curr_status.total_num_points + 1,
     }
 }
 
-#[derive(Default, Clone)]
+#[derive(Clone)]
 pub struct LoggingStatus {
     status: Status,
 }
 
 impl LoggingStatus {
-    pub fn new(tables: &Tables) -> Self {
+    pub fn new(config: &Config) -> Self {
         let state = State::default(); // TODO: replace with vehicle state (driving, charging, etc.)
         let curr_status = Status::default();
+        let tables = Tables::default();
 
         Self {
             status: Status {
                 timestamp: chrono::offset::Utc::now(),
                 app_start_time: chrono::offset::Utc::now(),
                 state: state.clone(),
-                logging: logging(&curr_status.logging),
-                vehicle: vehicle(tables, &curr_status.vehicle),
-                driving: driving(tables, &state, curr_status.driving.as_ref()),
-                charging: charging(tables, &state, curr_status.charging.as_ref()),
-                parked: parked(tables, &state, curr_status.parked.as_ref()),
+                logging: logging(&curr_status.logging, config),
+                vehicle: vehicle(&tables, &curr_status.vehicle),
+                driving: driving(&tables, &state, curr_status.driving.as_ref()),
+                charging: charging(&tables, &state, curr_status.charging.as_ref()),
+                parked: parked(&tables, &state, curr_status.parked.as_ref()),
                 offline: offline(&state, curr_status.offline.as_ref()),
                 sleeping: sleeping(&state, curr_status.sleeping.as_ref()),
             },
         }
     }
 
-    pub fn update(&mut self, tables: &Tables) {
+    pub fn update(&mut self, tables: &Tables, config: &Config) {
         let state = self.status.state.clone();
 
         self.status = Status {
             timestamp: chrono::offset::Utc::now(),
             app_start_time: chrono::offset::Utc::now(),
             state: state.clone(),
-            logging: logging(&self.status.logging),
+            logging: logging(&self.status.logging, config),
             vehicle: vehicle(tables, &self.status.vehicle),
             driving: driving(tables, &state, self.status.driving.as_ref()),
             charging: charging(tables, &state, self.status.charging.as_ref()),
