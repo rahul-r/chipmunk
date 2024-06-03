@@ -151,7 +151,7 @@ fn sleeping(state: &State, curr_status: Option<&Sleeping>) -> Option<Sleeping> {
 }
 
 fn vehicle(tables: &Tables, curr_status: &Vehicle) -> Vehicle {
-    // TODO: Also update the the location when the state changes
+    // TODO: Also update the location when the state changes
     let location = match curr_status.location {
         Some(ref l) => Some(l.clone()),
         None => tables.address.as_ref().and_then(|a| a.display_name.clone()),
@@ -195,7 +195,7 @@ pub struct LoggingStatus {
 
 impl LoggingStatus {
     pub fn new(config: &Config) -> Self {
-        let state = State::default(); // TODO: replace with vehicle state (driving, charging, etc.)
+        let state = State::default();
         let curr_status = Status::default();
         let tables = Tables::default();
 
@@ -216,7 +216,19 @@ impl LoggingStatus {
     }
 
     pub fn update(&mut self, tables: &Tables, config: &Config) {
-        let state = self.status.state.clone();
+        let state = if let Some(s) = tables.state.as_ref().map(|s| s.state) {
+            use crate::database::tables::state::StateStatus as ss;
+            match s {
+                ss::Offline => State::Offline,
+                ss::Asleep => State::Sleeping,
+                ss::Unknown => State::Unknown,
+                ss::Parked => State::Parked,
+                ss::Driving => State::Driving,
+                ss::Charging => State::Charging,
+            }
+        } else {
+            State::Unknown
+        };
 
         self.status = Status {
             timestamp: chrono::offset::Utc::now(),
