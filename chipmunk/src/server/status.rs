@@ -3,7 +3,7 @@ use ui_common::{Charging, Driving, Logging, Offline, Parked, Sleeping, State, St
 use crate::{config::Config, database::tables::Tables};
 
 fn driving(tables: &Tables, state: &State, curr_status: Option<&Driving>) -> Option<Driving> {
-    if *state != State::Parked {
+    if *state != State::Driving {
         return None;
     }
 
@@ -43,7 +43,7 @@ fn driving(tables: &Tables, state: &State, curr_status: Option<&Driving>) -> Opt
 }
 
 fn charging(tables: &Tables, state: &State, curr_status: Option<&Charging>) -> Option<Charging> {
-    if *state != State::Parked {
+    if *state != State::Charging {
         return None;
     }
 
