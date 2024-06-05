@@ -121,14 +121,11 @@ fn ws() -> Html {
     });
 
     let msg = (*ws_context).clone().msg;
-    match msg.topic {
-        Topic::LoggingStatus => {
-            let status = ui_common::Status::from_value(msg.data.unwrap()).unwrap();
-            if *is_logging != status.logging.enabled {
-                is_logging.set(status.logging.enabled);
-            }
+    if let Topic::LoggingStatus = msg.topic {
+        let status = ui_common::Status::from_value(msg.data.unwrap()).unwrap();
+        if *is_logging != status.logging.enabled {
+            is_logging.set(status.logging.enabled);
         }
-        _ => (),
     }
 
     html! {
