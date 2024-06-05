@@ -84,8 +84,24 @@ impl TeslaServer {
         index_html.push("index.html");
 
         if !index_html.exists() {
-            log::error!("{:?} does not exist", index_html);
-            anyhow::bail!("{:?} does not exist", index_html);
+            dist_dir = std::env::current_exe().expect("Cannot get executable path");
+            dist_dir.pop();
+            dist_dir.pop();
+            dist_dir.pop();
+            dist_dir.push("ui");
+            dist_dir.push("frontend");
+            dist_dir.push("dist");
+            let mut index_html_1 = dist_dir.clone();
+            index_html_1.push("index.html");
+
+            index_html.push("index.html");
+            log::error!("{index_html:?} does not exist. Trying {index_html_1:?}");
+
+            if !index_html_1.exists() {
+                log::error!("{index_html_1:?} does not exist. Trying {index_html_1:?}");
+                anyhow::bail!("{index_html_1:?} does not exist");
+            }
+            index_html = index_html_1;
         }
 
         // handle path "/"
