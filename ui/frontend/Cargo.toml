@@ -1,7 +1,10 @@
 [package]
-name = "frontend"
+name = "frontend_leptos"
 version = "0.1.0"
 edition = "2021"
+authors = ["rahul <jossb6cw@duck.com>"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 ui_common.workspace = true
@@ -9,15 +12,28 @@ log.workspace = true
 anyhow.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-tokio.workspace = true
-async-channel.workspace = true
 
-wasm-bindgen = "0.2.87"
-wasm-logger = "0.2.0"
-yew = { version = "0.21.0", features = ["csr"] }
-gloo-net = "0.5.0"
-gloo-timers = "0.3.0"
-futures = "0.3.28"
-wasm-bindgen-futures = "0.4.37"
-stylist = { version = "0.13.0", features = ["yew", "parser"] }
-web-sys = { version = "0.3.64" }
+leptos = { version = "0.6", features = ["csr", "nightly"] }
+leptos_meta = { version = "0.6", features = ["csr", "nightly"] }
+leptos_router = { version = "0.6", features = ["csr", "nightly"] }
+console_log = "1"
+console_error_panic_hook = "0.1"
+leptos-use = "0.10.10"
+leptos-leaflet = "0.8.1"
+
+# utils
+# strum = { version = "0.25", features = ["derive", "strum_macros"] }
+# strum_macros = "0.25"
+
+
+[dev-dependencies]
+wasm-bindgen = "0.2"
+wasm-bindgen-test = "0.3"
+web-sys = { version = "0.3", features = ["Document", "Window"] }
+
+
+[profile.release]
+opt-level = 'z'
+lto = true
+codegen-units = 1
+panic = "abort"

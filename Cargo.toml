@@ -1,5 +1,12 @@
 [workspace]
-members = ["chipmunk", "tesla_api", "ui/frontend", "ui/common", "macros"]
+members = [
+  "chipmunk",
+  "tesla_api",
+  "ui/frontend",
+  "ui/frontend",
+  "ui/common",
+  "macros",
+]
 default-members = ["chipmunk"]
 resolver = "2"
 
