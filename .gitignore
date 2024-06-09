@@ -16,3 +16,4 @@ dist
 .idea
 
 rustc-ice*
+.DS_Store

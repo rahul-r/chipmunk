@@ -1,5 +1,5 @@
 [package]
-name = "frontend_leptos"
+name = "frontend"
 version = "0.1.0"
 edition = "2021"
 authors = ["rahul <jossb6cw@duck.com>"]

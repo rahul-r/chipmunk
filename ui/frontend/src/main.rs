@@ -1,4 +1,4 @@
-use frontend_leptos::App;
+use frontend::App;
 use leptos::*;
 
 fn main() {
