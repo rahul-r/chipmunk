@@ -6,17 +6,18 @@ COPY . .
 RUN cargo build --release
 
 # Build frontend
-# Install and run tailwindcss
-RUN curl -o tailwindcss https://github.com/tailwindlabs/tailwindcss/releases/download/v3.4.4/tailwindcss-linux-x64 && \
-    chmod +x tailwindcss && \
-    ./tailwindcss -i ./style/tailwind.css -o ./public/styles.css
+# Install tailwindcss
+RUN curl -o /usr/bin/tailwindcss https://github.com/tailwindlabs/tailwindcss/releases/download/v3.4.4/tailwindcss-linux-x64 && \
+    chmod +x /usr/bin/tailwindcss
 
 # Install trunk
 # RUN cargo install --locked trunk # This might take a long time. Install a prebuilt package as a workaround
 ARG TRUNK_VERSION=v0.17.1
 RUN wget -qO- https://github.com/thedodd/trunk/releases/download/${TRUNK_VERSION}/trunk-x86_64-unknown-linux-gnu.tar.gz | tar -xzf- -C /usr/bin/
+
+# Build
 WORKDIR /chipmunk/ui/frontend
-RUN trunk build
+RUN tailwindcss -i ./style/tailwind.css -o ./public/styles.css && trunk build
 
 # Create release version using grafana as base image
 FROM grafana/grafana:10.2.1-ubuntu
