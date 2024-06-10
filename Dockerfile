@@ -6,6 +6,11 @@ COPY . .
 RUN cargo build --release
 
 # Build frontend
+# Install and run tailwindcss
+RUN wget https://github.com/tailwindlabs/tailwindcss/releases/download/v3.4.4/tailwindcss-linux-x64 -O tailwindcss && \
+    chmod +x tailwindcss && \
+    ./tailwindcss -i ./style/tailwind.css -o ./public/styles.css
+
 # Install trunk
 # RUN cargo install --locked trunk # This might take a long time. Install a prebuilt package as a workaround
 ARG TRUNK_VERSION=v0.17.1
@@ -62,12 +67,12 @@ EXPOSE 3000
 # Create script to start chipmunk and grafana
 USER root
 RUN echo "#!/bin/bash\n"\
-         "export GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH=/dashboards/overview.json\n"\
-         "export GF_PANELS_DISABLE_SANITIZE_HTML=true\n"\
-         "export HTTP_PORT=${HTTP_PORT:=3072}\n"\
-         "export CHIPMUNK_HOST=localhost\n"\
-         "export CHIPMUNK_PORT=${HTTP_PORT}\n"\
-         "/run.sh& /chipmunk/chipmunk tasks"\
+    "export GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH=/dashboards/overview.json\n"\
+    "export GF_PANELS_DISABLE_SANITIZE_HTML=true\n"\
+    "export HTTP_PORT=${HTTP_PORT:=3072}\n"\
+    "export CHIPMUNK_HOST=localhost\n"\
+    "export CHIPMUNK_PORT=${HTTP_PORT}\n"\
+    "/run.sh& /chipmunk/chipmunk tasks"\
     > /chipmunk/start.sh &&\
     chmod +x /chipmunk/start.sh
 
