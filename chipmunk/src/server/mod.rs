@@ -110,7 +110,11 @@ impl TeslaServer {
             .and(warp::fs::file(index_html));
 
         // handle path "/xxxx" (e.g. http://hostname/index.html loads static/index.html)
-        let static_dir = warp::fs::dir(dist_dir);
+        let static_dir = warp::fs::dir(dist_dir.clone());
+
+        // handle path "/public" (e.g. http://hostname/public/image.png loads static/public/image.png)
+        dist_dir.push("public");
+        let public_dir = warp::fs::dir(dist_dir);
 
         // TODO: Fix CORS
         // let cors = warp::cors()
@@ -119,7 +123,7 @@ impl TeslaServer {
         //     .allow_headers(vec!["Authorization", "Content-Type", "Access-Control-Allow-Origin"])
         //     .build();
         // let routes = index.or(static_dir).or(websocket).with(cors);
-        let routes = index.or(static_dir).or(websocket);
+        let routes = index.or(static_dir).or(public_dir).or(websocket);
 
         let address = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), port);
         log::info!("Listening on http://{}", address);
