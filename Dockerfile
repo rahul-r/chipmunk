@@ -7,7 +7,7 @@ RUN cargo build --release
 
 # Build frontend
 # Install and run tailwindcss
-RUN wget https://github.com/tailwindlabs/tailwindcss/releases/download/v3.4.4/tailwindcss-linux-x64 -O tailwindcss && \
+RUN curl -o tailwindcss https://github.com/tailwindlabs/tailwindcss/releases/download/v3.4.4/tailwindcss-linux-x64 && \
     chmod +x tailwindcss && \
     ./tailwindcss -i ./style/tailwind.css -o ./public/styles.css
 
