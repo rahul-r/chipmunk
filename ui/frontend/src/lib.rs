@@ -1,7 +1,9 @@
 use leptos::*;
 use leptos_meta::*;
 use leptos_router::*;
-use leptos_use::{core::ConnectionReadyState, use_websocket, UseWebsocketReturn};
+use leptos_use::{
+    core::ConnectionReadyState, use_websocket_with_options, UseWebSocketOptions, UseWebsocketReturn,
+};
 
 mod components;
 mod pages;
@@ -11,12 +13,15 @@ use crate::pages::not_found::NotFound;
 use crate::pages::settings::Settings;
 
 use std::rc::Rc;
+use ui_common::{Status, Topic, WsMessage};
 
 #[derive(Clone)]
 pub struct WebsocketContext {
     pub message: Signal<Option<String>>,
     send: Rc<dyn Fn(&str)>, // use Rc to make it easily cloneable
     ready_state: Signal<ConnectionReadyState>,
+    logging_status: ReadSignal<Status>,
+    is_logging: ReadSignal<bool>,
 }
 
 impl WebsocketContext {
@@ -24,15 +29,19 @@ impl WebsocketContext {
         message: Signal<Option<String>>,
         send: Rc<dyn Fn(&str)>,
         ready_state: Signal<ConnectionReadyState>,
+        logging_status: ReadSignal<Status>,
+        is_logging: ReadSignal<bool>,
     ) -> Self {
         Self {
             message,
             send,
             ready_state,
+            logging_status,
+            is_logging,
         }
     }
 
-    // create a method to avoid having to use parantheses around the field
+    // create a method to avoid having to use parentheses around the field
     #[inline(always)]
     pub fn send(&self, message: &str) {
         (self.send)(message)
@@ -43,17 +52,45 @@ impl WebsocketContext {
 pub fn App() -> impl IntoView {
     provide_meta_context();
 
+    let (is_logging, set_is_logging) = create_signal(false);
+    let (logging_status, set_logging_status) = create_signal(Status::default());
+
+    let on_message_callback = move |msg: String| match WsMessage::from_string(&*msg) {
+        Ok(m) => {
+            if let Topic::LoggingStatus = m.topic {
+                let status = ui_common::Status::from_value(m.data.unwrap()).unwrap();
+                set_is_logging(status.logging.enabled);
+                set_logging_status(status);
+            }
+        }
+        Err(e) => logging::log!(
+            "Cannot convert websocket message to a known message type: {}",
+            e
+        ),
+    };
+
     let UseWebsocketReturn {
         ready_state,
         message,
         send,
         ..
-    } = use_websocket("ws://localhost:3072/websocket");
+    } = use_websocket_with_options(
+        "ws://localhost:3072/websocket",
+        UseWebSocketOptions::default()
+            .immediate(true)
+            // .on_open(on_open_callback.clone())
+            // .on_close(on_close_callback.clone())
+            // .on_error(on_error_callback.clone())
+            // .on_message_bytes(on_message_bytes_callback.clone())
+            .on_message(on_message_callback),
+    );
 
     provide_context(WebsocketContext::new(
         message,
         Rc::new(send.clone()),
         ready_state,
+        logging_status,
+        is_logging,
     ));
 
     view! {
