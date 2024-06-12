@@ -48,6 +48,34 @@ impl WebsocketContext {
     }
 }
 
+pub fn get_host() -> anyhow::Result<String> {
+    let Some(window) = web_sys::window() else {
+        anyhow::bail!("Cannot get window");
+    };
+
+    let Ok(hostname) = window.location().hostname() else {
+        anyhow::bail!("Cannot get hostname");
+    };
+
+    let Ok(port) = window.location().port() else {
+        anyhow::bail!("Cannot get port");
+    };
+
+    let Ok(protocol) = window.location().protocol() else {
+        anyhow::bail!("Cannot get protocol");
+    };
+
+    let ws_protocol = if protocol == "http:" {
+        "ws:"
+    } else if protocol == "https:" {
+        "wss:"
+    } else {
+        anyhow::bail!("Unknown protocol {protocol}");
+    };
+
+    Ok(format!("{ws_protocol}//{hostname}:{port}"))
+}
+
 #[component]
 pub fn App() -> impl IntoView {
     provide_meta_context();
@@ -75,7 +103,7 @@ pub fn App() -> impl IntoView {
         send,
         ..
     } = use_websocket_with_options(
-        "ws://localhost:3072/websocket",
+        &format!("{}/websocket", get_host().unwrap()),
         UseWebSocketOptions::default()
             .immediate(true)
             // .on_open(on_open_callback.clone())
