@@ -7,16 +7,20 @@ use crate::{components::map::Map, WebsocketContext};
 
 fn log_stat(status: Status) -> impl IntoView {
     view! {
-        <div class="flex flex-col items-center bg-white border border-gray-200 rounded-lg shadow md:flex-row md:max-w-xl dark:border-gray-700 dark:bg-gray-800 ">
-            <img class="object-cover w-full rounded-t-lg h-96 md:h-auto md:w-48 md:rounded-none md:rounded-s-lg" src="/docs/images/blog/image-4.jpg" alt="car"/>
-            <div class="flex flex-col justify-between p-4 leading-normal">
-                <h5 class="mb-2 text-2xl font-bold tracking-tight text-gray-900 dark:text-white">car name</h5>
-                <div>{"charge_state: "}{status.charging.map(|c| c.charge_added)}</div>
-                <div>{"current_points: "}{status.logging.current_num_points}</div>
-                <div>{"is_logging: "}{status.logging.enabled}</div>
-                <div>{"is_user_present: "}{status.vehicle.is_user_nearby}</div>
-                <div>{"odometer: "}{status.vehicle.odometer}</div>
-                <div>{"total_points: "}{status.logging.total_num_points}</div>
+        <div class="flex flex-col bg-white border border-gray-200 rounded-lg shadow md:flex-row md:max-w-xl dark:border-gray-700 dark:bg-gray-800 ">
+            <img class="object-cover w-full rounded-t-lg h-96 md:h-auto md:w-48 md:rounded-none md:rounded-s-lg" src="/public/model3-red.jpeg" alt="car"/>
+            <div class="flex flex-col p-4 leading-normal">
+                <div class="text-center">
+                    <h5 class="mb-2 text-2xl font-bold tracking-tight text-gray-900 dark:text-white inline-block align-top">car name</h5>
+                </div>
+                <div class="space-y-0">
+                    <div class="font-normal text-gray-700 dark:text-gray-400">{"charge_state: "}{status.charging.map(|c| c.charge_added)}</div>
+                    <div class="font-normal text-gray-700 dark:text-gray-400">{"current_points: "}{status.logging.current_num_points}</div>
+                    <div class="font-normal text-gray-700 dark:text-gray-400">{"is_logging: "}{status.logging.enabled}</div>
+                    <div class="font-normal text-gray-700 dark:text-gray-400">{"is_user_present: "}{status.vehicle.is_user_nearby}</div>
+                    <div class="font-normal text-gray-700 dark:text-gray-400">{"odometer: "}{status.vehicle.odometer}</div>
+                    <div class="font-normal text-gray-700 dark:text-gray-400">{"total_points: "}{status.logging.total_num_points}</div>
+                </div>
             </div>
         </div>
     }
