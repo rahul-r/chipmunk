@@ -47,13 +47,13 @@ The application can be built with `cargo build` in the rust development containe
 ## Building docker image
 
 ```shell
-docker-compose build
+docker compose build
 ```
 
 ## Build and run the container
 
 ```shell
-docker-compose up --build --force-recreate --remove-orphans
+docker compose up --build --force-recreate --remove-orphans
 ```
 
 ## Using the container
@@ -69,7 +69,7 @@ sudo chown -R 5050:5050 chipmunk_docker/pgadmin
 
 - Start the container
 ```shell
-docker-compose up
+docker compose up
 ```
 
 ## Building offline without database access

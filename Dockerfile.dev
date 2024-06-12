@@ -5,10 +5,13 @@ ARG GID
 
 RUN apt-get update && apt-get install -y libssl-dev && rm -rf /var/lib/apt/lists/*
 
-# RUN cargo install --locked trunk # This might take a long time. Install a prebuilt package as a workaround
+# RUN cargo install --locked trunk # This might take a long time. Install prebuilt package as a workaround
 ARG TRUNK_VERSION=v0.17.1
 RUN wget -qO- https://github.com/thedodd/trunk/releases/download/${TRUNK_VERSION}/trunk-x86_64-unknown-linux-gnu.tar.gz | tar -xzf- -C /usr/local/bin/ && \
     curl -LsSf https://get.nexte.st/latest/linux | tar zxf - -C ${CARGO_HOME:-~/.cargo}/bin
+
+RUN curl -L -o /usr/bin/tailwindcss https://github.com/tailwindlabs/tailwindcss/releases/download/v3.4.4/tailwindcss-linux-x64 && \
+    chmod +x /usr/bin/tailwindcss
 
 ENV USERNAME=rust
 RUN groupadd -g "${GID}" "${USERNAME}"

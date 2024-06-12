@@ -7,7 +7,7 @@ RUN cargo build --release
 
 # Build frontend
 # Install tailwindcss
-RUN curl -o /usr/bin/tailwindcss https://github.com/tailwindlabs/tailwindcss/releases/download/v3.4.4/tailwindcss-linux-x64 && \
+RUN curl -L -o /usr/bin/tailwindcss https://github.com/tailwindlabs/tailwindcss/releases/download/v3.4.4/tailwindcss-linux-x64 && \
     chmod +x /usr/bin/tailwindcss
 
 # Install trunk
