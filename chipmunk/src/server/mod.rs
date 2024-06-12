@@ -427,6 +427,9 @@ impl TeslaServer {
             topic: Topic::LoggingStatus,
             data: self.status.to_value().map_err(|e| log::error!("{e}")).ok(),
         };
-        msg.to_string().unwrap()
+
+        msg.to_string()
+            .map_err(|e| log::error!("Error converting WsMessage to string: {e}"))
+            .unwrap_or("".into())
     }
 }
