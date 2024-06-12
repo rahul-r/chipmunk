@@ -21,7 +21,7 @@ pub fn Map(lat: f64, lon: f64) -> impl IntoView {
     });
 
     view! {
-          <MapContainer style="height: 400px" center=Position::new(37.49, -121.94) zoom=13.0 set_view=true>
+          <MapContainer style="height: 300px" center=Position::new(37.49, -121.94) zoom=13.0 set_view=true>
               <TileLayer url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors"/>
               <Marker position=marker_position >
                   <Popup>
