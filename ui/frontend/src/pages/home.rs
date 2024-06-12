@@ -7,7 +7,7 @@ use crate::{components::map::Map, WebsocketContext};
 
 fn log_stat(status: Status) -> impl IntoView {
     view! {
-        <div class="flex flex-row w-full bg-white md:border md:border-gray-200 rounded-lg shadow md:max-w-md dark:border-gray-700 dark:bg-gray-800">
+        <div class="flex flex-row w-full bg-white md:border md:border-gray-200 md:rounded-lg shadow md:max-w-md dark:border-gray-700 dark:bg-gray-800">
             <div class="flex items-center">
                 <img class="object-scale-down h-auto max-h-96 md:h-auto md:max-h-96" src="/public/model3-red.jpeg" alt="car"/>
             </div>
