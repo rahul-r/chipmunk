@@ -180,7 +180,7 @@ pub fn App() -> impl IntoView {
         <Navbar/>
 
         <Router>
-            <main class="p-[3.6rem]">
+            <main class="pt-[4rem]">
                 <Routes>
                     <Route path="/" view=Home/>
                     <Route path="/settings" view=Settings/>
