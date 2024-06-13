@@ -30,7 +30,7 @@ pub fn Settings() -> impl IntoView {
     };
 
     view! {
-        <div class="max-w-sm mx-auto">
+        <div class="max-w-sm mx-auto pt-8">
             <div class="mb-5">
                 <label class="inline-flex items-center me-5 cursor-pointer">
                   <input type="checkbox" value="" on:input=move |ev| send_enable_logging(event_target_checked(&ev)) class="sr-only peer" checked/>
