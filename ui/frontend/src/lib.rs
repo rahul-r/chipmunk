@@ -82,32 +82,32 @@ fn Navbar() -> impl IntoView {
     let (show_menu, set_show_menu) = create_signal(false);
     let menu = move || {
         view! {
-            <ul class="flex flex-col z-21 sm:p-0 font-medium border border-gray-100 rounded-lg bg-gray-50 sm:space-x-8 rtl:space-x-reverse sm:flex-row sm:mt-0 sm:border-0 sm:bg-white dark:bg-gray-800 sm:dark:bg-gray-900 dark:border-gray-700">
+            <ul class="flex flex-col z-21 sm:p-0 font-medium border border-border rounded-lg bg-bkg sm:space-x-8 rtl:space-x-reverse sm:flex-row sm:mt-0 sm:border-0 sm:bg-bkg">
                 <li>
-                    <a href="/" class="block py-2 px-3 text-white bg-blue-700 rounded sm:bg-transparent sm:text-blue-700 sm:p-0 sm:dark:text-blue-500" aria-current="page">Home</a>
+                    <a href="/" class="block py-2 px-3 text-content-1 bg-blue-700 rounded sm:bg-transparent sm:text-content-1 sm:p-0" aria-current="page">Home</a>
                 </li>
                 <li>
-                    <a href="#" class="block py-2 px-3 text-gray-900 rounded hover:bg-gray-100 sm:hover:bg-transparent sm:hover:text-blue-700 sm:p-0 sm:dark:hover:text-blue-500 dark:text-white dark:hover:bg-gray-700 dark:hover:text-white sm:dark:hover:bg-transparent dark:border-gray-700">Dashboards</a>
+                    <a href="#" class="block py-2 px-3 text-content-1 rounded hover:bg-gray-100 sm:hover:bg-transparent sm:hover:text-blue-700 sm:p-0">Dashboards</a>
                 </li>
                 <li>
-                    <a href="/geofence" class="block py-2 px-3 text-gray-900 rounded hover:bg-gray-100 sm:hover:bg-transparent sm:hover:text-blue-700 sm:p-0 sm:dark:hover:text-blue-500 dark:text-white dark:hover:bg-gray-700 dark:hover:text-white sm:dark:hover:bg-transparent dark:border-gray-700">Geo-Fence</a>
+                    <a href="/geofence" class="block py-2 px-3 text-content-1 rounded hover:bg-gray-100 sm:hover:bg-transparent sm:hover:text-blue-700 sm:p-0 ">Geo-Fence</a>
                 </li>
                 <li>
-                    <a href="/settings" class="block py-2 px-3 text-gray-900 rounded hover:bg-gray-100 sm:hover:bg-transparent sm:hover:text-blue-700 sm:p-0 sm:dark:hover:text-blue-500 dark:text-white dark:hover:bg-gray-700 dark:hover:text-white sm:dark:hover:bg-transparent dark:border-gray-700">Settings</a>
+                    <a href="/settings" class="block py-2 px-3 text-content-1 rounded hover:bg-gray-100 sm:hover:bg-transparent sm:hover:text-blue-700 sm:p-0 ">Settings</a>
                 </li>
             </ul>
         }
     };
 
     view! {
-        <nav class="bg-white dark:bg-gray-900 fixed w-full z-20 top-0 start-0 border-b border-gray-200 dark:border-gray-600">
+        <nav class="bg-bkg fixed w-full z-20 top-0 start-0 border-b border-content-2">
             <div class="max-w-screen-xl flex flex-wrap items-center justify-between mx-auto p-4">
                 <a href="/" class="flex">
-                    <img src="/public/logo.svg" class="h-8 pr-1" alt="logo"/>
-                    <span class="self-center text-2xl font-semibold whitespace-nowrap dark:text-white">Chipmunk</span>
+                    <img src="/public/logo.svg" class="h-8 pr-1 text-content-1" alt="logo"/>
+                    <span class="self-center text-2xl font-semibold whitespace-nowrap text-content-1">Chipmunk</span>
                 </a>
                 <div class="flex md:order-2 space-x-3 md:space-x-0 rtl:space-x-reverse">
-                    <button on:click=move |_| set_show_menu(!show_menu.get()) type="button" class="inline-flex items-center p-2 w-10 h-10 justify-center text-sm text-gray-500 rounded-lg sm:hidden hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200 dark:text-gray-400 dark:hover:bg-gray-700 dark:focus:ring-gray-600" aria-controls="navbar-sticky" aria-expanded="false">
+                    <button on:click=move |_| set_show_menu(!show_menu.get()) type="button" class="inline-flex items-center p-2 w-10 h-10 justify-center text-sm text-content-1 rounded-lg sm:hidden hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200" aria-controls="navbar-sticky" aria-expanded="false">
                         <span class="sr-only">Open main menu</span>
                         <svg class="w-5 h-5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 17 14">
                             <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M1 1h15M1 7h15M1 13h15"/>
@@ -130,6 +130,8 @@ pub fn App() -> impl IntoView {
 
     let (is_logging, set_is_logging) = create_signal(false);
     let (logging_status, set_logging_status) = create_signal(Status::default());
+
+    let (is_dark_mode, set_is_dark_mode) = create_signal(true);
 
     let on_message_callback = move |msg: String| match WsMessage::from_string(&*msg) {
         Ok(m) => {
@@ -170,24 +172,31 @@ pub fn App() -> impl IntoView {
     ));
 
     view! {
-        <Html lang="en" dir="ltr" attr:data-theme="light"/>
+        <Html lang="en" dir="ltr"/>
 
         <Title text="Chipmunk for Tesla"/>
 
         <Meta charset="UTF-8"/>
         <Meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 
-        <Navbar/>
+        <div class:light=move || !is_dark_mode.get() class:dark=move || is_dark_mode.get()>
+        // <div class="light">
+            <Navbar/>
 
-        <Router>
-            <main class="pt-[4rem]">
-                <Routes>
-                    <Route path="/" view=Home/>
-                    <Route path="/settings" view=Settings/>
-                    <Route path="/geofence" view=Geofence/>
-                    <Route path="/*" view=NotFound/>
-                </Routes>
-            </main>
-        </Router>
+            <button on:click=move |_| set_is_dark_mode(!is_dark_mode.get()) class="z-20 mt-[5rem] text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 focus:outline-none">
+                {move || if is_dark_mode.get() { "Light" } else { "Dark"}}
+            </button>
+
+            <Router>
+                <main class="pt-[4rem]">
+                    <Routes>
+                        <Route path="/" view=Home/>
+                        <Route path="/settings" view=Settings/>
+                        <Route path="/geofence" view=Geofence/>
+                        <Route path="/*" view=NotFound/>
+                    </Routes>
+                </main>
+            </Router>
+        </div>
     }
 }
