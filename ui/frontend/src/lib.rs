@@ -172,7 +172,7 @@ pub fn App() -> impl IntoView {
     ));
 
     view! {
-        <Html lang="en" dir="ltr"/>
+        <Html lang="en" dir="ltr" class="bg-gray-900"/>
 
         <Title text="Chipmunk for Tesla"/>
 
@@ -188,7 +188,7 @@ pub fn App() -> impl IntoView {
             </button>
 
             <Router>
-                <main class="pt-[4rem] bg-gray-900">
+                <main class="pt-[4rem]">
                     <Routes>
                         <Route path="/" view=Home/>
                         <Route path="/settings" view=Settings/>

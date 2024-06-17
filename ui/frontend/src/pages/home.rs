@@ -39,8 +39,8 @@ fn VehicleStatus(status: Status) -> impl IntoView {
                         <p class="font-normal text-content-2">Odometer</p>
                         <p class="text-xl font-normal text-content-1">{status.vehicle.odometer}</p>
                     </div>
-                    </div>
-                    <div class="flex justify-evenly text-center">
+                </div>
+                <div class="flex justify-evenly text-center">
                     <div class="pb-2 text-center">
                         <p class="font-normal text-content-2">Interior</p>
                         <p class="text-xl font-normal text-content-1">"65°F"</p>
@@ -95,38 +95,70 @@ fn DriveDetails() -> impl IntoView {
     view! {
         <div class="py-4 text-center">
             <div class="flex items-center justify-center">
-                <p class="pr-2 text-2xl font-bold text-content-1">Title</p>
+                <p class="pr-2 text-2xl font-bold text-content-1">Last Drive</p>
             </div>
-            <p class="font-thin text-content-2">Cybertruck</p>
-            <p class="font-thin text-content-2">Driving for 10 minutes</p>
+            <p class="font-thin text-content-2">10 minutes ago</p>
         </div>
 
+        <div class="flex justify-evenly text-center">
+            <div class="pb-2 text-center">
+                <p class="font-normal text-content-2">From</p>
+                <p class="text-xl font-normal text-content-1">Tesla, Fremont<br />CA</p>
+            </div>
+            <div class="pb-2 text-center">
+                <p class="font-normal text-content-2">To</p>
+                <p class="text-xl font-normal text-content-1">Tesla, Palo Alto<br />CA</p>
+            </div>
+        </div>
         <div class="flex justify-evenly pb-4 text-center">
             <div class="pb-2 text-center">
-                <p class="font-normal text-content-2">Battery</p>
+                <p class="font-normal text-content-2">Battery Usage</p>
                 <p class="text-xl font-normal text-content-1">35%</p>
             </div>
             <div class="pb-2 text-center">
-                <p class="font-normal text-content-2">Range</p>
-                <p class="text-xl font-normal text-content-1">150mi</p>
+                <p class="font-normal text-content-2">Avg. Energy</p>
+                <p class="text-xl font-normal text-content-1">268 Wh/mi</p>
             </div>
             <div class="pb-2 text-center">
-                <p class="font-normal text-content-2">Odometer</p>
-                <p class="text-xl font-normal text-content-1">"1234"</p>
+                <p class="font-normal text-content-2">Distance</p>
+                <p class="text-xl font-normal text-content-1">19mi</p>
             </div>
+        </div>
+    }
+}
+
+#[component]
+fn ChargeDetails() -> impl IntoView {
+    view! {
+        <div class="py-4 text-center">
+            <div class="flex items-center justify-center">
+                <p class="pr-2 text-2xl font-bold text-content-1">Last Charging</p>
             </div>
-            <div class="flex justify-evenly text-center">
+            <p class="font-thin text-content-2">10 minutes ago</p>
+        </div>
+
+        <div class="flex justify-evenly text-center">
             <div class="pb-2 text-center">
-                <p class="font-normal text-content-2">Interior</p>
-                <p class="text-xl font-normal text-content-1">"65°F"</p>
+                <p class="font-normal text-content-2">Location</p>
+                <p class="text-xl font-normal text-content-1">Tesla Supercharger<br />Fremont CA</p>
             </div>
             <div class="pb-2 text-center">
-                <p class="font-normal text-content-2">Exterior</p>
-                <p class="text-xl font-normal text-content-1">"67°F"</p>
+                <p class="font-normal text-content-2">Energy Added</p>
+                <p class="text-xl font-normal text-content-1">32 kWh</p>
             </div>
-            <div class="flex flex-col items-center pb-2 text-center">
-                <p class="font-normal text-content-2">Climate</p>
-                <p class="text-xl font-normal text-content-1">AC</p>
+        </div>
+        <div class="flex justify-evenly pb-4 text-center">
+            <div class="pb-2 text-center">
+                <p class="font-normal text-content-2">Time</p>
+                <p class="text-xl font-normal text-content-1">37 min</p>
+            </div>
+            <div class="pb-2 text-center">
+                <p class="font-normal text-content-2">Cost</p>
+                <p class="text-xl font-normal text-content-1">$5</p>
+            </div>
+            <div class="pb-2 text-center">
+                <p class="font-normal text-content-2">Charger Power</p>
+                <p class="text-xl font-normal text-content-1">6.6 kW</p>
             </div>
         </div>
     }
@@ -162,7 +194,7 @@ pub fn Home() -> impl IntoView {
                     <DriveDetails />
                 </div>
                 <div class="rounded md:border bg-bkg">
-                    <DriveDetails />
+                    <ChargeDetails />
                 </div>
             </div>
         </>
