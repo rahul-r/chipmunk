@@ -5,9 +5,10 @@ use ui_common::{Status, Topic, WsMessage};
 
 use crate::{components::map::Map, WebsocketContext};
 
-fn log_stat(status: Status) -> impl IntoView {
+#[component]
+fn VehicleStatus(status: Status) -> impl IntoView {
     view! {
-        <div class="flex flex-row w-full bg-bkg md:border md:border-border md:rounded-lg shadow md:max-w-md">
+        <div class="flex flex-row w-full shadow md:max-w-md">
             <div class="flex items-center">
                 <img class="object-scale-down h-auto max-h-96 md:h-auto md:max-h-96" src="/public/model3-red.jpeg" alt="car"/>
             </div>
@@ -92,52 +93,40 @@ fn log_stat(status: Status) -> impl IntoView {
 #[component]
 fn DriveDetails() -> impl IntoView {
     view! {
-        <div class="flex flex-row w-full bg-bkg md:border md:border-border md:rounded-lg shadow md:max-w-md">
-        // <div class="block max-w-sm rounded-lg border border-border bg-bkg p-6 shadow">
-            <div class="flex flex-col p-5 leading-normal text-center w-full">
-            <div class="pb-4 text-center">
-                <div class="flex items-center justify-center">
-                    <p class="pr-2 text-2xl font-bold text-content-1">Title</p>
-                    <svg class="fill-yellow-200" viewBox="0 0 8 8" height="25px" width="25px" xmlns="http://www.w3.org/2000/svg" class="size-5">
-                        <path d="M3 0c-1.1 0-2 .9-2 2h1c0-.56.44-1 1-1s1 .44 1 1v2h-4v4h6v-4h-1v-2c0-1.1-.9-2-2-2z" />
-                    </svg>
-                    <svg class="fill-current" viewBox="0 0 8 8" height="25px" width="25px" xmlns="http://www.w3.org/2000/svg" class="size-5">
-                        <path d="M 4,0 C 2.9,0 2,1.0277807 2,2.2839571 V 3.4259357 H 1 V 7.9938499 H 7 V 3.4259357 H 6 V 2.2839571 C 6,1.0277807 5.1,0 4,0 Z m 0,1.1419786 c 0.56,0 1,0.5024705 1,1.1419785 V 3.4259357 H 3 V 2.2839571 C 3,1.6444491 3.44,1.1419786 4,1.1419786 Z" />
-                    </svg>
-                </div>
-                <p class="font-thin text-content-2">Cybertruck</p>
-                <p class="font-thin text-content-2">Driving for 10 minutes</p>
+        <div class="py-4 text-center">
+            <div class="flex items-center justify-center">
+                <p class="pr-2 text-2xl font-bold text-content-1">Title</p>
             </div>
-            <div class="flex justify-evenly pb-4 text-center">
-                <div class="pb-2 text-center">
-                    <p class="font-normal text-content-2">Battery</p>
-                    <p class="text-xl font-normal text-content-1">35%</p>
-                </div>
-                <div class="pb-2 text-center">
-                    <p class="font-normal text-content-2">Range</p>
-                    <p class="text-xl font-normal text-content-1">150mi</p>
-                </div>
-                <div class="pb-2 text-center">
-                    <p class="font-normal text-content-2">Odometer</p>
-                    <p class="text-xl font-normal text-content-1">65465mi</p>
-                </div>
-                </div>
-                <div class="flex justify-evenly text-center">
-                <div class="pb-2 text-center">
-                    <p class="font-normal text-content-2">Interior</p>
-                    <p class="text-xl font-normal text-content-1">"65°F"</p>
-                </div>
-                <div class="pb-2 text-center">
-                    <p class="font-normal text-content-2">Exterior</p>
-                    <p class="text-xl font-normal text-content-1">"67°F"</p>
-                </div>
-                <div class="flex flex-col items-center pb-2 text-center">
-                    <p class="font-normal text-content-2">Climate</p>
-                    <svg fill="red" class="fill-content-1" viewBox="0 0 24 24" height="25px" width="25px" xmlns="http://www.w3.org/2000/svg" class="size-6">
-                        <path d="M19 9c.667 1.06 1 2.394 1 4 0 3-3.5 4-5 9-.667-.575-1-1.408-1-2.5 0-3.482 5-5.29 5-10.5zm-4.5-4a8.31 8.31 0 0 1 1 4c0 5-6 6-4 13C9.833 20.84 9 19.173 9 17c0-3.325 5.5-6 5.5-12zM10 1c.667 1.333 1 2.833 1 4.5 0 6-9 7.5-3 16.5-2.5-.5-4.5-3-4.5-6C3.5 9.5 10 8.5 10 1z" />
-                    </svg>
-                </div>
-                </div>
+            <p class="font-thin text-content-2">Cybertruck</p>
+            <p class="font-thin text-content-2">Driving for 10 minutes</p>
+        </div>
+
+        <div class="flex justify-evenly pb-4 text-center">
+            <div class="pb-2 text-center">
+                <p class="font-normal text-content-2">Battery</p>
+                <p class="text-xl font-normal text-content-1">35%</p>
+            </div>
+            <div class="pb-2 text-center">
+                <p class="font-normal text-content-2">Range</p>
+                <p class="text-xl font-normal text-content-1">150mi</p>
+            </div>
+            <div class="pb-2 text-center">
+                <p class="font-normal text-content-2">Odometer</p>
+                <p class="text-xl font-normal text-content-1">"1234"</p>
+            </div>
+            </div>
+            <div class="flex justify-evenly text-center">
+            <div class="pb-2 text-center">
+                <p class="font-normal text-content-2">Interior</p>
+                <p class="text-xl font-normal text-content-1">"65°F"</p>
+            </div>
+            <div class="pb-2 text-center">
+                <p class="font-normal text-content-2">Exterior</p>
+                <p class="text-xl font-normal text-content-1">"67°F"</p>
+            </div>
+            <div class="flex flex-col items-center pb-2 text-center">
+                <p class="font-normal text-content-2">Climate</p>
+                <p class="text-xl font-normal text-content-1">AC</p>
             </div>
         </div>
     }
@@ -162,17 +151,19 @@ pub fn Home() -> impl IntoView {
     view! {
         <>
             <Map lat=37.49 lon=-121.94/>
-            <button on:click=move |_| logging_status(!websocket.is_logging.get()) disabled=move || !connected() class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800">
+            <button on:click=move |_| logging_status(!websocket.is_logging.get()) disabled=move || !connected() class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 focus:outline-none">
                 {move || if websocket.is_logging.get() { "Stop" } else { "Start"}}
             </button>
-            <div class="flex justify-center items-center md:pt-5">
-              {move || log_stat(websocket.logging_status.get())}
-            </div>
-            <div class="flex justify-center items-center md:pt-5">
-                <DriveDetails />
-            </div>
-            <div class="flex justify-center items-center md:pt-5">
-                <DriveDetails />
+            <div class="grid gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                <div class="rounded md:border bg-bkg">
+                    <VehicleStatus status=websocket.logging_status.get() />
+                </div>
+                <div class="rounded md:border bg-bkg">
+                    <DriveDetails />
+                </div>
+                <div class="rounded md:border bg-bkg">
+                    <DriveDetails />
+                </div>
             </div>
         </>
     }
