@@ -5,7 +5,6 @@ use ui_common::{Status, Topic, WsMessage};
 
 use crate::{components::map::Map, WebsocketContext};
 
-#[component]
 fn VehicleStatus(status: Status) -> impl IntoView {
     view! {
         <div class="flex flex-row w-full shadow md:max-w-md">
@@ -188,7 +187,7 @@ pub fn Home() -> impl IntoView {
             </button>
             <div class="grid gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 <div class="rounded md:border bg-bkg">
-                    <VehicleStatus status=websocket.logging_status.get() />
+                    {move || VehicleStatus(websocket.logging_status.get())}
                 </div>
                 <div class="rounded md:border bg-bkg">
                     <DriveDetails />
