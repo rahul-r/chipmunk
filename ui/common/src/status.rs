@@ -16,6 +16,15 @@ pub enum State {
     Unknown,
 }
 
+#[derive(Debug, Serialize, Deserialize, Default, Clone, Eq, PartialEq)]
+pub enum ClimateState {
+    Off,
+    AC,
+    Heater,
+    #[default]
+    Unknown,
+}
+
 #[derive(Debug, Serialize, Deserialize, Default, Clone, Json)]
 pub struct Driving {
     pub start_time: DateTime<Utc>,
@@ -63,11 +72,16 @@ pub struct Sleeping {
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone, Json)]
 pub struct Vehicle {
+    pub name: String,
     pub odometer: f32,
     pub is_user_nearby: bool,
+    pub is_locked: Option<bool>,
     pub location: Option<String>,
     pub battery_level: Option<i16>,
+    pub range: Option<f32>,
     pub interior_temperature: Option<f32>,
+    pub exterior_temperature: Option<f32>,
+    pub climate_control_state: Option<ClimateState>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone, Json)]

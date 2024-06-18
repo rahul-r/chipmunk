@@ -4,7 +4,9 @@ use macros::Json;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-pub use status::{Charging, Driving, Logging, Offline, Parked, Sleeping, State, Status, Vehicle};
+pub use status::{
+    Charging, ClimateState, Driving, Logging, Offline, Parked, Sleeping, State, Status, Vehicle,
+};
 
 #[derive(Debug, Default, Serialize, Deserialize, PartialEq, Clone)]
 pub enum Topic {

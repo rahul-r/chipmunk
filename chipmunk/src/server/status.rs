@@ -157,21 +157,33 @@ fn vehicle(tables: &Tables, curr_status: &Vehicle) -> Vehicle {
         None => tables.address.as_ref().and_then(|a| a.display_name.clone()),
     };
 
+    let vehicle_state = tables
+        .raw_data
+        .as_ref()
+        .and_then(|d| d.vehicle_state.as_ref());
+
+    let climate_state = tables
+        .raw_data
+        .as_ref()
+        .and_then(|d| d.climate_state.as_ref());
+
     Vehicle {
-        odometer: tables
-            .raw_data
-            .as_ref()
-            .and_then(|d| d.vehicle_state.as_ref())
-            .and_then(|v| v.odometer)
+        name: vehicle_state
+            .and_then(|v| v.vehicle_name.clone())
             .unwrap_or_default(),
+        odometer: vehicle_state.and_then(|v| v.odometer).unwrap_or_default(),
         is_user_nearby: false,
+        is_locked: vehicle_state.and_then(|v| v.locked),
         location,
         battery_level: tables.charges.as_ref().and_then(|c| c.battery_level),
-        interior_temperature: tables
-            .raw_data
+        interior_temperature: climate_state.and_then(|c| c.inside_temp),
+        exterior_temperature: climate_state.and_then(|c| c.outside_temp),
+        range: tables
+            .charges
             .as_ref()
-            .and_then(|d| d.climate_state.as_ref())
-            .and_then(|c| c.inside_temp),
+            .and_then(|c| c.rated_battery_range_km),
+        climate_control_state: Some(ui_common::ClimateState::default()), // TODO: replace default
+                                                                         // with actual climate state
     }
 }
 
