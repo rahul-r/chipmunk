@@ -15,6 +15,15 @@ pub enum UnitOfLength {
     Mi,
 }
 
+impl UnitOfLength {
+    pub fn to_string(&self) -> String {
+        match self {
+            UnitOfLength::Km => "km".into(),
+            UnitOfLength::Mi => "mi".into(),
+        }
+    }
+}
+
 #[derive(sqlx::Type, Debug, Default, Clone, Copy)]
 #[sqlx(type_name = "unit_of_pressure", rename_all = "lowercase")]
 pub enum UnitOfPressure {
@@ -29,6 +38,15 @@ pub enum UnitOfTemperature {
     C,
     #[default]
     F,
+}
+
+impl UnitOfTemperature {
+    pub fn to_string(&self) -> String {
+        match self {
+            UnitOfTemperature::F => "F".into(),
+            UnitOfTemperature::C => "C".into(),
+        }
+    }
 }
 
 #[derive(sqlx::Type, Debug, Default, Clone, Copy)]

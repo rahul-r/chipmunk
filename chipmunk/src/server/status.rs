@@ -1,6 +1,17 @@
-use ui_common::{Charging, Driving, Logging, Offline, Parked, Sleeping, State, Status, Vehicle};
+use std::str::FromStr;
 
-use crate::{config::Config, database::tables::Tables};
+use ui_common::{
+    units::{Distance, DistanceUnit, Temperature, TemperatureUnit},
+    Charging, Driving, Logging, Offline, Parked, Sleeping, State, Status, Vehicle,
+};
+
+use crate::{
+    config::Config,
+    database::{
+        tables::Tables,
+        types::{UnitOfLength, UnitOfTemperature},
+    },
+};
 
 fn driving(tables: &Tables, state: &State, curr_status: Option<&Driving>) -> Option<Driving> {
     if *state != State::Driving {
@@ -171,17 +182,25 @@ fn vehicle(tables: &Tables, curr_status: &Vehicle) -> Vehicle {
         name: vehicle_state
             .and_then(|v| v.vehicle_name.clone())
             .unwrap_or_default(),
-        odometer: vehicle_state.and_then(|v| v.odometer).unwrap_or_default(),
+        odometer: vehicle_state
+            .and_then(|v| v.odometer)
+            .map(|o| Distance::from_km(o as f64))
+            .unwrap_or_default(),
         is_user_nearby: false,
         is_locked: vehicle_state.and_then(|v| v.locked),
         location,
         battery_level: tables.charges.as_ref().and_then(|c| c.battery_level),
-        interior_temperature: climate_state.and_then(|c| c.inside_temp),
-        exterior_temperature: climate_state.and_then(|c| c.outside_temp),
+        interior_temperature: climate_state
+            .and_then(|c| c.inside_temp)
+            .map(Temperature::from_fahrenheit),
+        exterior_temperature: climate_state
+            .and_then(|c| c.outside_temp)
+            .map(Temperature::from_fahrenheit),
         range: tables
             .charges
             .as_ref()
-            .and_then(|c| c.rated_battery_range_km),
+            .and_then(|c| c.rated_battery_range_km)
+            .map(|r| Distance::from_km(r as f64)),
         climate_control_state: Some(ui_common::ClimateState::default()), // TODO: replace default
                                                                          // with actual climate state
     }
@@ -197,6 +216,8 @@ fn logging(curr_status: Option<&Logging>, config: &Config) -> Logging {
             .unwrap_or(true),
         current_num_points: curr_status.map(|s| s.current_num_points + 1).unwrap_or(0),
         total_num_points: curr_status.map(|s| s.total_num_points + 1).unwrap_or(0),
+        unit_of_length: DistanceUnit::default(),
+        unit_of_temperature: TemperatureUnit::default(),
     }
 }
 
@@ -262,6 +283,20 @@ impl LoggingStatus {
 
     pub fn to_string(&self) -> anyhow::Result<String> {
         self.status.to_string()
+    }
+
+    pub fn set_unit_of_length(&mut self, value: UnitOfLength) {
+        match DistanceUnit::from_str(&value.to_string()) {
+            Ok(v) => self.status.logging.unit_of_length = v,
+            Err(e) => log::error!("{e}"),
+        }
+    }
+
+    pub fn set_unit_of_temperature(&mut self, value: UnitOfTemperature) {
+        match TemperatureUnit::from_str(&value.to_string()) {
+            Ok(v) => self.status.logging.unit_of_temperature = v,
+            Err(e) => log::error!("{e}"),
+        }
     }
 
     pub fn set_logging_status(&mut self, status: bool) {

@@ -298,7 +298,7 @@ pub struct VehicleState {
     pub media_info: Option<MediaInfo>,
     pub media_state: Option<MediaState>,
     pub notifications_supported: Option<bool>,
-    pub odometer: Option<f32>,
+    pub odometer: Option<f32>, // TODO: change this to f64
     pub parsed_calendar_supported: Option<bool>,
     pub pf: Option<i32>,
     pub pr: Option<i32>,

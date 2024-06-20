@@ -45,21 +45,21 @@ fn VehicleStatus(status: Status) -> impl IntoView {
                     </div>
                     <div class="pb-2 text-center">
                         <p class="font-normal text-content-2">Range</p>
-                        <p class="text-xl font-normal text-content-1">{status.vehicle.range}km</p>
+                        <p class="text-xl font-normal text-content-1">{status.vehicle.range.map(|r| r.to_string(&status.logging.unit_of_length))}</p>
                     </div>
                     <div class="pb-2 text-center">
                         <p class="font-normal text-content-2">Odometer</p>
-                        <p class="text-xl font-normal text-content-1">{status.vehicle.odometer}mi</p>
+                        <p class="text-xl font-normal text-content-1">{status.vehicle.odometer.to_string(&status.logging.unit_of_length)}</p>
                     </div>
                 </div>
                 <div class="flex justify-evenly text-center">
                     <div class="pb-2 text-center">
                         <p class="font-normal text-content-2">Interior</p>
-                        <p class="text-xl font-normal text-content-1">{status.vehicle.interior_temperature.map(|t| format!("{t}°F"))}</p>
+                        <p class="text-xl font-normal text-content-1">{status.vehicle.interior_temperature.map(|t| t.to_string(&status.logging.unit_of_temperature))}</p>
                     </div>
                     <div class="pb-2 text-center">
                         <p class="font-normal text-content-2">Exterior</p>
-                        <p class="text-xl font-normal text-content-1">{status.vehicle.exterior_temperature.map(|t| format!("{t}°F"))}</p>
+                        <p class="text-xl font-normal text-content-1">{status.vehicle.exterior_temperature.map(|t| t.to_string(&status.logging.unit_of_temperature))}</p>
                     </div>
                     <div class="flex flex-col items-center pb-2 text-center">
                         <p class="font-normal text-content-2">Climate</p>

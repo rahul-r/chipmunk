@@ -5,6 +5,11 @@ use serde::Serialize;
 
 use macros::Json;
 
+use crate::units::Distance;
+use crate::units::DistanceUnit;
+use crate::units::Temperature;
+use crate::units::TemperatureUnit;
+
 #[derive(Debug, Serialize, Deserialize, Default, Clone, Eq, PartialEq)]
 pub enum State {
     Driving,
@@ -73,14 +78,14 @@ pub struct Sleeping {
 #[derive(Debug, Serialize, Deserialize, Default, Clone, Json)]
 pub struct Vehicle {
     pub name: String,
-    pub odometer: f32,
+    pub odometer: Distance,
     pub is_user_nearby: bool,
     pub is_locked: Option<bool>,
     pub location: Option<String>,
     pub battery_level: Option<i16>,
-    pub range: Option<f32>,
-    pub interior_temperature: Option<f32>,
-    pub exterior_temperature: Option<f32>,
+    pub range: Option<Distance>,
+    pub interior_temperature: Option<Temperature>,
+    pub exterior_temperature: Option<Temperature>,
     pub climate_control_state: Option<ClimateState>,
 }
 
@@ -89,6 +94,8 @@ pub struct Logging {
     pub enabled: bool,
     pub current_num_points: i32,
     pub total_num_points: i32,
+    pub unit_of_length: DistanceUnit,
+    pub unit_of_temperature: TemperatureUnit,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone, Json)]

@@ -21,7 +21,13 @@ use warp::Filter;
 
 use ui_common::{MessageType, Topic, WsMessage, WsMessageToken};
 
-use crate::{config::Config, database::tables::Tables};
+use crate::{
+    config::Config,
+    database::{
+        tables::Tables,
+        types::{UnitOfLength, UnitOfTemperature},
+    },
+};
 
 // static SERVER: OnceLock<TeslaServer> = OnceLock::new();
 
@@ -49,6 +55,8 @@ pub struct TeslaServer {
     clients: Clients,
     status: LoggingStatus,
     logging_enabled_watcher: watch::Receiver<bool>,
+    unit_of_length_watcher: watch::Receiver<UnitOfLength>,
+    unit_of_temperature_watcher: watch::Receiver<UnitOfTemperature>,
 }
 
 #[derive(Clone)]
@@ -138,6 +146,22 @@ impl TeslaServer {
 
         let status = LoggingStatus::new(&config);
 
+        let unit_of_length_watcher = match config.unit_of_length.lock() {
+            Ok(v) => v.watch(),
+            Err(e) => {
+                log::error!("Error subscribing to config value `unit_of_length`: {e}");
+                panic!("{e}");
+            }
+        };
+
+        let unit_of_temperature_watcher = match config.unit_of_temperature.lock() {
+            Ok(v) => v.watch(),
+            Err(e) => {
+                log::error!("Error subscribing to config value `unit_of_temperature`: {e}");
+                panic!("{e}");
+            }
+        };
+
         let logging_enabled_watcher = match config.logging_enabled.lock() {
             Ok(v) => v.watch(),
             Err(e) => {
@@ -150,6 +174,8 @@ impl TeslaServer {
             clients,
             status,
             logging_enabled_watcher,
+            unit_of_length_watcher,
+            unit_of_temperature_watcher,
         }));
 
         // Handle the messages coming from other tasks
@@ -411,6 +437,26 @@ impl TeslaServer {
     }
 
     pub fn get_status_msg(&mut self) -> String {
+        if self
+            .unit_of_length_watcher
+            .has_changed()
+            .map_err(|e| log::error!("{e}"))
+            .unwrap_or(false)
+        {
+            let new_value = *self.unit_of_length_watcher.borrow_and_update();
+            self.status.set_unit_of_length(new_value);
+        }
+
+        if self
+            .unit_of_temperature_watcher
+            .has_changed()
+            .map_err(|e| log::error!("{e}"))
+            .unwrap_or(false)
+        {
+            let new_value = *self.unit_of_temperature_watcher.borrow_and_update();
+            self.status.set_unit_of_temperature(new_value);
+        }
+
         if self
             .logging_enabled_watcher
             .has_changed()
