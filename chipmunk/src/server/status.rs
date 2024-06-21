@@ -182,7 +182,7 @@ fn vehicle(tables: &Tables, curr_status: &Vehicle) -> Vehicle {
             .unwrap_or_default(),
         odometer: vehicle_state
             .and_then(|v| v.odometer)
-            .map(|o| Distance::from_km(o as f64))
+            .map(|o| Distance::from_miles(o as f64))
             .unwrap_or_default(),
         is_user_nearby: false,
         is_locked: vehicle_state.and_then(|v| v.locked),
@@ -190,10 +190,10 @@ fn vehicle(tables: &Tables, curr_status: &Vehicle) -> Vehicle {
         battery_level: tables.charges.as_ref().and_then(|c| c.battery_level),
         interior_temperature: climate_state
             .and_then(|c| c.inside_temp)
-            .map(Temperature::from_fahrenheit),
+            .map(Temperature::from_celsius),
         exterior_temperature: climate_state
             .and_then(|c| c.outside_temp)
-            .map(Temperature::from_fahrenheit),
+            .map(Temperature::from_celsius),
         range: tables
             .charges
             .as_ref()

@@ -10,32 +10,32 @@ pub enum TemperatureUnit {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Temperature {
-    pub fahrenheit: f32,
+    pub celsius: f32,
 }
 
 impl Temperature {
     pub fn from_celsius(celsius: f32) -> Self {
-        Self {
-            fahrenheit: celsius * 1.8 + 32.0,
-        }
+        Self { celsius }
     }
 
     pub fn from_fahrenheit(fahrenheit: f32) -> Self {
-        Self { fahrenheit }
+        Self {
+            celsius: (fahrenheit - 32.0) / 1.8,
+        }
     }
 
     pub fn as_celsius(&self) -> f32 {
-        (self.fahrenheit - 32.0) * 0.556
+        self.celsius
     }
 
     pub fn as_fahrenheit(&self) -> f32 {
-        self.fahrenheit
+        self.celsius * 1.8 + 32.0
     }
 
     pub fn to_string(&self, unit: &TemperatureUnit) -> String {
         match unit {
-            TemperatureUnit::F => format!("{} °F", self.as_fahrenheit()),
-            TemperatureUnit::C => format!("{} °C", self.as_celsius()),
+            TemperatureUnit::F => format!("{:.0} °F", self.as_fahrenheit()),
+            TemperatureUnit::C => format!("{:.1} °C", self.as_celsius()),
         }
     }
 }

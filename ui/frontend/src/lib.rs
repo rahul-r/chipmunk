@@ -14,7 +14,7 @@ use crate::pages::not_found::NotFound;
 use crate::pages::settings::Settings;
 
 use std::rc::Rc;
-use ui_common::{Status, Topic, WsMessage};
+use ui_common::{units::TemperatureUnit, Status, Topic, WsMessage};
 
 #[derive(Clone)]
 pub struct WebsocketContext {
@@ -23,6 +23,7 @@ pub struct WebsocketContext {
     ready_state: Signal<ConnectionReadyState>,
     logging_status: ReadSignal<Status>,
     is_logging: ReadSignal<bool>,
+    temperature_unit: ReadSignal<TemperatureUnit>,
 }
 
 impl WebsocketContext {
@@ -32,6 +33,7 @@ impl WebsocketContext {
         ready_state: Signal<ConnectionReadyState>,
         logging_status: ReadSignal<Status>,
         is_logging: ReadSignal<bool>,
+        temperature_unit: ReadSignal<TemperatureUnit>,
     ) -> Self {
         Self {
             message,
@@ -39,6 +41,7 @@ impl WebsocketContext {
             ready_state,
             logging_status,
             is_logging,
+            temperature_unit,
         }
     }
 
@@ -131,6 +134,8 @@ pub fn App() -> impl IntoView {
     let (is_logging, set_is_logging) = create_signal(false);
     let (logging_status, set_logging_status) = create_signal(Status::default());
 
+    let (temperature_unit, set_temperature_unit) = create_signal(TemperatureUnit::default());
+
     let (is_dark_mode, set_is_dark_mode) = create_signal(true);
 
     let on_message_callback = move |msg: String| match WsMessage::from_string(&*msg) {
@@ -138,7 +143,8 @@ pub fn App() -> impl IntoView {
             if let Topic::LoggingStatus = m.topic {
                 let status = ui_common::Status::from_value(m.data.unwrap()).unwrap();
                 set_is_logging(status.logging.enabled);
-                set_logging_status(status);
+                set_logging_status(status.clone());
+                set_temperature_unit(status.logging.unit_of_temperature);
             }
         }
         Err(e) => logging::log!(
@@ -169,6 +175,7 @@ pub fn App() -> impl IntoView {
         ready_state,
         logging_status,
         is_logging,
+        temperature_unit,
     ));
 
     view! {

@@ -3,8 +3,8 @@ use serde::{Deserialize, Serialize};
 // NOTE: Make sure this enum matches UnitOfLength enum in chipmunk/src/database/types.rs
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub enum DistanceUnit {
-    Mi,
     #[default]
+    Mi,
     Km,
 }
 
@@ -34,8 +34,8 @@ impl Distance {
 
     pub fn to_string(&self, unit: &DistanceUnit) -> String {
         match unit {
-            DistanceUnit::Mi => format!("{} mi", self.as_miles().round()),
-            DistanceUnit::Km => format!("{:.1} km", self.as_km()),
+            DistanceUnit::Mi => format!("{:.0}", self.as_miles()),
+            DistanceUnit::Km => format!("{:.1}", self.as_km()),
         }
     }
 }
