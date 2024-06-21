@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 use serde::{Deserialize, Serialize};
 
 // NOTE: Make sure this enum matches UnitOfTemperature enum in chipmunk/src/database/types.rs
@@ -8,20 +6,6 @@ pub enum TemperatureUnit {
     #[default]
     F,
     C,
-}
-
-impl FromStr for TemperatureUnit {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s == "F" {
-            Ok(Self::F)
-        } else if s == "C" {
-            Ok(Self::C)
-        } else {
-            Err("Invalid unit string `{s}`".into())
-        }
-    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

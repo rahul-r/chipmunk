@@ -9,41 +9,47 @@
 @layer base {
   :root {
     --color-border: 17 24 39;
-    --color-bkg: 255 255 255;
+    --color-bkg1: 255 255 255;
+    --color-bkg2: 255 255 255;
     --color-content1: 17 24 39;
     --color-content2: 132 142 147;
   }
   @media (prefers-color-scheme: dark) {
     :root {
       --color-border: 55 65 81;
-      --color-bkg: 31 41 55;
+      --color-bkg1: 31 41 55;
+      --color-bkg2: 31 41 55;
       --color-content1: 229 231 235;
       --color-content2: 132 142 147;
     }
   }
   :root[data-theme="light"] {
     --color-border: 17 24 39;
-    --color-bkg: 255 255 255;
+    --color-bkg1: 255 255 255;
+    --color-bkg2: 255 255 255;
     --color-content1: 17 24 39;
     --color-content2: 132 142 147;
   }
   :root[data-theme="dark"] {
     --color-border: 55 65 81;
-    --color-bkg: 31 41 55;
+    --color-bkg1: 31 41 55;
+    --color-bkg2: 31 41 55;
     --color-content1: 229 231 235;
     --color-content2: 132 142 147;
   }
   .light {
     --color-border: 17 24 39;
-    --color-bkg: 255 255 255;
+    --color-bkg1: 255 255 255;
+    --color-bkg2: 255 255 255;
     --color-content1: 17 24 39;
     --color-content2: 132 142 147;
   }
   .dark {
     --color-border: 17 24 39;
-    --color-bkg: 117 24 39;
-    --color-content1: 17 24 39;
-    --color-content2: 107 114 128;
+    --color-bkg1: 31 41 55;
+    --color-bkg2: 31 41 55;
+    --color-content1: 229 231 235;
+    --color-content2: 132 142 147;
   }
 }
 

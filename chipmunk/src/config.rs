@@ -10,7 +10,7 @@ use tokio::sync::watch;
 
 use crate::database::{
     tables::{settings::Settings, token::Token},
-    types::{UnitOfLength, UnitOfTemperature},
+    types::{UnitOfLength, UnitOfPressure, UnitOfTemperature},
     DBTable,
 };
 
@@ -149,6 +149,7 @@ pub struct Config {
     pub http_port: Arc<Mutex<Field<u16>>>,
     pub unit_of_length: Arc<Mutex<Field<UnitOfLength>>>,
     pub unit_of_temperature: Arc<Mutex<Field<UnitOfTemperature>>>,
+    pub unit_of_pressure: Arc<Mutex<Field<UnitOfPressure>>>,
 }
 
 impl Config {
@@ -188,6 +189,7 @@ impl Config {
             http_port: Arc::new(Mutex::new(Field::new(env_vars.http_port))),
             unit_of_length: Arc::new(Mutex::new(Field::new(settings.unit_of_length))),
             unit_of_temperature: Arc::new(Mutex::new(Field::new(settings.unit_of_temperature))),
+            unit_of_pressure: Arc::new(Mutex::new(Field::new(settings.unit_of_pressure))),
         }
     }
 }

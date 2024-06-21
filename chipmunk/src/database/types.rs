@@ -1,3 +1,5 @@
+use ui_common::units::{DistanceUnit, PressureUnit, TemperatureUnit};
+
 // Postgres types
 #[derive(sqlx::Type, Debug, Default, Clone, Copy)]
 #[sqlx(type_name = "billing_type", rename_all = "snake_case")]
@@ -16,10 +18,17 @@ pub enum UnitOfLength {
 }
 
 impl UnitOfLength {
-    pub fn to_string(&self) -> String {
+    pub fn from_ui_struct(unit: &DistanceUnit) -> Self {
+        match unit {
+            DistanceUnit::Mi => Self::Mi,
+            DistanceUnit::Km => Self::Km,
+        }
+    }
+
+    pub fn to_ui_struct(&self) -> DistanceUnit {
         match self {
-            UnitOfLength::Km => "km".into(),
-            UnitOfLength::Mi => "mi".into(),
+            UnitOfLength::Km => DistanceUnit::Km,
+            UnitOfLength::Mi => DistanceUnit::Mi,
         }
     }
 }
@@ -32,6 +41,22 @@ pub enum UnitOfPressure {
     Psi,
 }
 
+impl UnitOfPressure {
+    pub fn from_ui_struct(unit: &PressureUnit) -> Self {
+        match unit {
+            PressureUnit::Psi => Self::Psi,
+            PressureUnit::Bar => Self::Bar,
+        }
+    }
+
+    pub fn to_ui_struct(&self) -> PressureUnit {
+        match self {
+            UnitOfPressure::Bar => PressureUnit::Bar,
+            UnitOfPressure::Psi => PressureUnit::Psi,
+        }
+    }
+}
+
 #[derive(sqlx::Type, Debug, Default, Clone, Copy)]
 #[sqlx(type_name = "unit_of_temperature")]
 pub enum UnitOfTemperature {
@@ -41,10 +66,17 @@ pub enum UnitOfTemperature {
 }
 
 impl UnitOfTemperature {
-    pub fn to_string(&self) -> String {
+    pub fn from_ui_struct(unit: &TemperatureUnit) -> Self {
+        match unit {
+            TemperatureUnit::F => Self::F,
+            TemperatureUnit::C => Self::C,
+        }
+    }
+
+    pub fn to_ui_struct(&self) -> TemperatureUnit {
         match self {
-            UnitOfTemperature::F => "F".into(),
-            UnitOfTemperature::C => "C".into(),
+            UnitOfTemperature::C => TemperatureUnit::C,
+            UnitOfTemperature::F => TemperatureUnit::F,
         }
     }
 }

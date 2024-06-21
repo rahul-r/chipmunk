@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 use serde::{Deserialize, Serialize};
 
 // NOTE: Make sure this enum matches UnitOfLength enum in chipmunk/src/database/types.rs
@@ -8,20 +6,6 @@ pub enum DistanceUnit {
     Mi,
     #[default]
     Km,
-}
-
-impl FromStr for DistanceUnit {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s == "km" || s == "Km" {
-            Ok(Self::Km)
-        } else if s == "mi" || s == "Mi" {
-            Ok(Self::Mi)
-        } else {
-            Err("Invalid unit string `{s}`".into())
-        }
-    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]

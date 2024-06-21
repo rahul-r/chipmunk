@@ -19,13 +19,13 @@ use uuid::Uuid;
 use warp::ws::{Message, WebSocket};
 use warp::Filter;
 
-use ui_common::{MessageType, Topic, WsMessage, WsMessageToken};
+use ui_common::{units::Measurement, MessageType, Topic, WsMessage, WsMessageToken};
 
 use crate::{
     config::Config,
     database::{
         tables::Tables,
-        types::{UnitOfLength, UnitOfTemperature},
+        types::{UnitOfLength, UnitOfPressure, UnitOfTemperature},
     },
 };
 
@@ -57,6 +57,7 @@ pub struct TeslaServer {
     logging_enabled_watcher: watch::Receiver<bool>,
     unit_of_length_watcher: watch::Receiver<UnitOfLength>,
     unit_of_temperature_watcher: watch::Receiver<UnitOfTemperature>,
+    unit_of_pressure_watcher: watch::Receiver<UnitOfPressure>,
 }
 
 #[derive(Clone)]
@@ -76,12 +77,16 @@ impl TeslaServer {
         let clients_copy = clients.clone();
         let with_clients = warp::any().map(move || clients_copy.clone());
 
+        let config_clone = config.clone();
         let websocket = warp::path("websocket")
             .and(warp::ws())
             .and(with_clients)
             .map(move |ws: warp::ws::Ws, clients: Clients| {
                 let tx = data_from_srv_tx.clone();
-                ws.on_upgrade(move |socket| TeslaServer::client_connected(socket, clients, tx))
+                let config = config_clone.clone();
+                ws.on_upgrade(move |socket| {
+                    TeslaServer::client_connected(socket, clients, tx, config)
+                })
             });
 
         // create path to "dist" directory and "index.html"
@@ -162,6 +167,14 @@ impl TeslaServer {
             }
         };
 
+        let unit_of_pressure_watcher = match config.unit_of_pressure.lock() {
+            Ok(v) => v.watch(),
+            Err(e) => {
+                log::error!("Error subscribing to config value `unit_of_pressure`: {e}");
+                panic!("{e}");
+            }
+        };
+
         let logging_enabled_watcher = match config.logging_enabled.lock() {
             Ok(v) => v.watch(),
             Err(e) => {
@@ -176,6 +189,7 @@ impl TeslaServer {
             logging_enabled_watcher,
             unit_of_length_watcher,
             unit_of_temperature_watcher,
+            unit_of_pressure_watcher,
         }));
 
         // Handle the messages coming from other tasks
@@ -242,6 +256,7 @@ impl TeslaServer {
         ws: WebSocket,
         clients: Clients,
         tx: mpsc::UnboundedSender<MpscTopic>,
+        config: Config,
     ) {
         let client_id = NEXT_CLIENT_ID.fetch_add(1, Ordering::Relaxed);
 
@@ -276,7 +291,9 @@ impl TeslaServer {
                 }
             };
 
-            if let Err(e) = TeslaServer::handle_messages(&client_tx, msg, tx.clone()).await {
+            if let Err(e) =
+                TeslaServer::handle_messages(&client_tx, msg, tx.clone(), config.clone()).await
+            {
                 // log::error!("{} {}", e, e.backtrace());
                 log::error!("{}", e);
             }
@@ -315,6 +332,7 @@ impl TeslaServer {
         client: &mpsc::UnboundedSender<Message>,
         msg: Message,
         tx: mpsc::UnboundedSender<MpscTopic>,
+        config: Config,
     ) -> anyhow::Result<()> {
         if msg.is_close() {
             let frame = msg.close_frame();
@@ -333,6 +351,7 @@ impl TeslaServer {
         let ws_msg = WsMessage::from_string(msg)?;
 
         match ws_msg.topic {
+            Topic::Unknown => log::error!("Unknown command received"),
             Topic::StartLogging => {
                 let response = match tx.send(MpscTopic::Logging(true)) {
                     Ok(()) => json!({"status": true}),
@@ -380,7 +399,58 @@ impl TeslaServer {
                 let resp = ws_msg.response_with_data(response);
                 TeslaServer::send(client, &resp)?;
             }
-            Topic::Unknown => log::error!("Unknown command received"),
+            Topic::SetUnit => {
+                let Some(data) = ws_msg.clone().data else {
+                    let resp = ws_msg.response_with_data(
+                        json!({"status": false, "reason": "Invalid measurement unit"}),
+                    );
+                    TeslaServer::send(client, &resp)?;
+                    anyhow::bail!("No token provided");
+                };
+
+                let measurement: Measurement = match serde_json::from_value(data) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        let response = json!({"status": false, "reason": e.to_string()});
+                        let resp = ws_msg.response_with_data(response);
+                        TeslaServer::send(client, &resp)?;
+                        anyhow::bail!(e);
+                    }
+                };
+
+                let result = match measurement {
+                    Measurement::Distance(unit) => match config.unit_of_length.lock() {
+                        Ok(mut l) => {
+                            l.set(UnitOfLength::from_ui_struct(&unit));
+                            Ok(())
+                        }
+                        Err(e) => Err(format!("{e}")),
+                    },
+
+                    Measurement::Pressure(unit) => match config.unit_of_pressure.lock() {
+                        Ok(mut l) => {
+                            l.set(UnitOfPressure::from_ui_struct(&unit));
+                            Ok(())
+                        }
+                        Err(e) => Err(format!("{e}")),
+                    },
+                    Measurement::Temperature(unit) => match config.unit_of_temperature.lock() {
+                        Ok(mut l) => {
+                            l.set(UnitOfTemperature::from_ui_struct(&unit));
+                            Ok(())
+                        }
+                        Err(e) => Err(format!("{e}")),
+                    },
+                };
+
+                let response = if let Err(e) = result {
+                    json!({"status": false, "reason": e.to_string()})
+                } else {
+                    json!({"status": true})
+                };
+                let resp = ws_msg.response_with_data(response);
+                TeslaServer::send(client, &resp)?;
+            }
         }
 
         Ok(())
@@ -455,6 +525,16 @@ impl TeslaServer {
         {
             let new_value = *self.unit_of_temperature_watcher.borrow_and_update();
             self.status.set_unit_of_temperature(new_value);
+        }
+
+        if self
+            .unit_of_pressure_watcher
+            .has_changed()
+            .map_err(|e| log::error!("{e}"))
+            .unwrap_or(false)
+        {
+            let new_value = *self.unit_of_pressure_watcher.borrow_and_update();
+            self.status.set_unit_of_pressure(new_value);
         }
 
         if self

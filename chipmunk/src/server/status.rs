@@ -1,7 +1,5 @@
-use std::str::FromStr;
-
 use ui_common::{
-    units::{Distance, DistanceUnit, Temperature, TemperatureUnit},
+    units::{Distance, DistanceUnit, PressureUnit, Temperature, TemperatureUnit},
     Charging, Driving, Logging, Offline, Parked, Sleeping, State, Status, Vehicle,
 };
 
@@ -9,7 +7,7 @@ use crate::{
     config::Config,
     database::{
         tables::Tables,
-        types::{UnitOfLength, UnitOfTemperature},
+        types::{UnitOfLength, UnitOfPressure, UnitOfTemperature},
     },
 };
 
@@ -218,6 +216,7 @@ fn logging(curr_status: Option<&Logging>, config: &Config) -> Logging {
         total_num_points: curr_status.map(|s| s.total_num_points + 1).unwrap_or(0),
         unit_of_length: DistanceUnit::default(),
         unit_of_temperature: TemperatureUnit::default(),
+        unit_of_pressure: PressureUnit::default(),
     }
 }
 
@@ -286,17 +285,15 @@ impl LoggingStatus {
     }
 
     pub fn set_unit_of_length(&mut self, value: UnitOfLength) {
-        match DistanceUnit::from_str(&value.to_string()) {
-            Ok(v) => self.status.logging.unit_of_length = v,
-            Err(e) => log::error!("{e}"),
-        }
+        self.status.logging.unit_of_length = value.to_ui_struct();
     }
 
     pub fn set_unit_of_temperature(&mut self, value: UnitOfTemperature) {
-        match TemperatureUnit::from_str(&value.to_string()) {
-            Ok(v) => self.status.logging.unit_of_temperature = v,
-            Err(e) => log::error!("{e}"),
-        }
+        self.status.logging.unit_of_temperature = value.to_ui_struct();
+    }
+
+    pub fn set_unit_of_pressure(&mut self, value: UnitOfPressure) {
+        self.status.logging.unit_of_pressure = value.to_ui_struct();
     }
 
     pub fn set_logging_status(&mut self, status: bool) {

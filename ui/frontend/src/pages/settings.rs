@@ -1,7 +1,10 @@
 use leptos::*;
 use serde_json::json;
 
-use ui_common::{Topic, WsMessage};
+use ui_common::{
+    units::{DistanceUnit, Measurement, PressureUnit, TemperatureUnit},
+    Topic, WsMessage,
+};
 
 use crate::WebsocketContext;
 
@@ -29,44 +32,110 @@ pub fn Settings() -> impl IntoView {
         ws_send(&msg.to_string().unwrap());
     };
 
+    let ws_send = websocket.send.clone();
+    let send_unit = move |unit| {
+        let data = serde_json::to_value(unit)
+            .map_err(|e| log::error!("{e}"))
+            .ok();
+
+        match WsMessage::command(Topic::SetUnit, data).to_string() {
+            Ok(msg) => ws_send(&msg),
+            Err(e) => log::error!("{e}"),
+        };
+    };
+    let send_dist_unit_1 = send_unit.clone();
+    let send_dist_unit_2 = send_unit.clone();
+    let send_temp_unit_1 = send_unit.clone();
+    let send_temp_unit_2 = send_unit.clone();
+    let send_pressure_unit_1 = send_unit.clone();
+    let send_pressure_unit_2 = send_unit;
+
     view! {
-        <div class="max-w-sm mx-auto pt-8">
+        <div class="mx-auto max-w-sm pt-8">
             <div class="mb-5">
-                <label class="inline-flex items-center me-5 cursor-pointer">
-                  <input type="checkbox" value="" on:input=move |ev| send_enable_logging(event_target_checked(&ev)) class="sr-only peer" checked/>
-                  <div class="relative w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
-                  <span class="ms-3 text-sm font-medium text-gray-900 dark:text-gray-300">Enable logging</span>
+                <label class="me-5 inline-flex cursor-pointer items-center">
+                <input type="checkbox" value="" on:input=move |ev| send_enable_logging(event_target_checked(&ev)) class="peer sr-only" checked />
+                <div class="peer relative h-6 w-11 rounded-full bg-gray-200 after:absolute after:start-[2px] after:top-0.5 after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-blue-600 peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:ring-4 peer-focus:ring-blue-300 rtl:peer-checked:after:-translate-x-full"></div>
+                <span class="ms-3 text-sm font-medium text-content-1">Enable logging</span>
                 </label>
             </div>
             <div class="mb-5">
-                <label for="refresh_token" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Refresh token</label>
-                <input type="text" id="refresh_token" on:input=move |ev| set_refresh_token(event_target_value(&ev)) class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"/>
+                <label for="refresh_token" class="mb-2 block text-sm font-medium text-content-1">Refresh token</label>
+                <div class="flex">
+                <input type="text" id="refresh_token" on:input=move |ev| set_refresh_token(event_target_value(&ev)) class="block w-full rounded-lg border border-content-2 bg-bkg-2 text-sm text-content-1 focus:border-blue-500 focus:ring-blue-500" />
+                <button type="button" on:click=send_refresh_token class="ml-2 rounded-lg bg-blue-700 px-5 py-2.5 text-center text-sm font-medium text-bkg-2 hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-300">Save</button>
+                </div>
             </div>
             <div class="mb-5">
-                <label for="distance_unit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Distance</label>
-                <select id="distance_unit" class="block w-full p-2 mb-6 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
-                    <option>mi</option>
-                    <option>km</option>
-                </select>
+                <label for="distance_unit" class="mb-2 block text-sm font-medium text-content-1">Distance</label>
+                <div class="flex">
+                <ul class="grid w-full grid-cols-2 gap-1">
+                    <li>
+                    <input type="radio" on:input=move |_| send_dist_unit_1(Measurement::Distance(DistanceUnit::Mi)) id="dist-unit-mi" name="dist-unit" value="dist-unit-mi" class="peer hidden" required />
+                    <label for="dist-unit-mi" class="inline-flex w-full cursor-pointer items-center justify-between rounded-lg border border-gray-200 bg-bkg-2 p-1 px-3 text-gray-500 hover:bg-gray-100 hover:text-gray-600 peer-checked:border-blue-600 peer-checked:text-blue-600">
+                        <div class="block text-center">
+                        <div class="w-full text-lg font-semibold">mi</div>
+                        </div>
+                    </label>
+                    </li>
+                    <li>
+                    <input type="radio" on:input=move |_| send_dist_unit_2(Measurement::Distance(DistanceUnit::Km)) id="dist-unit-km" name="dist-unit" value="dist-unit-km" class="peer hidden" />
+                    <label for="dist-unit-km" class="inline-flex w-full cursor-pointer items-center justify-between rounded-lg border border-gray-200 bg-bkg-2 p-1 px-3 text-gray-500 hover:bg-gray-100 hover:text-gray-600 peer-checked:border-blue-600 peer-checked:text-blue-600">
+                        <div class="block">
+                        <div class="w-full text-lg font-semibold">km</div>
+                        </div>
+                    </label>
+                    </li>
+                </ul>
+                </div>
             </div>
 
             <div class="mb-5">
-                <label for="temperature_unit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Temperature</label>
-                <select id="temperature_unit" class="block w-full p-2 mb-6 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
-                    <option>"°F"</option>
-                    <option>"°C"</option>
-                </select>
+                <label for="temperature_unit" class="mb-2 block text-sm font-medium text-content-1">Temperature</label>
+                <div class="flex">
+                <ul class="grid w-full grid-cols-2 gap-1">
+                    <li>
+                    <input type="radio" on:input=move |_| send_temp_unit_1(Measurement::Temperature(TemperatureUnit::C)) id="temp-unit-c" name="temp-unit" value="temp-unit-c" class="peer hidden" required />
+                    <label for="temp-unit-c" class="inline-flex w-full cursor-pointer items-center justify-between rounded-lg border border-gray-200 bg-bkg-2 p-1 px-3 text-gray-500 hover:bg-gray-100 hover:text-gray-600 peer-checked:border-blue-600 peer-checked:text-blue-600">
+                        <div class="block text-center">
+                        <div class="w-full text-lg font-semibold">Celsius</div>
+                        </div>
+                    </label>
+                    </li>
+                    <li>
+                    <input type="radio" on:input=move |_| send_temp_unit_2(Measurement::Temperature(TemperatureUnit::F)) id="temp-unit-f" name="temp-unit" value="temp-unit-f" class="peer hidden" />
+                    <label for="temp-unit-f" class="inline-flex w-full cursor-pointer items-center justify-between rounded-lg border border-gray-200 bg-bkg-2 p-1 px-3 text-gray-500 hover:bg-gray-100 hover:text-gray-600 peer-checked:border-blue-600 peer-checked:text-blue-600">
+                        <div class="block">
+                        <div class="w-full text-lg font-semibold">Fahrenheit</div>
+                        </div>
+                    </label>
+                    </li>
+                </ul>
+                </div>
             </div>
 
             <div class="mb-5">
-                <label for="pressure_unit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Pressure</label>
-                <select id="pressure_unit" class="block w-full p-2 mb-6 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
-                    <option>psi</option>
-                    <option>nar</option>
-                </select>
-            </div>
-            <div class="grid">
-                <button type="button" on:click=send_refresh_token class="text-white bg-blue-700 hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-300 font-medium rounded-full text-sm px-5 py-2.5 text-center me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">Save</button>
+                <label for="pressure_unit" class="mb-2 block text-sm font-medium text-content-1">Pressure</label>
+                <div class="flex">
+                <ul class="grid w-full grid-cols-2 gap-1">
+                    <li>
+                    <input type="radio" on:input=move |_| send_pressure_unit_1(Measurement::Pressure(PressureUnit::Psi)) id="pres-unit-psi" name="pres-unit" value="pres-unit-psi" class="peer hidden" required />
+                    <label for="pres-unit-psi" class="inline-flex w-full cursor-pointer items-center justify-between rounded-lg border border-gray-200 bg-bkg-2 p-1 px-3 text-gray-500 hover:bg-gray-100 hover:text-gray-600 peer-checked:border-blue-600 peer-checked:text-blue-600">
+                        <div class="block text-center">
+                        <div class="w-full text-lg font-semibold">PSI</div>
+                        </div>
+                    </label>
+                    </li>
+                    <li>
+                    <input type="radio" on:input=move |_| send_pressure_unit_2(Measurement::Pressure(PressureUnit::Bar)) id="pres-unit-bar" name="pres-unit" value="pres-unit-bar" class="peer hidden" />
+                    <label for="pres-unit-bar" class="inline-flex w-full cursor-pointer items-center justify-between rounded-lg border border-gray-200 bg-bkg-2 p-1 px-3 text-gray-500 hover:bg-gray-100 hover:text-gray-600 peer-checked:border-blue-600 peer-checked:text-blue-600">
+                        <div class="block">
+                        <div class="w-full text-lg font-semibold">Bar</div>
+                        </div>
+                    </label>
+                    </li>
+                </ul>
+                </div>
             </div>
         </div>
     }

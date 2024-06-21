@@ -7,7 +7,10 @@ module.exports = {
     extend: {
       colors: {
         current: "rgb(var(--color-content1) / <alpha-value>)",
-        bkg: "rgb(var(--color-bkg) / <alpha-value>)",
+        bkg: {
+          1: "rgb(var(--color-bkg1) / <alpha-value>)",
+          2: "rgb(var(--color-bkg2) / <alpha-value>)",
+        },
         border: "rgb(var(--color-border) / <alpha-value>)",
         content: {
           1: "rgb(var(--color-content1) / <alpha-value>)",

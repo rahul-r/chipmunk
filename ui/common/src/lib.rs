@@ -25,6 +25,8 @@ pub enum Topic {
     RefreshToken,
     #[serde(rename = "logging-status")]
     LoggingStatus,
+    #[serde(rename = "set-unit")]
+    SetUnit,
     #[default]
     #[serde(rename = "unknown")]
     Unknown,

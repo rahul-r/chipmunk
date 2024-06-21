@@ -7,6 +7,7 @@ use macros::Json;
 
 use crate::units::Distance;
 use crate::units::DistanceUnit;
+use crate::units::PressureUnit;
 use crate::units::Temperature;
 use crate::units::TemperatureUnit;
 
@@ -96,6 +97,7 @@ pub struct Logging {
     pub total_num_points: i32,
     pub unit_of_length: DistanceUnit,
     pub unit_of_temperature: TemperatureUnit,
+    pub unit_of_pressure: PressureUnit,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone, Json)]
