@@ -8,6 +8,15 @@ pub enum TemperatureUnit {
     C,
 }
 
+impl TemperatureUnit {
+    pub fn to_str<'a>(&self) -> &'a str {
+        match self {
+            TemperatureUnit::F => "°F",
+            TemperatureUnit::C => "°C",
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Temperature {
     pub celsius: f32,
@@ -34,8 +43,8 @@ impl Temperature {
 
     pub fn to_string(&self, unit: &TemperatureUnit) -> String {
         match unit {
-            TemperatureUnit::F => format!("{:.0} °F", self.as_fahrenheit()),
-            TemperatureUnit::C => format!("{:.1} °C", self.as_celsius()),
+            TemperatureUnit::F => format!("{:.0}", self.as_fahrenheit()),
+            TemperatureUnit::C => format!("{:.1}", self.as_celsius()),
         }
     }
 }

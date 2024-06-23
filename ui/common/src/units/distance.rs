@@ -8,6 +8,15 @@ pub enum DistanceUnit {
     Km,
 }
 
+impl DistanceUnit {
+    pub fn to_str<'a>(&self) -> &'a str {
+        match self {
+            DistanceUnit::Mi => "mi",
+            DistanceUnit::Km => "km",
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct Distance {
     pub miles: f64,
@@ -34,8 +43,8 @@ impl Distance {
 
     pub fn to_string(&self, unit: &DistanceUnit) -> String {
         match unit {
-            DistanceUnit::Mi => format!("{:.0}", self.as_miles()),
-            DistanceUnit::Km => format!("{:.1}", self.as_km()),
+            DistanceUnit::Mi => format!("{}", self.as_miles().round()),
+            DistanceUnit::Km => format!("{}", self.as_km().round()),
         }
     }
 }

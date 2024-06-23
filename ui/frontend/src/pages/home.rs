@@ -40,29 +40,47 @@ fn vehicle_status(status: Status) -> impl IntoView {
                 </div>
                 <div class="flex justify-evenly pb-4 text-center">
                     <div class="pb-2 text-center">
-                        <p class="font-normal text-content-2">Battery</p>
-                        <p class="text-xl font-normal text-content-1">{status.vehicle.battery_level}%</p>
+                        <p class="text-md font-normal text-content-2">Battery</p>
+                        <p class="text-lg font-normal text-content-1">{status.vehicle.battery_level}%</p>
                     </div>
                     <div class="pb-2 text-center">
-                        <p class="font-normal text-content-2">Range</p>
-                        <p class="text-xl font-normal text-content-1">{status.vehicle.range.map(|r| r.to_string(&status.logging.unit_of_length))}</p>
+                        <p class="text-md font-normal text-content-2">Range</p>
+                        {status.vehicle.range.map(|r| view!{
+                            <div class="flex">
+                                <p class="text-lg font-normal text-content-1">{r.to_string(&status.logging.unit_of_length)}</p>
+                                <p class="text-md text-content-2">{status.logging.unit_of_length.to_str()}</p>
+                            </div>
+                        })}
                     </div>
                     <div class="pb-2 text-center">
-                        <p class="font-normal text-content-2">Odometer</p>
-                        <p class="text-xl font-normal text-content-1">{status.vehicle.odometer.to_string(&status.logging.unit_of_length)}</p>
+                        <p class="text-md font-normal text-content-2">Odometer</p>
+                        <div class="flex">
+                            <p class="text-lg font-normal text-content-1">{status.vehicle.odometer.to_string(&status.logging.unit_of_length)}</p>
+                            <p class="text-md text-content-2">{status.logging.unit_of_length.to_str()}</p>
+                        </div>
                     </div>
                 </div>
                 <div class="flex justify-evenly text-center">
                     <div class="pb-2 text-center">
-                        <p class="font-normal text-content-2">Interior</p>
-                        <p class="text-xl font-normal text-content-1">{status.vehicle.interior_temperature.map(|t| t.to_string(&status.logging.unit_of_temperature))}</p>
+                        <p class="text-md font-normal text-content-2">Interior</p>
+                        {status.vehicle.interior_temperature.map(|t| view!{
+                            <div class="flex">
+                                <p class="text-lg font-normal text-content-1">{t.to_string(&status.logging.unit_of_temperature)}</p>
+                                <p class="text-md text-content-2">{status.logging.unit_of_temperature.to_str()}</p>
+                            </div>
+                        })}
                     </div>
                     <div class="pb-2 text-center">
-                        <p class="font-normal text-content-2">Exterior</p>
-                        <p class="text-xl font-normal text-content-1">{status.vehicle.exterior_temperature.map(|t| t.to_string(&status.logging.unit_of_temperature))}</p>
+                        <p class="text-md font-normal text-content-2">Exterior</p>
+                        {status.vehicle.exterior_temperature.map(|t| view!{
+                            <div class="flex">
+                                <p class="text-lg font-normal text-content-1">{t.to_string(&status.logging.unit_of_temperature)}</p>
+                                <p class="text-md text-content-2">{status.logging.unit_of_temperature.to_str()}</p>
+                            </div>
+                        })}
                     </div>
                     <div class="flex flex-col items-center pb-2 text-center">
-                        <p class="font-normal text-content-2">Climate</p>
+                        <p class="text-md font-normal text-content-2">Climate</p>
                         <svg fill="red" class="fill-content-1" viewBox="0 0 24 24" height="25px" width="25px" xmlns="http://www.w3.org/2000/svg" class="size-6">
                             <path d="M19 9c.667 1.06 1 2.394 1 4 0 3-3.5 4-5 9-.667-.575-1-1.408-1-2.5 0-3.482 5-5.29 5-10.5zm-4.5-4a8.31 8.31 0 0 1 1 4c0 5-6 6-4 13C9.833 20.84 9 19.173 9 17c0-3.325 5.5-6 5.5-12zM10 1c.667 1.333 1 2.833 1 4.5 0 6-9 7.5-3 16.5-2.5-.5-4.5-3-4.5-6C3.5 9.5 10 8.5 10 1z" />
                         </svg>
