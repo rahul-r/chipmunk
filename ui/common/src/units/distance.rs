@@ -47,4 +47,8 @@ impl Distance {
             DistanceUnit::Km => format!("{}", self.as_km().round()),
         }
     }
+
+    pub fn is_zero(&self) -> bool {
+        self.miles == 0.0
+    }
 }

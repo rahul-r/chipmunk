@@ -13,51 +13,67 @@ fn vehicle_status(status: Status) -> impl IntoView {
             </div>
             <div class="flex flex-col p-5 leading-normal text-center w-full">
                 <div class="pb-4 text-center">
-                    <div class="flex items-center justify-center">
-                        <p class="pr-2 text-2xl font-bold text-content-1">{status.vehicle.name}</p>
                         {
-                            if let Some(is_locked) = status.vehicle.is_locked {
-                                if is_locked {
-                                    view! {
-                                        <svg class="currentColor" viewBox="0 0 8 8" height="25px" width="25px" xmlns="http://www.w3.org/2000/svg" class="size-5">
-                                            <path d="M 4,0 C 2.9,0 2,1.0277807 2,2.2839571 V 3.4259357 H 1 V 7.9938499 H 7 V 3.4259357 H 6 V 2.2839571 C 6,1.0277807 5.1,0 4,0 Z m 0,1.1419786 c 0.56,0 1,0.5024705 1,1.1419785 V 3.4259357 H 3 V 2.2839571 C 3,1.6444491 3.44,1.1419786 4,1.1419786 Z" />
-                                        </svg>
-                                    }.into_any()
-                                } else {
-                                    view! {
-                                        <svg class="fill-yellow-200" viewBox="0 0 8 8" height="25px" width="25px" xmlns="http://www.w3.org/2000/svg" class="size-5">
-                                            <path d="M3 0c-1.1 0-2 .9-2 2h1c0-.56.44-1 1-1s1 .44 1 1v2h-4v4h6v-4h-1v-2c0-1.1-.9-2-2-2z" />
-                                        </svg>
-                                    }.into_any()
-                                }
+                            if status.vehicle.name.is_empty() {
+                                view! { <p class="pr-2 text-2xl font-bold text-content-1 whitespace-pre">" "</p> }.into_any()
                             } else {
-                                view!{<p></p>}.into_any()
+                                view! {
+                                    <div class="flex items-center justify-center">
+                                    <p class="pr-2 text-2xl font-bold text-content-1">{status.vehicle.name}</p>
+                                    {
+                                        if let Some(is_locked) = status.vehicle.is_locked {
+                                            if is_locked {
+                                                view! {
+                                                    <svg class="currentColor" viewBox="0 0 8 8" height="25px" width="25px" xmlns="http://www.w3.org/2000/svg" class="size-5">
+                                                        <path d="M 4,0 C 2.9,0 2,1.0277807 2,2.2839571 V 3.4259357 H 1 V 7.9938499 H 7 V 3.4259357 H 6 V 2.2839571 C 6,1.0277807 5.1,0 4,0 Z m 0,1.1419786 c 0.56,0 1,0.5024705 1,1.1419785 V 3.4259357 H 3 V 2.2839571 C 3,1.6444491 3.44,1.1419786 4,1.1419786 Z" />
+                                                    </svg>
+                                                }.into_any()
+                                            } else {
+                                                view! {
+                                                    <svg class="fill-yellow-200" viewBox="0 0 8 8" height="25px" width="25px" xmlns="http://www.w3.org/2000/svg" class="size-5">
+                                                        <path d="M3 0c-1.1 0-2 .9-2 2h1c0-.56.44-1 1-1s1 .44 1 1v2h-4v4h6v-4h-1v-2c0-1.1-.9-2-2-2z" />
+                                                    </svg>
+                                                }.into_any()
+                                            }
+                                        } else {
+                                            view!{<p></p>}.into_any()
+                                        }
+                                    }
+                                    </div>
+                                }.into_any()
                             }
                         }
-                    </div>
                     <p class="font-thin text-content-2">Cybertruck</p>
                     <p class="font-thin text-content-2">Driving for 10 minutes</p>
                 </div>
                 <div class="flex justify-evenly pb-4 text-center">
                     <div class="pb-2 text-center">
                         <p class="text-md font-normal text-content-2">Battery</p>
-                        <p class="text-lg font-normal text-content-1">{status.vehicle.battery_level}%</p>
+                        <p class="text-lg font-normal text-content-1">{status.vehicle.battery_level.map(|b| format!("{b}%"))}</p>
                     </div>
                     <div class="pb-2 text-center">
                         <p class="text-md font-normal text-content-2">Range</p>
                         {status.vehicle.range.map(|r| view!{
                             <div class="flex">
                                 <p class="text-lg font-normal text-content-1">{r.to_string(&status.logging.unit_of_length)}</p>
-                                <p class="text-md text-content-2">{status.logging.unit_of_length.to_str()}</p>
+                                <p class="text-md text-content-2 pl-1">{status.logging.unit_of_length.to_str()}</p>
                             </div>
                         })}
                     </div>
                     <div class="pb-2 text-center">
                         <p class="text-md font-normal text-content-2">Odometer</p>
-                        <div class="flex">
-                            <p class="text-lg font-normal text-content-1">{status.vehicle.odometer.to_string(&status.logging.unit_of_length)}</p>
-                            <p class="text-md text-content-2">{status.logging.unit_of_length.to_str()}</p>
-                        </div>
+                        {
+                            if status.vehicle.odometer.is_zero() {
+                                view! { <div class="whitespace-pre">" " </div>}
+                            } else {
+                                view! {
+                                    <div class="flex">
+                                        <p class="text-lg font-normal text-content-1">{status.vehicle.odometer.to_string(&status.logging.unit_of_length)}</p>
+                                        <p class="text-md text-content-2 pl-1">{status.logging.unit_of_length.to_str()}</p>
+                                    </div>
+                                }
+                            }
+                        }
                     </div>
                 </div>
                 <div class="flex justify-evenly text-center">
@@ -66,18 +82,20 @@ fn vehicle_status(status: Status) -> impl IntoView {
                         {status.vehicle.interior_temperature.map(|t| view!{
                             <div class="flex">
                                 <p class="text-lg font-normal text-content-1">{t.to_string(&status.logging.unit_of_temperature)}</p>
-                                <p class="text-md text-content-2">{status.logging.unit_of_temperature.to_str()}</p>
+                                <p class="text-md text-content-2 pl-1">{status.logging.unit_of_temperature.to_str()}</p>
                             </div>
                         })}
                     </div>
                     <div class="pb-2 text-center">
                         <p class="text-md font-normal text-content-2">Exterior</p>
-                        {status.vehicle.exterior_temperature.map(|t| view!{
-                            <div class="flex">
-                                <p class="text-lg font-normal text-content-1">{t.to_string(&status.logging.unit_of_temperature)}</p>
-                                <p class="text-md text-content-2">{status.logging.unit_of_temperature.to_str()}</p>
-                            </div>
-                        })}
+                        {match status.vehicle.exterior_temperature {
+                            Some(t) => view!{
+                                <div class="flex">
+                                    <p class="text-lg font-normal text-content-1">{t.to_string(&status.logging.unit_of_temperature)}</p>
+                                    <p class="text-md text-content-2 pl-1">{status.logging.unit_of_temperature.to_str()}</p>
+                                </div>},
+                            None => view! {<div/>},
+                        }}
                     </div>
                     <div class="flex flex-col items-center pb-2 text-center">
                         <p class="text-md font-normal text-content-2">Climate</p>
