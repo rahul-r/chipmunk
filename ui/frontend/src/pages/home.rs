@@ -231,7 +231,7 @@ pub fn Home() -> impl IntoView {
 
     view! {
         <>
-            <Map coords={websocket.location.get()}/>
+            {move || Map(websocket.location.get())}
             <div class="grid gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 pt-4">
                 <div class="rounded md:border border-border bg-bkg-1">
                     {move || vehicle_status(websocket.logging_status.get())}
