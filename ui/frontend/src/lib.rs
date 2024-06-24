@@ -195,6 +195,11 @@ pub fn App() -> impl IntoView {
         <Meta charset="UTF-8"/>
         <Meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 
+        <Link rel="apple-touch-icon" href="/public/apple-touch-icon.png" />
+        <Meta name="apple-mobile-web-app-title" content="Chipmunk" />
+        <Meta name="apple-mobile-web-app-capable" content="yes" />
+        <Meta name="apple-mobile-web-app-status-bar-style" content="black-transculent" />
+
         // <div class:light=move || !is_dark_mode.get() class:dark=move || is_dark_mode.get()>
         <div>
             <Navbar/>
