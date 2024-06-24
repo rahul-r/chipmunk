@@ -1,15 +1,16 @@
 use leptos::*;
 
+use leptos_leaflet::{MapContainer, Marker, Popup, Position, TileLayer};
 use leptos_use::core::ConnectionReadyState;
 use ui_common::{Status, Topic, WsMessage};
 
-use crate::{components::map::Map, WebsocketContext};
+use crate::WebsocketContext;
 
 fn vehicle_status(status: Status) -> impl IntoView {
     view! {
         <div class="flex flex-row w-full shadow md:max-w-md">
             <div class="flex items-center">
-                <img class="object-scale-down h-auto max-h-96 md:h-auto md:max-h-96" src="/public/model3-red.jpeg" alt="car"/>
+                <img class="object-scale-down h-auto max-h-96 md:h-auto md:max-h-96" src="/public/model3-red.jpg" alt="car"/>
             </div>
             <div class="flex flex-col p-5 leading-normal text-center w-full">
                 <div class="pb-4 text-center">
@@ -231,7 +232,14 @@ pub fn Home() -> impl IntoView {
 
     view! {
         <>
-            {move || Map(websocket.location.get())}
+            <MapContainer style="height: 300px" center=Position::new(37.49, -121.94) zoom=13.0 set_view=true class="z-0">
+                <TileLayer url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"/>
+                <Marker position={Position::new(37.49, -121.94)} >
+                    <Popup>
+                        <strong>{"Car"}</strong>
+                    </Popup>
+                </Marker>
+            </MapContainer>
             <div class="grid gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 pt-4">
                 <div class="rounded md:border border-border bg-bkg-1">
                     {move || vehicle_status(websocket.logging_status.get())}
