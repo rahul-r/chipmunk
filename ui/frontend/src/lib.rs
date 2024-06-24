@@ -106,7 +106,7 @@ fn Navbar() -> impl IntoView {
     };
 
     view! {
-        <nav class="bg-bkg-1 fixed w-full z-20 top-0 start-0 border-b border-content-2">
+        <nav class="bg-bkg-1 fixed w-full z-20 top-0 start-0 border-b border-bkg-2">
             <div class="max-w-screen-xl flex flex-wrap items-center justify-between mx-auto p-4">
                 <a href="/" class="flex">
                     <img src="/public/logo.svg" class="h-8 pr-1 text-content-1" alt="logo"/>
@@ -139,7 +139,7 @@ pub fn App() -> impl IntoView {
 
     let (temperature_unit, set_temperature_unit) = create_signal(TemperatureUnit::default());
 
-    let (is_dark_mode, set_is_dark_mode) = create_signal(true);
+    // let (is_dark_mode, set_is_dark_mode) = create_signal(true);
 
     let (location, set_location) = create_signal((0.0, 0.0));
 
@@ -199,9 +199,9 @@ pub fn App() -> impl IntoView {
         <div>
             <Navbar/>
 
-            <button hidden on:click=move |_| set_is_dark_mode(!is_dark_mode.get()) class="z-20 mt-[5rem] text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 focus:outline-none">
-                {move || if is_dark_mode.get() { "Light" } else { "Dark"}}
-            </button>
+            // <button hidden on:click=move |_| set_is_dark_mode(!is_dark_mode.get()) class="z-20 mt-[5rem] text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 focus:outline-none">
+            //     {move || if is_dark_mode.get() { "Light" } else { "Dark"}}
+            // </button>
 
             <Router>
                 <main class="pt-[4rem]">
