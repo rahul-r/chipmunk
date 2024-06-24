@@ -77,12 +77,18 @@ pub struct Sleeping {
 }
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone, Json)]
+pub struct Location {
+    pub name: Option<String>,
+    pub coords: Option<(f32, f32)>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Default, Clone, Json)]
 pub struct Vehicle {
     pub name: String,
     pub odometer: Distance,
     pub is_user_nearby: bool,
     pub is_locked: Option<bool>,
-    pub location: Option<String>,
+    pub location: Location,
     pub battery_level: Option<i16>,
     pub range: Option<Distance>,
     pub interior_temperature: Option<Temperature>,

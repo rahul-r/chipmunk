@@ -1,6 +1,6 @@
 use ui_common::{
     units::{Distance, DistanceUnit, PressureUnit, Temperature, TemperatureUnit},
-    Charging, Driving, Logging, Offline, Parked, Sleeping, State, Status, Vehicle,
+    Charging, Driving, Location, Logging, Offline, Parked, Sleeping, State, Status, Vehicle,
 };
 
 use crate::{
@@ -161,10 +161,12 @@ fn sleeping(state: &State, curr_status: Option<&Sleeping>) -> Option<Sleeping> {
 
 fn vehicle(tables: &Tables, curr_status: &Vehicle) -> Vehicle {
     // TODO: Also update the location when the state changes
-    let location = match curr_status.location {
+    let location_name = match curr_status.location.name {
         Some(ref l) => Some(l.clone()),
         None => tables.address.as_ref().and_then(|a| a.display_name.clone()),
     };
+
+    let location = tables.raw_data.as_ref().and_then(|d| d.location());
 
     let vehicle_state = tables
         .raw_data
@@ -186,7 +188,10 @@ fn vehicle(tables: &Tables, curr_status: &Vehicle) -> Vehicle {
             .unwrap_or_default(),
         is_user_nearby: false,
         is_locked: vehicle_state.and_then(|v| v.locked),
-        location,
+        location: Location {
+            name: location_name,
+            coords: location,
+        },
         battery_level: tables.charges.as_ref().and_then(|c| c.battery_level),
         interior_temperature: climate_state
             .and_then(|c| c.inside_temp)

@@ -23,6 +23,7 @@ pub struct WebsocketContext {
     ready_state: Signal<ConnectionReadyState>,
     logging_status: ReadSignal<Status>,
     is_logging: ReadSignal<bool>,
+    location: ReadSignal<(f32, f32)>,
     temperature_unit: ReadSignal<TemperatureUnit>,
 }
 
@@ -33,6 +34,7 @@ impl WebsocketContext {
         ready_state: Signal<ConnectionReadyState>,
         logging_status: ReadSignal<Status>,
         is_logging: ReadSignal<bool>,
+        location: ReadSignal<(f32, f32)>,
         temperature_unit: ReadSignal<TemperatureUnit>,
     ) -> Self {
         Self {
@@ -41,6 +43,7 @@ impl WebsocketContext {
             ready_state,
             logging_status,
             is_logging,
+            location,
             temperature_unit,
         }
     }
@@ -138,6 +141,8 @@ pub fn App() -> impl IntoView {
 
     let (is_dark_mode, set_is_dark_mode) = create_signal(true);
 
+    let (location, set_location) = create_signal((0.0, 0.0));
+
     let on_message_callback = move |msg: String| match WsMessage::from_string(&*msg) {
         Ok(m) => {
             if let Topic::LoggingStatus = m.topic {
@@ -145,6 +150,9 @@ pub fn App() -> impl IntoView {
                 set_is_logging(status.logging.enabled);
                 set_logging_status(status.clone());
                 set_temperature_unit(status.logging.unit_of_temperature);
+                if let Some(l) = status.vehicle.location.coords {
+                    set_location(l)
+                }
             }
         }
         Err(e) => logging::log!(
@@ -175,6 +183,7 @@ pub fn App() -> impl IntoView {
         ready_state,
         logging_status,
         is_logging,
+        location,
         temperature_unit,
     ));
 

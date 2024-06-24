@@ -4,15 +4,16 @@ use leptos::*;
 use leptos_leaflet::*;
 
 #[component]
-pub fn Map(lat: f64, lon: f64) -> impl IntoView {
+pub fn Map(coords: (f32, f32)) -> impl IntoView {
     let (marker_position, set_marker_position) = create_signal(Position::new(37.49, -121.94));
+    let (lat, lon) = coords;
 
     create_effect(move |_| {
         set_interval_with_handle(
             move || {
                 set_marker_position.update(|pos| {
-                    pos.lat = lat;
-                    pos.lng = lon;
+                    pos.lat = lat as f64;
+                    pos.lng = lon as f64;
                 });
             },
             Duration::from_millis(200),

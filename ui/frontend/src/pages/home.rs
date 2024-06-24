@@ -231,7 +231,7 @@ pub fn Home() -> impl IntoView {
 
     view! {
         <>
-            <Map lat=37.49 lon=-121.94/>
+            <Map coords={websocket.location.get()}/>
             <button on:click=move |_| logging_status(!websocket.is_logging.get()) disabled=move || !connected() class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 focus:outline-none">
                 {move || if websocket.is_logging.get() { "Stop" } else { "Start"}}
             </button>
