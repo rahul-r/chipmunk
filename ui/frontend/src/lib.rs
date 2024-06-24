@@ -203,11 +203,6 @@ pub fn App() -> impl IntoView {
         // <div class:light=move || !is_dark_mode.get() class:dark=move || is_dark_mode.get()>
         <div>
             <Navbar/>
-
-            // <button hidden on:click=move |_| set_is_dark_mode(!is_dark_mode.get()) class="z-20 mt-[5rem] text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 focus:outline-none">
-            //     {move || if is_dark_mode.get() { "Light" } else { "Dark"}}
-            // </button>
-
             <Router>
                 <main class="pt-[4rem]">
                     <Routes>
