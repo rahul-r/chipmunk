@@ -2,11 +2,12 @@
 <html>
   <head>
     <link data-trunk rel="tailwind-css" rel="stylesheet" href="style/tailwind.css" />
-
-    <!-- Include favicon in dist output: see https://trunkrs.dev/assets/#icon -->
     <link data-trunk rel="icon" href="public/favicon.ico" />
 
-    <link data-trunk href="public" rel="copy-dir"/>
+    <!-- <link data-trunk href="public" rel="copy-dir"/> -->
+    <link data-trunk rel="copy-file" href="public/apple-touch-icon.png" data-target-path="public" />
+    <link data-trunk rel="copy-file" href="public/logo.svg" data-target-path="public" />
+    <link data-trunk rel="copy-file" href="public/model3-red.jpg" data-target-path="public" />
 
     <!-- include support for `wasm-bindgen --weak-refs` - see: https://rustwasm.github.io/docs/wasm-bindgen/reference/weak-references.html -->
     <link data-trunk rel="rust" data-wasm-opt="z" data-weak-refs />
