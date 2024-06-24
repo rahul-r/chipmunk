@@ -232,20 +232,20 @@ pub fn Home() -> impl IntoView {
     view! {
         <>
             <Map coords={websocket.location.get()}/>
-            <button on:click=move |_| logging_status(!websocket.is_logging.get()) disabled=move || !connected() class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 focus:outline-none">
-                {move || if websocket.is_logging.get() { "Stop" } else { "Start"}}
-            </button>
-            <div class="grid gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                <div class="rounded md:border bg-bkg-1">
+            <div class="grid gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 pt-4">
+                <div class="rounded md:border border-border bg-bkg-1">
                     {move || vehicle_status(websocket.logging_status.get())}
                 </div>
-                <div class="rounded md:border bg-bkg-1">
+                <div class="rounded md:border border-border bg-bkg-1">
                     <DriveDetails />
                 </div>
-                <div class="rounded md:border bg-bkg-1">
+                <div class="rounded md:border border-border bg-bkg-1">
                     <ChargeDetails />
                 </div>
             </div>
+            <button on:click=move |_| logging_status(!websocket.is_logging.get()) disabled=move || !connected() class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 focus:outline-none">
+                {move || if websocket.is_logging.get() { "Stop" } else { "Start"}}
+            </button>
         </>
     }
 }

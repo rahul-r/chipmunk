@@ -88,7 +88,7 @@ fn Navbar() -> impl IntoView {
     let (show_menu, set_show_menu) = create_signal(false);
     let menu = move || {
         view! {
-            <ul class="flex flex-col z-21 sm:p-0 font-medium border border-border rounded-lg bg-bkg sm:space-x-8 rtl:space-x-reverse sm:flex-row sm:mt-0 sm:border-0 sm:bg-bkg">
+            <ul class="flex flex-col z-21 sm:p-0 font-medium border border-border rounded-lg bg-bkg-1 sm:space-x-8 rtl:space-x-reverse sm:flex-row sm:mt-0 sm:border-0 sm:bg-bkg-1">
                 <li>
                     <a href="/" class="block py-2 px-3 text-content-1 bg-blue-700 rounded sm:bg-transparent sm:text-content-1 sm:p-0" aria-current="page">Home</a>
                 </li>
@@ -106,7 +106,7 @@ fn Navbar() -> impl IntoView {
     };
 
     view! {
-        <nav class="bg-bkg fixed w-full z-20 top-0 start-0 border-b border-content-2">
+        <nav class="bg-bkg-1 fixed w-full z-20 top-0 start-0 border-b border-content-2">
             <div class="max-w-screen-xl flex flex-wrap items-center justify-between mx-auto p-4">
                 <a href="/" class="flex">
                     <img src="/public/logo.svg" class="h-8 pr-1 text-content-1" alt="logo"/>
@@ -188,15 +188,15 @@ pub fn App() -> impl IntoView {
     ));
 
     view! {
-        <Html lang="en" dir="ltr" class="bg-gray-900"/>
+        <Html lang="en" dir="ltr" class="bg-bkg-2"/>
 
         <Title text="Chipmunk for Tesla"/>
 
         <Meta charset="UTF-8"/>
         <Meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 
-        <div class:light=move || !is_dark_mode.get() class:dark=move || is_dark_mode.get()>
-        // <div class="light">
+        // <div class:light=move || !is_dark_mode.get() class:dark=move || is_dark_mode.get()>
+        <div>
             <Navbar/>
 
             <button hidden on:click=move |_| set_is_dark_mode(!is_dark_mode.get()) class="z-20 mt-[5rem] text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 focus:outline-none">
