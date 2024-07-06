@@ -13,9 +13,9 @@ use crate::pages::home::Home;
 use crate::pages::not_found::NotFound;
 use crate::pages::settings::Settings;
 
+use leptos_leaflet::Position;
 use std::rc::Rc;
 use ui_common::{units::TemperatureUnit, Status, Topic, WsMessage};
-
 #[derive(Clone)]
 pub struct WebsocketContext {
     pub message: Signal<Option<String>>,
@@ -23,7 +23,7 @@ pub struct WebsocketContext {
     ready_state: Signal<ConnectionReadyState>,
     logging_status: ReadSignal<Status>,
     is_logging: ReadSignal<bool>,
-    location: ReadSignal<(f32, f32)>,
+    location: ReadSignal<Position>,
     temperature_unit: ReadSignal<TemperatureUnit>,
 }
 
@@ -34,7 +34,7 @@ impl WebsocketContext {
         ready_state: Signal<ConnectionReadyState>,
         logging_status: ReadSignal<Status>,
         is_logging: ReadSignal<bool>,
-        location: ReadSignal<(f32, f32)>,
+        location: ReadSignal<Position>,
         temperature_unit: ReadSignal<TemperatureUnit>,
     ) -> Self {
         Self {
@@ -141,7 +141,8 @@ pub fn App() -> impl IntoView {
 
     // let (is_dark_mode, set_is_dark_mode) = create_signal(true);
 
-    let (location, set_location) = create_signal((0.0, 0.0));
+    let (location, set_location) = create_signal(Position::new(0.0, 0.0));
+    // let (location, set_location) = create_signal(Position::new(37.49, -121.94));
 
     let on_message_callback = move |msg: String| match WsMessage::from_string(&*msg) {
         Ok(m) => {
@@ -151,7 +152,7 @@ pub fn App() -> impl IntoView {
                 set_logging_status(status.clone());
                 set_temperature_unit(status.logging.unit_of_temperature);
                 if let Some(l) = status.vehicle.location.coords {
-                    set_location(l)
+                    set_location(Position::new(l.0 as f64, l.1 as f64))
                 }
             }
         }

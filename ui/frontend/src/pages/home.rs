@@ -1,7 +1,7 @@
 use leptos::*;
-
-use leptos_leaflet::{MapContainer, Marker, Popup, Position, TileLayer};
+use leptos_leaflet::{MapContainer, Marker, Popup, TileLayer};
 use leptos_use::core::ConnectionReadyState;
+
 use ui_common::{Status, Topic, WsMessage};
 
 use crate::WebsocketContext;
@@ -44,7 +44,6 @@ fn vehicle_status(status: Status) -> impl IntoView {
                                 }.into_any()
                             }
                         }
-                    <p class="font-thin text-content-2">Cybertruck</p>
                     <p class="font-thin text-content-2">Driving for 10 minutes</p>
                 </div>
                 <div class="flex justify-evenly pb-4 text-center">
@@ -232,9 +231,9 @@ pub fn Home() -> impl IntoView {
 
     view! {
         <>
-            <MapContainer style="height: 300px" center=Position::new(37.49, -121.94) zoom=13.0 set_view=true class="z-0">
+            <MapContainer style="height: 300px" center=websocket.location.get() zoom=13.0 set_view=true class="z-0">
                 <TileLayer url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"/>
-                <Marker position={Position::new(37.49, -121.94)} >
+                <Marker position=websocket.location>
                     <Popup>
                         <strong>{"Car"}</strong>
                     </Popup>
