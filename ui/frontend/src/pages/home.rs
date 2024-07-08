@@ -1,5 +1,5 @@
 use leptos::*;
-use leptos_leaflet::{MapContainer, Marker, Popup, TileLayer};
+use leptos_leaflet::{MapContainer, Marker, Popup, Position, TileLayer};
 use leptos_use::core::ConnectionReadyState;
 
 use ui_common::{Status, Topic, WsMessage};
@@ -229,9 +229,18 @@ pub fn Home() -> impl IntoView {
 
     let connected = move || websocket.ready_state.get() == ConnectionReadyState::Open;
 
+    create_effect(move |_| {
+        let map_context = leptos_leaflet::use_leaflet_context();
+        let Some(map) = map_context.and_then(|cx| cx.map()) else {
+            log::warn!("No leaflet map found");
+            return;
+        };
+        map.fly_to(&websocket.location.get().into(), 13.0);
+    });
+
     view! {
         <>
-            <MapContainer style="height: 300px" center=websocket.location.get() zoom=13.0 set_view=true class="z-0">
+            <MapContainer style="height: 300px" center=Position::new(0.0, 0.0) zoom=13.0 set_view=true class="z-0">
                 <TileLayer url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"/>
                 <Marker position=websocket.location>
                     <Popup>
