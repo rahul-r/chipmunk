@@ -19,3 +19,4 @@ rustc-ice*
 .DS_Store
 
 .direnv
+.tmp
