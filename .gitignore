@@ -17,3 +17,5 @@ dist
 
 rustc-ice*
 .DS_Store
+
+.direnv
