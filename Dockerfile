@@ -17,8 +17,7 @@ RUN wget -qO- https://github.com/thedodd/trunk/releases/download/${TRUNK_VERSION
 
 # Build
 WORKDIR /chipmunk/ui/frontend
-RUN pwd && ls && ls ./style
-RUN tailwindcss -i ./style/tailwind.css -o ./public/styles.css && trunk build
+RUN trunk build
 
 # Create release version using grafana as base image
 FROM grafana/grafana:10.2.1-ubuntu
