@@ -56,7 +56,7 @@
           PGDATABASE = "chipmunk";
           PGUSER = "chipmunk";
           PGPASSWORD = "chipmunk";
-          # PGPORT
+          PGPORT = 5432;
 
           shellHook = ''
           '';
