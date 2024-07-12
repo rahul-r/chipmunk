@@ -63,10 +63,10 @@
           PGPORT = 5432;
 
           shellHook = ''
-            start_database
-            export DATABASE_URL="postgres://chipmunk:$PGPASSWORD@localhost:5432/chipmunk";
-            export CAR_DATA_DATABASE_URL="postgres://chipmunk:$PGPASSWORD@localhost:5432/chipmunk";
-            export TEST_DATABASE_URL="postgres://chipmunk:$PGPASSWORD@localhost:5432/chipmunk";
+            pg_isready -t1 > /dev/null || start_database
+            export DATABASE_URL="postgres://$PGUSER:$PGPASSWORD@$PGHOST:$PGPORT/$PGDATABASE"
+            export CAR_DATA_DATABASE_URL="postgres://$PGUSER:$PGPASSWORD@$PGHOST:$PGPORT/$PGDATABASE"
+            export TEST_DATABASE_URL="postgres://$PGUSER:$PGPASSWORD@$PGHOST:$PGPORT/$PGDATABASE"
           '';
       };
     });
