@@ -58,7 +58,7 @@
             '')
             (writeShellScriptBin "chipmunk-redo-migration" ''
               set -e
-              pushd chipmunk
+              pushd "$FLAKE_ROOT/chipmunk"
               NUM_UP_SCRIPTS=$(ls migrations/*up.sql | wc -l)
               NUM_DOWN_SCRIPTS=$(ls migrations/*down.sql | wc -l)
 
@@ -79,6 +79,8 @@
           PGPORT = 5432;
 
           shellHook = ''
+            export FLAKE_ROOT="$(git rev-parse --show-toplevel)"
+
             pg_isready -t1 > /dev/null || chipmunk-stop-postgres
             export DATABASE_URL="postgres://$PGUSER:$PGPASSWORD@$PGHOST:$PGPORT/$PGDATABASE"
             export CAR_DATA_DATABASE_URL="postgres://$PGUSER:$PGPASSWORD@$PGHOST:$PGPORT/$PGDATABASE"
