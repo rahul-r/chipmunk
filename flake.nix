@@ -22,6 +22,10 @@
     devShells = eachSystem (pkgs: {
       default = pkgs.mkShell {
         buildInputs = with pkgs; ([
+            rustup
+            openssl.dev
+            trunk
+            sqlx-cli
             postgresql
             glibcLocales
 
@@ -59,6 +63,10 @@
           PGPORT = 5432;
 
           shellHook = ''
+            start_database
+            export DATABASE_URL="postgres://chipmunk:$PGPASSWORD@localhost:5432/chipmunk";
+            export CAR_DATA_DATABASE_URL="postgres://chipmunk:$PGPASSWORD@localhost:5432/chipmunk";
+            export TEST_DATABASE_URL="postgres://chipmunk:$PGPASSWORD@localhost:5432/chipmunk";
           '';
       };
     });
