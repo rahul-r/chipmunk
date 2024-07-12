@@ -23,13 +23,15 @@
       default = pkgs.mkShell {
         buildInputs = with pkgs; ([
             rustup
-            openssl.dev
             trunk
             sqlx-cli
+            cargo-nextest
+
+            openssl.dev
             postgresql
             glibcLocales
 
-            (writeShellScriptBin "start_database" ''
+            (writeShellScriptBin "chipmunk-start-postgres" ''
               set -e
 
               start_db() {
@@ -49,10 +51,24 @@
               else
                 start_db
               fi
-
-              # register_cleanup stop_db # ~ trapping HUP/EXIT
             '')
-            (writeShellScriptBin "stop_database" "pg_ctl stop")
+            (writeShellScriptBin "chipmunk-stop-db" "pg_ctl stop")
+            (writeShellScriptBin "chipmunk-build-offline_db" ''
+              cargo sqlx prepare --workspace -- --all-targets --all-features
+            '')
+            (writeShellScriptBin "chipmunk-redo-migration" ''
+              set -e
+              pushd chipmunk
+              NUM_UP_SCRIPTS=$(ls migrations/*up.sql | wc -l)
+              NUM_DOWN_SCRIPTS=$(ls migrations/*down.sql | wc -l)
+
+              for i in `eval echo {1..$NUM_DOWN_SCRIPTS}`; do
+                sqlx migrate revert
+              done
+
+              sqlx migrate run
+              popd
+            '')
           ]);
 
           PGDATA = "./.tmp/db";
@@ -63,7 +79,7 @@
           PGPORT = 5432;
 
           shellHook = ''
-            pg_isready -t1 > /dev/null || start_database
+            pg_isready -t1 > /dev/null || chipmunk-stop-postgres
             export DATABASE_URL="postgres://$PGUSER:$PGPASSWORD@$PGHOST:$PGPORT/$PGDATABASE"
             export CAR_DATA_DATABASE_URL="postgres://$PGUSER:$PGPASSWORD@$PGHOST:$PGPORT/$PGDATABASE"
             export TEST_DATABASE_URL="postgres://$PGUSER:$PGPASSWORD@$PGHOST:$PGPORT/$PGDATABASE"
