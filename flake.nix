@@ -26,12 +26,12 @@
             trunk
             sqlx-cli
             cargo-nextest
-
             openssl.dev
+
             postgresql
             glibcLocales
 
-            (writeShellScriptBin "chipmunk-start-postgres" ''
+            (writeShellScriptBin "chipmunk-start-db" ''
               set -e
 
               start_db() {
@@ -69,7 +69,12 @@
               sqlx migrate run
               popd
             '')
-          ]);
+          ]
+          ++ lib.optionals stdenv.isDarwin [
+              darwin.apple_sdk.frameworks.SystemConfiguration
+              iconv
+            ]
+          );
 
           PGDATA = "./.tmp/db";
           PGHOST = "localhost";
