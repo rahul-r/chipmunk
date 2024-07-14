@@ -69,12 +69,10 @@
               sqlx migrate run
               popd
             '')
-          ]
-          ++ lib.optionals stdenv.isDarwin [
+          ] ++ lib.optionals stdenv.isDarwin [
               darwin.apple_sdk.frameworks.SystemConfiguration
               iconv
-            ]
-          );
+          ]);
 
           PGDATA = "./.tmp/db";
           PGHOST = "localhost";
