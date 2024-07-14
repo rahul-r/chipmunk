@@ -102,6 +102,7 @@ impl TeslaServer {
             dist_dir.pop();
             dist_dir.pop();
             dist_dir.pop();
+            dist_dir.pop();
             dist_dir.push("ui");
             dist_dir.push("frontend");
             dist_dir.push("dist");

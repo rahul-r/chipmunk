@@ -274,7 +274,7 @@ pub fn get_data(timestamp: DateTime<Utc>) -> VehicleData {
         option_codes: Some("AB12,HGF3".into()),
         color: None,
         access_type: None,
-        tokens: vec!["ys9wjhdow8djuwn8".into(), "mjsje8iuoshnvsoi".into()],
+        tokens: Some(vec!["ys9wjhdow8djuwn8".into(), "mjsje8iuoshnvsoi".into()]),
         state: Some("online".into()),
         in_service: Some(false),
         id_s: Some("1273618746387526".into()),
