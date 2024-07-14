@@ -68,6 +68,7 @@ pub enum DataToServer {
 impl TeslaServer {
     pub async fn start(
         config: Config,
+        tables: &Tables,
         port: u16,
         data_from_srv_tx: mpsc::UnboundedSender<MpscTopic>,
         mut data_to_srv_rx: broadcast::Receiver<DataToServer>,
@@ -149,7 +150,7 @@ impl TeslaServer {
                 Err(e) => anyhow::bail!(e),
             };
 
-        let status = LoggingStatus::new(&config);
+        let status = LoggingStatus::new(&config, tables);
 
         let unit_of_length_watcher = match config.unit_of_length.lock() {
             Ok(v) => v.watch(),

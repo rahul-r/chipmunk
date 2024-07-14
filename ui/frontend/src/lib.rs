@@ -141,7 +141,8 @@ pub fn App() -> impl IntoView {
 
     // let (is_dark_mode, set_is_dark_mode) = create_signal(true);
 
-    let (location, set_location) = create_signal(Position::new(37.49, -121.94));
+    let tesla_factory_coords = Position::new(37.49, -121.94);
+    let (location, set_location) = create_signal(tesla_factory_coords);
 
     let on_message_callback = move |msg: String| match WsMessage::from_string(&*msg) {
         Ok(m) => {

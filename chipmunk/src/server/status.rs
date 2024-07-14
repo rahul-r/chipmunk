@@ -231,10 +231,9 @@ pub struct LoggingStatus {
 }
 
 impl LoggingStatus {
-    pub fn new(config: &Config) -> Self {
+    pub fn new(config: &Config, tables: &Tables) -> Self {
         let state = State::default();
         let curr_status = Status::default();
-        let tables = Tables::default();
 
         Self {
             status: Status {
@@ -242,10 +241,10 @@ impl LoggingStatus {
                 app_start_time: chrono::offset::Utc::now(),
                 state: state.clone(),
                 logging: logging(None, config),
-                vehicle: vehicle(&tables, &curr_status.vehicle),
-                driving: driving(&tables, &state, curr_status.driving.as_ref()),
-                charging: charging(&tables, &state, curr_status.charging.as_ref()),
-                parked: parked(&tables, &state, curr_status.parked.as_ref()),
+                vehicle: vehicle(tables, &curr_status.vehicle),
+                driving: driving(tables, &state, curr_status.driving.as_ref()),
+                charging: charging(tables, &state, curr_status.charging.as_ref()),
+                parked: parked(tables, &state, curr_status.parked.as_ref()),
                 offline: offline(&state, curr_status.offline.as_ref()),
                 sleeping: sleeping(&state, curr_status.sleeping.as_ref()),
             },

@@ -235,12 +235,13 @@ pub fn Home() -> impl IntoView {
             log::warn!("No leaflet map found");
             return;
         };
-        map.fly_to(&websocket.location.get().into(), 13.0);
+        // map.fly_to(&websocket.location.get().into(), 15.0);
+        map.pan_to(&websocket.location.get().into());
     });
 
     view! {
         <>
-            <MapContainer style="height: 300px" center=Position::new(0.0, 0.0) zoom=13.0 set_view=true class="z-0">
+            <MapContainer style="height: 300px" center=Position::new(0.0, 0.0) zoom=15.0 set_view=true class="z-0">
                 <TileLayer url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"/>
                 <Marker position=websocket.location>
                     <Popup>
