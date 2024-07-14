@@ -108,7 +108,7 @@ impl TeslaServer {
             index_html_1.push("index.html");
 
             index_html.push("index.html");
-            log::error!("{index_html:?} does not exist. Trying {index_html_1:?}");
+            log::warn!("{index_html:?} does not exist. Trying {index_html_1:?}");
 
             if !index_html_1.exists() {
                 log::error!("{index_html_1:?} does not exist. Trying {index_html_1:?}");
