@@ -15,7 +15,7 @@ use crate::pages::settings::Settings;
 
 use leptos_leaflet::Position;
 use std::rc::Rc;
-use ui_common::{units::TemperatureUnit, Status, Topic, WsMessage};
+use ui_common::{Status, Topic, WsMessage};
 #[derive(Clone)]
 pub struct WebsocketContext {
     pub message: Signal<Option<String>>,
@@ -24,7 +24,6 @@ pub struct WebsocketContext {
     logging_status: ReadSignal<Status>,
     is_logging: ReadSignal<bool>,
     location: ReadSignal<Position>,
-    temperature_unit: ReadSignal<TemperatureUnit>,
 }
 
 impl WebsocketContext {
@@ -35,7 +34,6 @@ impl WebsocketContext {
         logging_status: ReadSignal<Status>,
         is_logging: ReadSignal<bool>,
         location: ReadSignal<Position>,
-        temperature_unit: ReadSignal<TemperatureUnit>,
     ) -> Self {
         Self {
             message,
@@ -44,7 +42,6 @@ impl WebsocketContext {
             logging_status,
             is_logging,
             location,
-            temperature_unit,
         }
     }
 
@@ -137,8 +134,6 @@ pub fn App() -> impl IntoView {
     let (is_logging, set_is_logging) = create_signal(false);
     let (logging_status, set_logging_status) = create_signal(Status::default());
 
-    let (temperature_unit, set_temperature_unit) = create_signal(TemperatureUnit::default());
-
     // let (is_dark_mode, set_is_dark_mode) = create_signal(true);
 
     let tesla_factory_coords = Position::new(37.49, -121.94);
@@ -150,7 +145,6 @@ pub fn App() -> impl IntoView {
                 let status = ui_common::Status::from_value(m.data.unwrap()).unwrap();
                 set_is_logging(status.logging.enabled);
                 set_logging_status(status.clone());
-                set_temperature_unit(status.logging.unit_of_temperature);
                 if let Some(l) = status.vehicle.location.coords {
                     set_location(Position::new(l.0 as f64, l.1 as f64))
                 }
@@ -185,7 +179,6 @@ pub fn App() -> impl IntoView {
         logging_status,
         is_logging,
         location,
-        temperature_unit,
     ));
 
     view! {
