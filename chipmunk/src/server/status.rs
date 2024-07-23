@@ -28,11 +28,10 @@ fn driving(tables: &Tables, state: &State, curr_status: Option<&Driving>) -> Opt
             charge_used: curr_status
                 .starting_battery_level
                 .zip(current_charge)
-                .map(|(starting, current)| starting - current)
-                .unwrap_or(curr_status.charge_used),
-            destination: None, // TODO: Insert destination
+                .map_or(curr_status.charge_used, |(starting, current)| starting - current),
+            destination: curr_status.destination.clone(),
             time_remaining_sec: 0,
-            battery_level_at_destination: 0.,
+            battery_level_at_destination: curr_status.battery_level_at_destination,
         }
     } else {
         Driving {
@@ -42,9 +41,9 @@ fn driving(tables: &Tables, state: &State, curr_status: Option<&Driving>) -> Opt
             current_battery_level: tables.charges.as_ref().and_then(|c| c.battery_level),
             miles_driven: 0,
             charge_used: 0,
-            destination: None, // TODO: Insert destination
+            destination: None,
             time_remaining_sec: 0,
-            battery_level_at_destination: 0., // TODO: Insert charge at destination
+            battery_level_at_destination: 0.,
         }
     };
 
@@ -67,8 +66,8 @@ fn charging(tables: &Tables, state: &State, curr_status: Option<&Charging>) -> O
                 .as_ref()
                 .and_then(|c| c.charge_energy_added)
                 .unwrap_or(curr_status.charge_added),
-            cost: 0,               // TODO: calculate cost
-            time_remaining_sec: 0, // TODO: calculate time remaining
+            cost: 0, // TODO: calculate cost
+            time_remaining_sec: curr_status.time_remaining_sec,
         }
     } else {
         Charging {
@@ -101,8 +100,9 @@ fn parked(tables: &Tables, state: &State, curr_status: Option<&Parked>) -> Optio
             charge_used: curr_status
                 .starting_battery_level
                 .zip(current_charge)
-                .map(|(starting, current)| starting - current)
-                .unwrap_or(curr_status.charge_used),
+                .map_or(curr_status.charge_used, |(starting, current)| {
+                    starting - current
+                }),
         }
     } else {
         Parked {
@@ -217,8 +217,8 @@ fn logging(curr_status: Option<&Logging>, config: &Config) -> Logging {
             .map(|l| l.get())
             .map_err(|e| log::error!("{e}"))
             .unwrap_or(true),
-        current_num_points: curr_status.map(|s| s.current_num_points + 1).unwrap_or(0),
-        total_num_points: curr_status.map(|s| s.total_num_points + 1).unwrap_or(0),
+        current_num_points: curr_status.map_or(0, |s| s.current_num_points + 1),
+        total_num_points: curr_status.map_or(0, |s| s.total_num_points + 1),
         unit_of_length: DistanceUnit::default(),
         unit_of_temperature: TemperatureUnit::default(),
         unit_of_pressure: PressureUnit::default(),

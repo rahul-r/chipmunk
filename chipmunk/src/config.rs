@@ -1,7 +1,7 @@
 use std::{
     env,
     marker::Send,
-    sync::{atomic::AtomicU32, Arc, Mutex},
+    sync::{Arc, Mutex},
 };
 
 use anyhow::Context;
@@ -139,7 +139,6 @@ where
 pub struct Config {
     pub logging_enabled: Arc<Mutex<Field<bool>>>,
     //pub logging_enabled: Arc<Field<Arc<AtomicBool>>>,
-    pub test_flag: Arc<Field<Arc<AtomicU32>>>,
     pub logging_period_ms: Arc<Mutex<Field<i32>>>,
     pub access_token: Arc<Mutex<Field<String>>>,
     pub refresh_token: Arc<Mutex<Field<String>>>,
@@ -159,27 +158,20 @@ impl Config {
             Err(e) => panic!("{e}"), // TODO: return Result/Err instead of panicking
         };
 
-        let tokens = match Token::db_get_last(pool, &env_vars.encryption_key).await {
-            Ok(t) => t,
-            Err(e) => {
+        let tokens = Token::db_get_last(pool, &env_vars.encryption_key)
+            .await
+            .unwrap_or_else(|e| {
                 log::error!("{e}");
                 AuthResponse::default()
-            }
-        };
+            });
 
-        let settings = match Settings::db_get_last(pool).await {
-            Ok(settings) => settings,
-            Err(e) => {
-                log::error!("Error loading settings from database: {e}. Using default values");
-                Settings::default()
-            }
-        };
+        let settings = Settings::db_get_last(pool).await.unwrap_or_else(|e| {
+            log::error!("Error loading settings from database: {e}. Using default values");
+            Settings::default()
+        });
 
         Self {
             logging_enabled: Arc::new(Mutex::new(Field::new(true))),
-            test_flag: Arc::new(Field::new(Arc::new(AtomicU32::new(
-                settings.logging_period_ms as u32,
-            )))),
             logging_period_ms: Arc::new(Mutex::new(Field::new(settings.logging_period_ms))),
             access_token: Arc::new(Mutex::new(Field::new(tokens.access_token))),
             refresh_token: Arc::new(Mutex::new(Field::new(tokens.refresh_token))),

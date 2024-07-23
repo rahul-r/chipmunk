@@ -14,8 +14,9 @@ pub fn calculate_energy_used(charges: &[Charges]) -> Option<f32> {
                 .charger_actual_current
                 .zip(charge.charger_voltage)
                 .zip(phases)
-                .map(|((current, voltage), phases)| (current * voltage) as f32 * phases / 1000.0)
-                .unwrap_or(0.0)
+                .map_or(0.0, |((current, voltage), phases)| {
+                    (current * voltage) as f32 * phases / 1000.0
+                })
         } else {
             charge.charger_power.unwrap_or(0) as f32
         };
@@ -27,8 +28,7 @@ pub fn calculate_energy_used(charges: &[Charges]) -> Option<f32> {
         let time_diff = charge
             .date
             .zip(previous_date)
-            .map(|(c, p)| c - p)
-            .unwrap_or(Duration::zero())
+            .map_or(Duration::zero(), |(c, p)| c - p)
             .num_seconds();
         total_energy_used += energy_used * (time_diff as f32) / 3600.0;
         previous_date = charge.date;

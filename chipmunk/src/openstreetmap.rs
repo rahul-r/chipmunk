@@ -349,13 +349,6 @@ pub async fn reverse_geocode(client: &Client, lat: &f32, lon: &f32) -> anyhow::R
     Ok(osm_response)
 }
 
-#[allow(dead_code, unused)]
-pub async fn geocode(address: String) -> Option<OsmResponse> {
-    // TODO: use the '/lookup' endpoint of openstreetmap endpoint and return the results
-    // See the 'details' function in lib/teslamate/locations/geocoder.ex for more info
-    todo!()
-}
-
 #[tokio::test]
 #[ignore]
 async fn test_reverse_geocode() {
