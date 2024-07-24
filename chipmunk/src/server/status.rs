@@ -28,7 +28,9 @@ fn driving(tables: &Tables, state: &State, curr_status: Option<&Driving>) -> Opt
             charge_used: curr_status
                 .starting_battery_level
                 .zip(current_charge)
-                .map_or(curr_status.charge_used, |(starting, current)| starting - current),
+                .map_or(curr_status.charge_used, |(starting, current)| {
+                    starting - current
+                }),
             destination: curr_status.destination.clone(),
             time_remaining_sec: 0,
             battery_level_at_destination: curr_status.battery_level_at_destination,

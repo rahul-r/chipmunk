@@ -144,9 +144,10 @@ async fn start_logging_for_state(
             charging_process = current_charge
                 .as_ref()
                 .map(|c| ChargingProcess::start(c, car_id, 0, None, None));
-            if charging_process.is_some() {
-                charges = current_charge;
-            }
+            charges = charging_process
+                .is_some()
+                .then_some(current_charge)
+                .flatten();
         }
         S::Asleep | S::Offline | S::Unknown | S::Parked => (),
     }
@@ -175,10 +176,7 @@ async fn start_logging_for_state(
     });
 
     let time = current_position.date;
-    let position = match new_state.is_online() {
-        true => Some(current_position),
-        false => None,
-    };
+    let position = new_state.is_online().then_some(current_position);
 
     Tables {
         address,
@@ -228,13 +226,10 @@ async fn continue_logging(
         S::Asleep | S::Offline | S::Unknown | S::Parked => (),
     }
 
-    let position = match state.is_online() {
-        true => Some(Position {
-            drive_id: drive.as_ref().map(|d| d.id),
-            ..current_position
-        }),
-        false => None,
-    };
+    let position = state.is_online().then_some(Position {
+        drive_id: drive.as_ref().map(|d| d.id),
+        ..current_position
+    });
 
     let state = Some(State {
         end_date: current_position.date,
@@ -275,7 +270,7 @@ async fn end_logging_for_state(
                 .drive
                 .as_ref()
                 .zip(prev_tables.position.as_ref())
-                .map(|(d, pos)| d.stop(pos, None, None))
+                .map(|(d, pos)| d.stop(pos, None, None));
         }
         S::Charging => {
             charging_process = prev_tables
@@ -309,9 +304,10 @@ async fn end_logging_for_state(
         None => None,
     };
 
-    let position = match state.is_online() {
-        true => prev_tables.position.clone(),
-        false => None,
+    let position = if state.is_online() {
+        prev_tables.position.clone()
+    } else {
+        None
     };
 
     let state = Some(State {
