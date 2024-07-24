@@ -82,31 +82,19 @@ fn project_root() -> anyhow::Result<PathBuf> {
 fn find_dist_dir() -> anyhow::Result<PathBuf> {
     let root_dir = project_root()?;
 
-    let mut dist_dir = root_dir.clone();
-    dist_dir.push("target");
-    dist_dir.push("dist");
-
-    let mut index_html = dist_dir.clone();
-    index_html.push("index.html");
-    if index_html.exists() {
+    let dist_dir = root_dir.join("target/dist");
+    if dist_dir.join("index.html").exists() {
         return Ok(dist_dir);
     }
 
-    dist_dir = root_dir.clone();
-    dist_dir.push("ui");
-    dist_dir.push("frontend");
-    dist_dir.push("dist");
-
-    let mut index_html_alt = dist_dir.clone();
-    index_html_alt.push("index.html");
-    log::warn!("{index_html:?} does not exist. Trying {index_html_alt:?}");
-
-    if index_html_alt.exists() {
-        return Ok(dist_dir);
+    let dist_dir_alt = root_dir.join("ui/frontend/dist");
+    log::warn!("Cannot find index.html in {dist_dir:?}, trying {dist_dir_alt:?}");
+    if dist_dir_alt.join("index.html").exists() {
+        return Ok(dist_dir_alt);
     }
 
-    log::error!("{index_html_alt:?} does not exist");
-    anyhow::bail!("{index_html_alt:?} does not exist");
+    log::error!("Cannot find index.html in either {dist_dir:?} or {dist_dir_alt:?}");
+    anyhow::bail!("Cannot find index.html in either {dist_dir:?} or {dist_dir_alt:?}");
 }
 
 impl TeslaServer {
