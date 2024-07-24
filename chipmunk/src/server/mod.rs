@@ -3,6 +3,7 @@ pub mod status;
 use std::{
     collections::HashMap,
     net::{IpAddr, Ipv4Addr, SocketAddr},
+    path::PathBuf,
     sync::{
         atomic::{AtomicUsize, Ordering},
         Arc,
@@ -65,6 +66,49 @@ pub enum DataToServer {
     Tables(Tables),
 }
 
+fn project_root() -> anyhow::Result<PathBuf> {
+    let mut dir = std::env::current_exe()?;
+    loop {
+        let mut cargo_lock = dir.clone();
+        cargo_lock.push("Cargo.lock");
+        if cargo_lock.exists() {
+            return Ok(dir);
+        } else if !dir.pop() {
+            anyhow::bail!("Cannot determine root of project. Cargo.toml not found");
+        }
+    }
+}
+
+fn find_dist_dir() -> anyhow::Result<PathBuf> {
+    let root_dir = project_root()?;
+
+    let mut dist_dir = root_dir.clone();
+    dist_dir.push("target");
+    dist_dir.push("dist");
+
+    let mut index_html = dist_dir.clone();
+    index_html.push("index.html");
+    if index_html.exists() {
+        return Ok(dist_dir);
+    }
+
+    dist_dir = root_dir.clone();
+    dist_dir.push("ui");
+    dist_dir.push("frontend");
+    dist_dir.push("dist");
+
+    let mut index_html_alt = dist_dir.clone();
+    index_html_alt.push("index.html");
+    log::warn!("{index_html:?} does not exist. Trying {index_html_alt:?}");
+
+    if index_html_alt.exists() {
+        return Ok(dist_dir);
+    }
+
+    log::error!("{index_html_alt:?} does not exist");
+    anyhow::bail!("{index_html_alt:?} does not exist");
+}
+
 impl TeslaServer {
     pub async fn start(
         config: Config,
@@ -90,35 +134,11 @@ impl TeslaServer {
                 })
             });
 
-        // create path to "dist" directory and "index.html"
-        let mut dist_dir = std::env::current_exe().expect("Cannot get executable path");
-        dist_dir.pop();
-        dist_dir.push("dist");
-        let mut index_html = dist_dir.clone();
-        index_html.push("index.html");
-
-        if !index_html.exists() {
-            dist_dir = std::env::current_exe().expect("Cannot get executable path");
-            dist_dir.pop();
-            dist_dir.pop();
-            dist_dir.pop();
-            dist_dir.push("ui");
-            dist_dir.push("frontend");
-            dist_dir.push("dist");
-            let mut index_html_1 = dist_dir.clone();
-            index_html_1.push("index.html");
-
-            index_html.push("index.html");
-            log::warn!("{index_html:?} does not exist. Trying {index_html_1:?}");
-
-            if !index_html_1.exists() {
-                log::error!("{index_html_1:?} does not exist. Trying {index_html_1:?}");
-                anyhow::bail!("{index_html_1:?} does not exist");
-            }
-            index_html = index_html_1;
-        }
+        let mut dist_dir = find_dist_dir()?;
 
         // handle path "/"
+        let mut index_html = dist_dir.clone();
+        index_html.push("index.html");
         let index = warp::get()
             .and(warp::path::end())
             .and(warp::fs::file(index_html));
