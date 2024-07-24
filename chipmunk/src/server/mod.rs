@@ -80,21 +80,32 @@ fn project_root() -> anyhow::Result<PathBuf> {
 }
 
 fn find_dist_dir() -> anyhow::Result<PathBuf> {
-    let root_dir = project_root()?;
+    // Check for "dist" directory in the following locations:
+    // if running from the project directory (i.e. "cargo run"),
+    //   * <project root dir>/target/dist
+    //   * <project root dir>/ui/frontend/dist
+    // else
+    //   * Current directory <current dir>/dist
 
-    let dist_dir = root_dir.join("target/dist");
-    if dist_dir.join("index.html").exists() {
-        return Ok(dist_dir);
+    if let Ok(root_dir) = project_root() {
+        let dist_dir = root_dir.join("target/dist");
+        if dist_dir.join("index.html").exists() {
+            return Ok(dist_dir);
+        }
+
+        let dist_dir_alt = root_dir.join("ui/frontend/dist");
+        if dist_dir_alt.join("index.html").exists() {
+            return Ok(dist_dir_alt);
+        }
+    } else {
+        let dist_dir = std::env::current_dir()?.join("dist");
+        if dist_dir.join("index.html").exists() {
+            return Ok(dist_dir);
+        }
     }
 
-    let dist_dir_alt = root_dir.join("ui/frontend/dist");
-    log::warn!("Cannot find index.html in {dist_dir:?}, trying {dist_dir_alt:?}");
-    if dist_dir_alt.join("index.html").exists() {
-        return Ok(dist_dir_alt);
-    }
-
-    log::error!("Cannot find index.html in either {dist_dir:?} or {dist_dir_alt:?}");
-    anyhow::bail!("Cannot find index.html in either {dist_dir:?} or {dist_dir_alt:?}");
+    log::error!("Cannot find index.html");
+    anyhow::bail!("Cannot find index.html");
 }
 
 impl TeslaServer {
@@ -465,16 +476,19 @@ impl TeslaServer {
         Ok(())
     }
 
-    /// Handle start logging
+    /// # Handle start logging
     /// Command:
+    /// ```json
     /// {
     ///  "id": "<some id to connect the commands and responses>",
     ///  "type": "command",
     ///  "command": "start",
     ///  "params": []
     /// }
+    /// ```
     ///
     /// Response on success:
+    /// ```json
     /// {
     ///   "id": "<same id as the command>",
     ///   "type": "response",
@@ -482,8 +496,10 @@ impl TeslaServer {
     ///     "status": true
     ///   }
     /// }
+    /// ```
     ///
     /// Response on failure:
+    /// ```json
     /// {
     ///   "id": "<same id as the command>",
     ///   "type": "response",
@@ -492,6 +508,7 @@ impl TeslaServer {
     ///     "message": "error message or reason for failure"
     ///   }
     /// }
+    /// ```
     fn _handle_start(
         client: &mpsc::UnboundedSender<Message>,
         cmd: WsMessage,
@@ -565,6 +582,6 @@ impl TeslaServer {
 
         msg.to_string()
             .map_err(|e| log::error!("Error converting WsMessage to string: {e}"))
-            .unwrap_or("".into())
+            .unwrap_or_default()
     }
 }
