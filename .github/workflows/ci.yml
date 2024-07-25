@@ -124,6 +124,8 @@ jobs:
           touch target/debug/deps/dist/index.html
           mkdir -p chipmunk/target/dist
           touch chipmunk/target/dist/index.html
+          mkdir -p /home/runner/work/chipmunk/chipmunk/target/dist
+          touch /home/runner/work/chipmunk/chipmunk/target/dist/index.html
           cargo nextest run
           cd ui/frontend
           cargo nextest run
