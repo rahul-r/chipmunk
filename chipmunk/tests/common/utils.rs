@@ -41,6 +41,7 @@ macro_rules! wait_for_db {
             sleep(Duration::from_secs(1)).await;
         }
         println!();
+        sleep(Duration::from_millis(10)).await;
     };
 }
 
