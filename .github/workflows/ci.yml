@@ -119,10 +119,11 @@ jobs:
         uses: taiki-e/install-action@nextest
       - name: Test with nextest
         run: |
+          set -e
           mkdir -p target/debug/deps/dist/
+          touch target/debug/deps/dist/index.html
           mkdir -p chipmunk/target/dist
-          cp ui/frontend/index.html target/debug/deps/dist/
-          cp ui/frontend/index.html chipmunk/target/dist
+          touch chipmunk/target/dist/index.html
           cargo nextest run
           cd ui/frontend
           cargo nextest run
