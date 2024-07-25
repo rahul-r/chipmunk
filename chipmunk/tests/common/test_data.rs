@@ -1,4 +1,5 @@
 #![cfg_attr(rustfmt, rustfmt_skip)]
+#![allow(clippy::too_many_lines)]
 
 use chipmunk::database::tables::state::StateStatus;
 use chrono::{DateTime, Utc};

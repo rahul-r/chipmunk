@@ -26,7 +26,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
-          # By default actions/checkout checks out a merge commit. Check out the PR head instead.
+          # By default, actions/checkout checks out a merge commit. Check out the PR head instead.
           # https://github.com/actions/checkout#checkout-pull-request-head-commit-instead-of-merge-commit
           ref: ${{ github.event.pull_request.head.sha }}
       - uses: actions-rs/toolchain@v1
@@ -87,11 +87,21 @@ jobs:
         with:
           command: build
           args: --all-targets --all-features
+      - name: Frontend
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --all-targets --all-features --manifest-path ui/frontend/Cargo.toml
       - name: Doctests
         uses: actions-rs/cargo@v1
         with:
           command: test
           args: --doc --all-features
+      - name: Doctests on frontend
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --doc --all-features --manifest-path ui/frontend/Cargo.toml
       - name: Running containers
         run: docker ps -a
       - name: Install nextest
@@ -100,4 +110,6 @@ jobs:
         run: |
           mkdir -p target/debug/deps/dist/
           cp ui/frontend/index.html target/debug/deps/dist/
+          cargo nextest run
+          cd ui/frontend
           cargo nextest run

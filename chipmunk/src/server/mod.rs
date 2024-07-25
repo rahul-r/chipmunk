@@ -92,16 +92,22 @@ fn find_dist_dir() -> anyhow::Result<PathBuf> {
         if dist_dir.join("index.html").exists() {
             return Ok(dist_dir);
         }
+        log::debug!(
+            "Cannot find index.html in {}, trying alternate locations",
+            dist_dir.display()
+        );
 
         let dist_dir_alt = root_dir.join("ui/frontend/dist");
         if dist_dir_alt.join("index.html").exists() {
             return Ok(dist_dir_alt);
         }
+        log::debug!("Cannot find index.html in {}", dist_dir_alt.display());
     } else {
         let dist_dir = std::env::current_dir()?.join("dist");
         if dist_dir.join("index.html").exists() {
             return Ok(dist_dir);
         }
+        log::debug!("Cannot find index.html in {}", dist_dir.display());
     }
 
     log::error!("Cannot find index.html");

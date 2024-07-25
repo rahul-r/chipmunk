@@ -1,4 +1,5 @@
 #![cfg_attr(rustfmt, rustfmt_skip)]
+#![allow(clippy::too_many_lines)]
 
 use chipmunk::database::{tables::{charges::Charges, charging_process::ChargingProcess, drive::Drive, position::Position}, Teslamate};
 use chrono::Duration;
