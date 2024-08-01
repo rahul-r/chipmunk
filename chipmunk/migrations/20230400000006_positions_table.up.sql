@@ -1,8 +1,8 @@
 CREATE TABLE public.positions (
     id SERIAL PRIMARY KEY,
     date TIMESTAMP WITH TIME ZONE NOT NULL,
-    latitude FLOAT4 NOT NULL,
-    longitude FLOAT4 NOT NULL,
+    latitude FLOAT8 NOT NULL,
+    longitude FLOAT8 NOT NULL,
     speed FLOAT4,
     power FLOAT4,
     odometer FLOAT4,

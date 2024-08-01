@@ -12,8 +12,8 @@
     "parameters": {
       "Left": [
         "Timestamptz",
-        "Float4",
-        "Float4",
+        "Float8",
+        "Float8",
         "Float4",
         "Float4",
         "Float4",

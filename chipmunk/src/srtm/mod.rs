@@ -29,7 +29,7 @@ mod source;
 ///
 // TODO: This function loads the *.hgt from the file system on every call. We should pre-load the
 // data and use the cached data instead.
-pub async fn get_elevation(lat: f32, lon: f32) -> Option<i16> {
+pub async fn get_elevation(lat: f64, lon: f64) -> Option<i16> {
     let (name, lat_hgt_base, lon_hgt_base) = hgt_name(lat, lon);
     if !source::file::exists(&name) {
         if let Err(e) = source::esa::fetch(&name).await {
@@ -45,7 +45,7 @@ pub async fn get_elevation(lat: f32, lon: f32) -> Option<i16> {
         .and_then(|srtm_data| srtm_data.get_elevation(lat, lon))
 }
 
-fn hgt_name(lat: f32, lon: f32) -> (String, i32, i32) {
+fn hgt_name(lat: f64, lon: f64) -> (String, i32, i32) {
     let lat_direction = if lat >= 0.0 { "N" } else { "S" };
     let lon_direction = if lon >= 0.0 { "E" } else { "W" };
 
@@ -78,10 +78,10 @@ impl SrtmData {
         })
     }
 
-    pub fn get_elevation(&self, lat: f32, lon: f32) -> Option<i16> {
-        let col_in_seconds = ((lon - self.longitude as f32) * 60.0 * 60.0).round() as i32;
+    pub fn get_elevation(&self, lat: f64, lon: f64) -> Option<i16> {
+        let col_in_seconds = ((lon - self.longitude as f64) * 60.0 * 60.0).round() as i32;
         let row_in_seconds = (self.points_per_minute - 1)
-            - ((lat - self.latitude as f32) * 60.0 * 60.0).round() as i32;
+            - ((lat - self.latitude as f64) * 60.0 * 60.0).round() as i32;
         let byte_index = (row_in_seconds * self.points_per_minute + col_in_seconds) * 2;
 
         if byte_index < 0 || byte_index > (self.points_per_minute * self.points_per_minute * 2) {

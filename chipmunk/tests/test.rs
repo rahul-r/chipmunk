@@ -55,8 +55,8 @@ pub fn create_drive_from_gpx() -> (Vec<VehicleData>, usize, usize) {
     let mut data_points: Vec<VehicleData> = vec![];
 
     // Create few points in parked state before the drive
-    let first_latitude = segment.points[0].point().y() as f32;
-    let first_longitude = segment.points[0].point().x() as f32;
+    let first_latitude = segment.points[0].point().y();
+    let first_longitude = segment.points[0].point().x();
     for _ in 0..10 {
         data_points.push(VehicleData {
             drive_state: Some(DriveState {
@@ -87,8 +87,8 @@ pub fn create_drive_from_gpx() -> (Vec<VehicleData>, usize, usize) {
 
         let vehicle_data = VehicleData {
             drive_state: Some(DriveState {
-                latitude: Some(point.point().y() as f32),
-                longitude: Some(point.point().x() as f32),
+                latitude: Some(point.point().y()),
+                longitude: Some(point.point().x()),
                 shift_state: Some(ShiftState::D),
                 timestamp,
                 ..data.drive_state.clone().unwrap()

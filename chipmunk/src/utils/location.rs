@@ -1,6 +1,6 @@
 use std::ops::Sub;
 
-const EARTH_RADIUS_KM: f32 = 6367.5;
+const EARTH_RADIUS_KM: f64 = 6367.5;
 
 // Struct to store distance
 // Internally this struct stores distance in meters
@@ -46,8 +46,8 @@ impl Distance {
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Location {
-    pub lat: f32,
-    pub lon: f32,
+    pub lat: f64,
+    pub lon: f64,
 }
 
 impl Sub for Location {
@@ -62,7 +62,7 @@ impl Sub for Location {
 }
 
 impl Location {
-    pub fn new<T: Into<f32>>(lat: T, lon: T) -> Self {
+    pub fn new<T: Into<f64>>(lat: T, lon: T) -> Self {
         Self {
             lat: lat.into(),
             lon: lon.into(),

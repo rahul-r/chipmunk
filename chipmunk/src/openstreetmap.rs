@@ -319,7 +319,7 @@ pub fn osm_client() -> anyhow::Result<Client> {
     Ok(client)
 }
 
-pub async fn reverse_geocode(client: &Client, lat: &f32, lon: &f32) -> anyhow::Result<OsmResponse> {
+pub async fn reverse_geocode(client: &Client, lat: &f64, lon: &f64) -> anyhow::Result<OsmResponse> {
     let base_url = std::env::var("MOCK_OSM_BASE_URL").unwrap_or_else(|_| BASE_URL.into());
 
     let res = client

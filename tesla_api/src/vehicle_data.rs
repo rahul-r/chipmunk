@@ -155,18 +155,18 @@ pub struct ClimateState {
 pub struct DriveState {
     pub active_route_destination: Option<String>,
     pub active_route_energy_at_arrival: Option<i32>,
-    pub active_route_latitude: Option<f32>,
-    pub active_route_longitude: Option<f32>,
+    pub active_route_latitude: Option<f64>,
+    pub active_route_longitude: Option<f64>,
     pub active_route_miles_to_arrival: Option<f32>,
     pub active_route_minutes_to_arrival: Option<f32>,
     pub active_route_traffic_minutes_delay: Option<f32>,
     pub gps_as_of: Option<i32>,
     pub heading: Option<i32>,
-    pub latitude: Option<f32>,
-    pub longitude: Option<f32>,
-    pub native_latitude: Option<f32>,
+    pub latitude: Option<f64>,
+    pub longitude: Option<f64>,
+    pub native_latitude: Option<f64>,
+    pub native_longitude: Option<f64>,
     pub native_location_supported: Option<i32>,
-    pub native_longitude: Option<f32>,
     pub native_type: Option<String>,
     pub power: Option<f32>,
     pub shift_state: Option<ShiftState>,
@@ -432,7 +432,7 @@ impl VehicleData {
         DateTime::from_timestamp(secs, nsecs)
     }
 
-    pub fn location(&self) -> Option<(f32, f32)> {
+    pub fn location(&self) -> Option<(f64, f64)> {
         let drive_state = self.drive_state.as_ref()?;
         let lat = drive_state.latitude?;
         let lon = drive_state.longitude?;

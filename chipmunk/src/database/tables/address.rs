@@ -9,8 +9,8 @@ use super::DBTable;
 pub struct Address {
     pub id: i64,
     pub display_name: Option<String>,
-    pub latitude: Option<f32>,
-    pub longitude: Option<f32>,
+    pub latitude: Option<f64>,
+    pub longitude: Option<f64>,
     pub name: Option<String>,
     pub house_number: Option<String>,
     pub road: Option<String>,
@@ -29,7 +29,7 @@ pub struct Address {
 }
 
 impl Address {
-    pub async fn from(latitude: f32, longitude: f32) -> anyhow::Result<Self> {
+    pub async fn from(latitude: f64, longitude: f64) -> anyhow::Result<Self> {
         let get_raw_osm = |osm: OsmResponse| match serde_json::to_value(osm) {
             Ok(r) => Some(r),
             Err(e) => {
@@ -76,7 +76,7 @@ impl Address {
         })
     }
 
-    pub async fn from_opt(latitude: Option<f32>, longitude: Option<f32>) -> anyhow::Result<Self> {
+    pub async fn from_opt(latitude: Option<f64>, longitude: Option<f64>) -> anyhow::Result<Self> {
         if let (Some(lat), Some(lon)) = (latitude, longitude) {
             Self::from(lat, lon).await
         } else {

@@ -12,8 +12,8 @@ use super::DBTable;
 pub struct Position {
     pub id: Option<i32>,
     pub date: Option<DateTime<Utc>>,
-    pub latitude: Option<f32>,
-    pub longitude: Option<f32>,
+    pub latitude: Option<f64>,
+    pub longitude: Option<f64>,
     pub speed: Option<f32>,
     pub power: Option<f32>,
     pub odometer: Option<f32>, // TODO: rename to odometer_km?

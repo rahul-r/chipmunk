@@ -79,7 +79,7 @@ pub struct Sleeping {
 #[derive(Debug, Serialize, Deserialize, Default, Clone, Json)]
 pub struct Location {
     pub name: Option<String>,
-    pub coords: Option<(f32, f32)>,
+    pub coords: Option<(f64, f64)>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone, Json)]

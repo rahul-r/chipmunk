@@ -1,8 +1,8 @@
 CREATE TABLE public.addresses (
     id SERIAL PRIMARY KEY,
     display_name character varying(512),
-    latitude FLOAT4,
-    longitude FLOAT4,
+    latitude FLOAT8,
+    longitude FLOAT8,
     name character varying(255),
     house_number character varying(255),
     road character varying(255),
