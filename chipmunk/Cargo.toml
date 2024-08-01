@@ -20,10 +20,10 @@ tracing.workspace = true
 tracing-subscriber.workspace = true
 
 sqlx = { version = "0.7.4", features = [
-  "postgres",
-  "json",
-  "runtime-tokio-native-tls",
-  "chrono",
+    "postgres",
+    "json",
+    "runtime-tokio-native-tls",
+    "chrono",
 ] }
 dotenvy = "0.15.7"
 env_logger = "0.11.1"
@@ -37,6 +37,7 @@ uuid.workspace = true
 futures-util = "0.3.28"
 tokio-stream = "0.1.14"
 warp = "0.3.5"
+zip = "2.1.5"
 
 [dev-dependencies]
 gpx = "0.10.0"

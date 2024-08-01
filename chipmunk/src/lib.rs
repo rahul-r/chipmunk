@@ -9,6 +9,7 @@ pub mod database;
 pub mod logger;
 pub mod openstreetmap;
 pub mod server;
+pub mod srtm;
 pub mod tasks;
 pub mod utils;
 
