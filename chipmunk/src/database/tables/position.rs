@@ -1,8 +1,9 @@
 use anyhow::Context;
 use chrono::{DateTime, Utc};
 
+use crate::srtm::get_elevation;
 use sqlx::PgPool;
-use tesla_api::utils::{get_elevation, miles_to_km, mph_to_kmh, timestamp_to_datetime};
+use tesla_api::utils::{miles_to_km, mph_to_kmh, timestamp_to_datetime};
 use tesla_api::vehicle_data::VehicleData;
 
 use super::DBTable;
@@ -19,7 +20,7 @@ pub struct Position {
     pub ideal_battery_range_km: Option<f32>,
     pub battery_level: Option<i16>,
     pub outside_temp: Option<f32>,
-    pub elevation: Option<f32>,
+    pub elevation: Option<i16>,
     pub fan_status: Option<i32>,
     pub driver_temp_setting: Option<f32>,
     pub passenger_temp_setting: Option<f32>,
@@ -42,7 +43,11 @@ pub struct Position {
 }
 
 impl Position {
-    pub fn from(data: &VehicleData, car_id: i16, drive_id: Option<i32>) -> anyhow::Result<Self> {
+    pub async fn from(
+        data: &VehicleData,
+        car_id: i16,
+        drive_id: Option<i32>,
+    ) -> anyhow::Result<Self> {
         let charge_state = data.charge_state.clone().context("charge_state is None")?;
         let climate_state = data
             .climate_state
@@ -53,6 +58,22 @@ impl Position {
             .vehicle_state
             .clone()
             .context("vehicle_state is None")?;
+        let latitude = drive_state
+            .latitude
+            .or(drive_state.latitude)
+            .or(drive_state.active_route_latitude)
+            .or(drive_state.native_latitude);
+        let longitude = drive_state
+            .longitude
+            .or(drive_state.longitude)
+            .or(drive_state.active_route_longitude)
+            .or(drive_state.native_longitude);
+
+        let elevation = match (latitude, longitude) {
+            (Some(lat), Some(lon)) => get_elevation(lat, lon).await,
+            _ => None,
+        };
+
         Ok(Self {
             id: None,
             date: match timestamp_to_datetime(drive_state.timestamp) {
@@ -64,23 +85,15 @@ impl Position {
                 }
                 time => time,
             },
-            latitude: drive_state
-                .latitude
-                .or(drive_state.latitude)
-                .or(drive_state.active_route_latitude)
-                .or(drive_state.native_latitude),
-            longitude: drive_state
-                .longitude
-                .or(drive_state.longitude)
-                .or(drive_state.active_route_longitude)
-                .or(drive_state.native_longitude),
+            latitude,
+            longitude,
             speed: mph_to_kmh(&drive_state.speed),
             power: drive_state.power,
             odometer: miles_to_km(&vehicle_state.odometer),
             ideal_battery_range_km: miles_to_km(&charge_state.ideal_battery_range),
             battery_level: charge_state.battery_level,
             outside_temp: climate_state.outside_temp,
-            elevation: get_elevation(),
+            elevation,
             fan_status: climate_state.fan_status,
             driver_temp_setting: climate_state.driver_temp_setting,
             passenger_temp_setting: climate_state.passenger_temp_setting,

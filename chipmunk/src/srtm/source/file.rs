@@ -14,6 +14,6 @@ pub fn load(name: &str) -> anyhow::Result<Vec<u8>> {
     let data = fs::read(&hgt_file)?;
     let num_bytes_read = data.len();
 
-    println!("File loaded from {hgt_file:?} ({num_bytes_read} bytes)");
+    log::info!("File loaded from {hgt_file:?} ({num_bytes_read} bytes)");
     Ok(data)
 }

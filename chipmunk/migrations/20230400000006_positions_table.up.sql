@@ -9,7 +9,7 @@ CREATE TABLE public.positions (
     ideal_battery_range_km FLOAT4,
     battery_level INT2,
     outside_temp FLOAT4,
-    elevation FLOAT4,
+    elevation INT2,
     fan_status INT4,
     driver_temp_setting FLOAT4,
     passenger_temp_setting FLOAT4,

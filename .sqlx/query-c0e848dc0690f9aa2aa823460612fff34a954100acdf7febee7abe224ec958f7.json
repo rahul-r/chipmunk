@@ -56,7 +56,7 @@
       {
         "ordinal": 10,
         "name": "elevation",
-        "type_info": "Float4"
+        "type_info": "Int2"
       },
       {
         "ordinal": 11,

@@ -1,5 +1,3 @@
-mod source;
-
 /// # SRTM HGT file name format:
 /// SRTM data are distributed in two levels:
 /// - SRTM1 (for the U.S. and its territories and possessions) with data sampled at one arc-second
@@ -18,8 +16,20 @@ mod source;
 /// The bytes are in Motorola "big-endian" order with the most significant byte first.
 /// Heights are in meters referenced to the WGS84/EGM96 geoid.
 /// Data voids are assigned the value -32768.
+mod source;
 
-pub async fn get_elevation(lat: f64, lon: f64) -> Option<i16> {
+/// Get elevation for a given latitude and longitude.
+///
+/// # Arguments
+/// * `lat`: latitude of the point
+/// * `lon`: longitude of the point
+///
+/// returns: Option<i16>
+/// Some(elevation) if the elevation data is available for the given latitude and longitude
+///
+// TODO: This function loads the *.hgt from the file system on every call. We should pre-load the
+// data and use the cached data instead.
+pub async fn get_elevation(lat: f32, lon: f32) -> Option<i16> {
     let (name, lat_hgt_base, lon_hgt_base) = hgt_name(lat, lon);
     if !source::file::exists(&name) {
         if let Err(e) = source::esa::fetch(&name).await {
@@ -29,13 +39,13 @@ pub async fn get_elevation(lat: f64, lon: f64) -> Option<i16> {
     }
 
     source::file::load(&name)
-        .and_then(|data| HgtData::new(lat_hgt_base, lon_hgt_base, data))
+        .and_then(|data| SrtmData::new(lat_hgt_base, lon_hgt_base, data))
         .map_err(|e| log::error!("Error determining elevation: {e}"))
         .ok()
-        .and_then(|cell| cell.get_elevation(lat, lon))
+        .and_then(|srtm_data| srtm_data.get_elevation(lat, lon))
 }
 
-fn hgt_name(lat: f64, lon: f64) -> (String, i32, i32) {
+fn hgt_name(lat: f32, lon: f32) -> (String, i32, i32) {
     let lat_direction = if lat >= 0.0 { "N" } else { "S" };
     let lon_direction = if lon >= 0.0 { "E" } else { "W" };
 
@@ -49,16 +59,16 @@ fn hgt_name(lat: f64, lon: f64) -> (String, i32, i32) {
     (name, lat_floor as i32, lon_floor as i32)
 }
 
-pub struct HgtData {
+pub struct SrtmData {
     hgt_data: Vec<u8>,
     latitude: i32,
     longitude: i32,
     points_per_minute: i32,
 }
 
-impl HgtData {
+impl SrtmData {
     pub fn new(latitude: i32, longitude: i32, hgt_data: Vec<u8>) -> anyhow::Result<Self> {
-        let points_per_minute = HgtData::get_num_points_per_minute(&hgt_data)?;
+        let points_per_minute = SrtmData::get_num_points_per_minute(&hgt_data)?;
 
         Ok(Self {
             hgt_data,
@@ -68,10 +78,10 @@ impl HgtData {
         })
     }
 
-    pub fn get_elevation(&self, lat: f64, lon: f64) -> Option<i16> {
-        let col_in_seconds = ((lon - self.longitude as f64) * 60.0 * 60.0).round() as i32;
+    pub fn get_elevation(&self, lat: f32, lon: f32) -> Option<i16> {
+        let col_in_seconds = ((lon - self.longitude as f32) * 60.0 * 60.0).round() as i32;
         let row_in_seconds = (self.points_per_minute - 1)
-            - ((lat - self.latitude as f64) * 60.0 * 60.0).round() as i32;
+            - ((lat - self.latitude as f32) * 60.0 * 60.0).round() as i32;
         let byte_index = (row_in_seconds * self.points_per_minute + col_in_seconds) * 2;
 
         if byte_index < 0 || byte_index > (self.points_per_minute * self.points_per_minute * 2) {

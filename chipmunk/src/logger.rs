@@ -74,7 +74,7 @@ pub async fn create_tables(
     car_id: i16,
 ) -> anyhow::Result<Vec<Tables>> {
     let current_state = State::from(data, car_id)?;
-    let current_position = Position::from(data, car_id, None)?;
+    let current_position = Position::from(data, car_id, None).await?;
     let current_charge = Charges::from(data, 0).map_err(|e| log::error!("{e}")).ok();
 
     let mut table_list = vec![];

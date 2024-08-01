@@ -79,27 +79,28 @@ impl Tables {
         })
     }
 
-    pub fn from_vehicle_data(data: &VehicleData, car_id: i16) -> Self {
-        Self {
-            address: None,
-            car: None,
-            charges: Charges::from(data, 0)
-                .map_err(|e| log::error!("Error creating charges from vehicle data: {e}"))
-                .ok(),
-            charging_process: None,
-            drive: None,
-            position: Position::from(data, car_id, None)
-                .map_err(|e| log::error!("Error creating position from vehicle data: {e}"))
-                .ok(),
-            settings: None,
-            state: State::from(data, car_id)
-                .map_err(|e| log::error!("Error creating state from vehicle data: {e}"))
-                .ok(),
-            sw_update: None,
-            time: data.timestamp_utc(),
-            raw_data: Some(data.clone()),
-        }
-    }
+    // pub async fn from_vehicle_data(data: &VehicleData, car_id: i16) -> Self {
+    //     Self {
+    //         address: None,
+    //         car: None,
+    //         charges: Charges::from(data, 0)
+    //             .map_err(|e| log::error!("Error creating charges from vehicle data: {e}"))
+    //             .ok(),
+    //         charging_process: None,
+    //         drive: None,
+    //         position: Position::from(data, car_id, None)
+    //             .await
+    //             .map_err(|e| log::error!("Error creating position from vehicle data: {e}"))
+    //             .ok(),
+    //         settings: None,
+    //         state: State::from(data, car_id)
+    //             .map_err(|e| log::error!("Error creating state from vehicle data: {e}"))
+    //             .ok(),
+    //         sw_update: None,
+    //         time: data.timestamp_utc(),
+    //         raw_data: Some(data.clone()),
+    //     }
+    // }
 
     pub async fn db_insert(&self, pool: &PgPool) -> sqlx::Result<Self> {
         let mut tables = self.clone();
