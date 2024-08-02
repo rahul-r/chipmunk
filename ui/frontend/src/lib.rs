@@ -146,7 +146,7 @@ pub fn App() -> impl IntoView {
                 set_is_logging(status.logging.enabled);
                 set_logging_status(status.clone());
                 if let Some(l) = status.vehicle.location.coords {
-                    set_location(Position::new(l.0 as f64, l.1 as f64))
+                    set_location(Position::new(l.0, l.1))
                 }
             }
         }

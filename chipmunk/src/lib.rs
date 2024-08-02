@@ -1,5 +1,26 @@
 #![feature(async_closure)]
 #![feature(stmt_expr_attributes)]
+#![allow(
+    clippy::missing_errors_doc,
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    clippy::unused_async,
+    clippy::must_use_candidate,
+    clippy::return_self_not_must_use,
+    clippy::explicit_deref_methods,
+    clippy::needless_pass_by_value,
+    clippy::large_futures,
+    clippy::manual_let_else,
+    clippy::manual_string_new,
+    clippy::too_many_lines,
+    clippy::ignored_unit_patterns,
+    clippy::semicolon_if_nothing_returned,
+    clippy::useless_attribute,
+    clippy::wildcard_imports,
+    clippy::no_effect_underscore_binding,
+    clippy::needless_raw_string_hashes,
+    clippy::match_same_arms
+)]
 
 use std::io::Write;
 
