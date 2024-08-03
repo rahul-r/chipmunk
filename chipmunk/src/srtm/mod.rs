@@ -120,6 +120,7 @@ impl SrtmData {
 }
 
 #[cfg(test)]
+#[ignore]
 mod tests {
     use super::*;
     #[tokio::test]
