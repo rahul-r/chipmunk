@@ -120,10 +120,10 @@ impl SrtmData {
 }
 
 #[cfg(test)]
-#[ignore]
 mod tests {
     use super::*;
     #[tokio::test]
+    #[ignore]
     async fn test_get_elevation() {
         crate::init_log();
 
