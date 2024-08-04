@@ -14,7 +14,9 @@ pub async fn initialize(url: &str) -> anyhow::Result<PgPool> {
     let pool = PgPool::connect(url).await?;
 
     log::info!("Running database migrations");
-    sqlx::migrate!("./migrations").run(&pool).await?;
+    if let Err(e) = sqlx::migrate!("./migrations").run(&pool).await {
+        log::error!("Error running migrations: {e}");
+    }
 
     tables::initialize(&pool).await?;
 

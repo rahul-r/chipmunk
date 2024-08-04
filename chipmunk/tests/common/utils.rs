@@ -42,7 +42,8 @@ macro_rules! wait_for_db {
             sleep(Duration::from_secs(1)).await;
         }
         println!();
-        sleep(Duration::from_secs(10)).await; // Wait for the database to complete its tasks
+        // Wait for the database to complete its tasks
+        sleep(Duration::from_secs(10)).await; // TODO: Find a better way to wait for the database instead of hardcoding delays
     };
 }
 
