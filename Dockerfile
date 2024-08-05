@@ -71,6 +71,7 @@ RUN echo "#!/bin/bash\n"\
     "export GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH=/dashboards/overview.json\n"\
     "export GF_PANELS_DISABLE_SANITIZE_HTML=true\n"\
     "export HTTP_PORT=${HTTP_PORT:=3072}\n"\
+    "export HTTP_ROOT=/chipmunk/dist\n"\
     "export CHIPMUNK_HOST=localhost\n"\
     "export CHIPMUNK_PORT=${HTTP_PORT}\n"\
     "/run.sh& /chipmunk/chipmunk tasks"\

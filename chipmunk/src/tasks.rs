@@ -351,7 +351,6 @@ async fn web_server_task(
     config: Config,
     tables: &Tables,
     cancellation_token: CancellationToken,
-    http_port: u16,
 ) {
     use broadcast::error::*;
     let name = "web_server_task";
@@ -423,7 +422,7 @@ async fn web_server_task(
     });
 
     tokio::select! {
-        result = TeslaServer::start(config, tables, http_port, data_from_server_tx, data_to_server_rx, server_exit_signal_rx) => {
+        result = TeslaServer::start(config, tables, data_from_server_tx, data_to_server_rx, server_exit_signal_rx) => {
             match result {
                 Ok(_) => log::warn!("web server exited"),
                 Err(e) => log::error!("Web server exited: {e}"),
@@ -456,16 +455,10 @@ pub async fn run(pool: &sqlx::PgPool, config: &mut Config) -> anyhow::Result<()>
         let config = config.clone();
         let pool = pool.clone();
         let cancellation_token = cancellation_token.clone();
-        let http_port = match config.http_port.lock().map(|c| c.get()) {
-            Ok(v) => v,
-            Err(e) => {
-                log::error!("{e}");
-                anyhow::bail!("{e}");
-            }
-        };
+
         task_tracker.spawn(async move {
             let tables = Tables::db_get_last(&pool).await;
-            web_server_task(data_rx, config, &tables, cancellation_token, http_port).await;
+            web_server_task(data_rx, config, &tables, cancellation_token).await;
         })
     };
 

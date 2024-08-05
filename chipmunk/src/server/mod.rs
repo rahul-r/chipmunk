@@ -118,7 +118,6 @@ impl TeslaServer {
     pub async fn start(
         config: Config,
         tables: &Tables,
-        port: u16,
         data_from_srv_tx: mpsc::UnboundedSender<MpscTopic>,
         mut data_to_srv_rx: broadcast::Receiver<DataToServer>,
         exit_signal_rx: oneshot::Receiver<()>,
@@ -139,20 +138,36 @@ impl TeslaServer {
                 })
             });
 
-        let mut dist_dir = find_dist_dir()?;
+        let http_port = match config.http_port.lock().map(|c| c.get()) {
+            Ok(v) => v,
+            Err(e) => {
+                log::error!("{e}");
+                anyhow::bail!("{e}");
+            }
+        };
+
+        let http_root_dir = config
+            .http_root
+            .lock()
+            .map(|c| c.get())
+            .map_err(|e| log::error!("{e}"))
+            .ok()
+            .flatten()
+            .map(PathBuf::from)
+            .or_else(|| find_dist_dir().map_err(|e| log::error!("{e}")).ok())
+            .unwrap_or(PathBuf::from("dist"));
 
         // handle path "/"
-        let mut index_html = dist_dir.clone();
-        index_html.push("index.html");
+        let index_html = http_root_dir.join("index.html");
         let index = warp::get()
             .and(warp::path::end())
             .and(warp::fs::file(index_html));
 
         // handle path "/xxxx" (e.g. http://hostname/index.html loads static/index.html)
-        let static_dir = warp::fs::dir(dist_dir.clone());
+        let static_dir = warp::fs::dir(http_root_dir.clone());
 
         // handle path "/public" (e.g. http://hostname/public/image.png loads static/public/image.png)
-        dist_dir.push("public");
+        let dist_dir = http_root_dir.join("public");
         let public_dir = warp::fs::dir(dist_dir);
 
         // TODO: Fix CORS
@@ -164,8 +179,9 @@ impl TeslaServer {
         // let routes = index.or(static_dir).or(websocket).with(cors);
         let routes = index.or(static_dir).or(public_dir).or(websocket);
 
-        let address = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), port);
+        let address = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), http_port);
         log::info!("Listening on http://{}", address);
+        log::info!("Serving files from {:?}", http_root_dir);
         let signal = async {
             exit_signal_rx.await.ok();
         };

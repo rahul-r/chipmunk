@@ -21,6 +21,7 @@ pub struct EnvVars {
     pub database_url: String,
     pub car_data_database_url: Option<String>,
     pub http_port: u16,
+    pub http_root: Option<String>,
 }
 
 pub fn load_env_vars() -> anyhow::Result<EnvVars> {
@@ -53,11 +54,16 @@ pub fn load_env_vars() -> anyhow::Result<EnvVars> {
         }
     };
 
+    let http_root = env::var("HTTP_ROOT")
+        .map_err(|e| log::warn!("Error reading HTTP_ROOT from environment: {e}"))
+        .ok();
+
     Ok(EnvVars {
         encryption_key,
         database_url,
         car_data_database_url,
         http_port,
+        http_root,
     })
 }
 
@@ -146,6 +152,7 @@ pub struct Config {
     pub database_url: Arc<Mutex<Field<String>>>,
     pub car_data_database_url: Arc<Mutex<Field<Option<String>>>>,
     pub http_port: Arc<Mutex<Field<u16>>>,
+    pub http_root: Arc<Mutex<Field<Option<String>>>>,
     pub unit_of_length: Arc<Mutex<Field<UnitOfLength>>>,
     pub unit_of_temperature: Arc<Mutex<Field<UnitOfTemperature>>>,
     pub unit_of_pressure: Arc<Mutex<Field<UnitOfPressure>>>,
@@ -179,6 +186,7 @@ impl Config {
             database_url: Arc::new(Mutex::new(Field::new(env_vars.database_url))),
             car_data_database_url: Arc::new(Mutex::new(Field::new(env_vars.car_data_database_url))),
             http_port: Arc::new(Mutex::new(Field::new(env_vars.http_port))),
+            http_root: Arc::new(Mutex::new(Field::new(env_vars.http_root))),
             unit_of_length: Arc::new(Mutex::new(Field::new(settings.unit_of_length))),
             unit_of_temperature: Arc::new(Mutex::new(Field::new(settings.unit_of_temperature))),
             unit_of_pressure: Arc::new(Mutex::new(Field::new(settings.unit_of_pressure))),
