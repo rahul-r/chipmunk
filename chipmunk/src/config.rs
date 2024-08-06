@@ -54,9 +54,7 @@ pub fn load_env_vars() -> anyhow::Result<EnvVars> {
         }
     };
 
-    let http_root = env::var("HTTP_ROOT")
-        .map_err(|e| log::warn!("Error reading HTTP_ROOT from environment: {e}"))
-        .ok();
+    let http_root = env::var("HTTP_ROOT").ok();
 
     Ok(EnvVars {
         encryption_key,

@@ -14,6 +14,7 @@ use std::{
 use futures_util::{SinkExt, StreamExt, TryFutureExt};
 use serde_json::json;
 use status::LoggingStatus;
+use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::{broadcast, mpsc, oneshot, watch, RwLock};
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use uuid::Uuid;
@@ -245,8 +246,16 @@ impl TeslaServer {
                                 srv.lock().await.status.update(&tables, &config)
                             }
                         },
-                        Err(e) => {
-                            log::warn!("{e}");
+                        Err(RecvError::Closed) => {
+                            log::warn!(
+                                "data_to_srv channel was closed, exiting message handler task"
+                            );
+                            break;
+                        }
+                        Err(RecvError::Lagged(num)) => {
+                            log::warn!(
+                                "data_to_srv channel lagged too far behind. {num} messages skipped"
+                            );
                             tokio::time::sleep(Duration::from_millis(500)).await;
                         }
                     }
