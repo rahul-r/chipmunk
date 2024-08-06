@@ -7,8 +7,6 @@ use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use tesla_api::vehicle_data::VehicleData;
 
-use crate::utils::capitalize_string_option;
-
 use super::{car_settings::CarSettings, DBTable};
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
@@ -52,7 +50,10 @@ impl Car {
                 .as_ref()
                 .and_then(|vs| vs.vehicle_name.clone())
                 .or(Some("Unknown Vehicle".to_string())),
-            trim_badging: capitalize_string_option(vehicle_config.trim_badging.clone()),
+            trim_badging: vehicle_config
+                .trim_badging
+                .as_ref()
+                .map(|s| s.to_ascii_uppercase()),
             settings_id,
             exterior_color: vehicle_config.exterior_color,
             spoiler_type: vehicle_config.spoiler_type,

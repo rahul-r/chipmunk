@@ -1,4 +1,3 @@
-use crate::utils::{avg_option, max_option, min_option, sub_option, time_diff_minutes_i16};
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 
@@ -92,15 +91,23 @@ impl Drive {
 
     pub fn update(&self, position: &Position) -> Self {
         Self {
-            inside_temp_avg: avg_option(self.inside_temp_avg, position.inside_temp),
-            outside_temp_avg: avg_option(self.outside_temp_avg, position.outside_temp),
+            inside_temp_avg: self
+                .inside_temp_avg
+                .zip(position.inside_temp)
+                .map(|(a, b)| (a + b) / 2.0),
+            outside_temp_avg: self
+                .outside_temp_avg
+                .zip(position.outside_temp)
+                .map(|(a, b)| (a + b) / 2.0),
             speed_max: max_option(self.speed_max, position.speed).map(|v| v.floor()), // the .floor() is to make the values compatible with teslamate
             power_min: min_option(self.power_min, position.power).map(|v| v.floor()), // the .floor() is to make the values compatible with teslamate
             power_max: max_option(self.power_max, position.power).map(|v| v.floor()), // the .floor() is to make the values compatible with teslamate
             end_ideal_range_km: position.ideal_battery_range_km,
             end_km: position.odometer,
-            distance: sub_option(position.odometer, self.start_km),
-            duration_min: time_diff_minutes_i16(Some(self.start_date), position.date),
+            distance: position.odometer.zip(self.start_km).map(|(a, b)| a - b),
+            duration_min: position
+                .date
+                .map(|end_date| (end_date - self.start_date).num_minutes() as i16),
             end_rated_range_km: position.rated_battery_range_km,
             end_position_id: position.id,
             ..self.clone()
@@ -368,4 +375,48 @@ impl DBTable for Drive {
 
     //     Ok(())
     // }
+}
+
+fn max_option<T: PartialOrd>(a: Option<T>, b: Option<T>) -> Option<T> {
+    if let Some(a) = a {
+        if let Some(b) = b {
+            Some(if a > b { a } else { b })
+        } else {
+            Some(a)
+        }
+    } else {
+        b
+    }
+}
+
+fn min_option<T: PartialOrd>(a: Option<T>, b: Option<T>) -> Option<T> {
+    if let Some(a) = a {
+        if let Some(b) = b {
+            Some(if a < b { a } else { b })
+        } else {
+            Some(a)
+        }
+    } else {
+        b
+    }
+}
+
+#[test]
+fn test_max_option() {
+    assert_eq!(max_option(Some(2.0), Some(3.0)), Some(3.0));
+    assert_eq!(max_option(Some(3.0), Some(2.0)), Some(3.0));
+    assert_eq!(max_option(Some(3.2), Some(3.2)), Some(3.2));
+    assert_eq!(max_option(Some(13.2), None), Some(13.2));
+    assert_eq!(max_option(None, Some(3.42)), Some(3.42));
+    assert_eq!(max_option::<f32>(None, None), None);
+}
+
+#[test]
+fn test_min_option() {
+    assert_eq!(min_option(Some(2.0), Some(3.0)), Some(2.0));
+    assert_eq!(min_option(Some(3.0), Some(2.0)), Some(2.0));
+    assert_eq!(min_option(Some(3.2), Some(3.2)), Some(3.2));
+    assert_eq!(min_option(Some(13.2), None), Some(13.2));
+    assert_eq!(min_option(None, Some(3.42)), Some(3.42));
+    assert_eq!(min_option::<f32>(None, None), None);
 }

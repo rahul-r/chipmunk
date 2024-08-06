@@ -3,9 +3,7 @@ use sqlx::PgPool;
 
 use super::{charges::Charges, DBTable};
 use crate::charging::calculate_cost;
-use crate::{
-    charging::calculate_energy_used, database::types::ChargeStat, utils::time_diff_minutes_i64,
-};
+use crate::{charging::calculate_energy_used, database::types::ChargeStat};
 
 #[derive(Debug, Default, Clone, PartialEq, sqlx::FromRow)]
 pub struct ChargingProcess {
@@ -49,7 +47,10 @@ impl ChargingProcess {
             end_ideal_range_km: charge_end.ideal_battery_range_km,
             start_battery_level: charge_start.battery_level,
             end_battery_level: charge_end.battery_level,
-            duration_min: time_diff_minutes_i64(charge_start.date, charge_end.date)
+            duration_min: charge_start
+                .date
+                .zip(charge_end.date)
+                .map(|(st, en)| (en - st).num_minutes())
                 .map(|x| x as i16),
             outside_temp_avg: charge_end
                 .outside_temp
@@ -96,8 +97,9 @@ impl ChargingProcess {
 
     pub fn update(&self, charges: &Charges) -> Self {
         Self {
-            duration_min: time_diff_minutes_i64(Some(self.start_date), charges.date)
-                .map(|x| x as i16),
+            duration_min: charges
+                .date
+                .map(|end_date| (self.start_date - end_date).num_minutes() as i16),
             outside_temp_avg: self
                 .outside_temp_avg
                 .zip(charges.outside_temp)

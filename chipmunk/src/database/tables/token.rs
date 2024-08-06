@@ -5,7 +5,6 @@ use tesla_api::auth::AuthResponse;
 
 use crate::{
     utils::crypto::{decrypt, encrypt},
-    utils::seconds_remaining,
 };
 
 #[cfg(test)]
@@ -158,7 +157,7 @@ impl Token {
                 encryption_key,
                 token_table.id_token_iv,
             )?,
-            expires_in: seconds_remaining(token_table.access_token_expires_at),
+            expires_in: (token_table.access_token_expires_at - Utc::now()).num_seconds() as i32,
             token_type: token_table.token_type.unwrap_or_else(|| {
                 log::warn!("Received invalid token type from database");
                 "".into()

@@ -3,10 +3,7 @@ use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use tesla_api::vehicle_data::{ChargingState, ShiftState, VehicleData};
 
-use crate::{
-    utils::location::{Distance, Location},
-    utils::time_diff,
-};
+use crate::utils::location::{Distance, Location};
 
 use super::DBTable;
 
@@ -245,7 +242,11 @@ fn was_asleep(prev_data: &Option<VehicleData>, curr_data: &VehicleData) -> bool 
         return false;
     };
 
-    let Some(diff) = time_diff(prev_data.timestamp_utc(), curr_data.timestamp_utc()) else {
+    let Some(diff) = prev_data
+        .timestamp_utc()
+        .zip(curr_data.timestamp_utc())
+        .map(|(st, en)| en - st)
+    else {
         log::error!("Error getting time difference to check vehicle state change");
         return false;
     };

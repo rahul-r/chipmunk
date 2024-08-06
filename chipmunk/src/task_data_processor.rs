@@ -11,7 +11,6 @@ use crate::database::tables::Tables;
 use crate::database::types::ChargeStat;
 use crate::database::DBTable;
 use crate::tasks::{DataTypes, DatabaseDataType, DatabaseRespType};
-use crate::utils::sub_option;
 use crate::{database, DELAYED_DATAPOINT_TIME_SEC};
 use std::collections::HashMap;
 use tesla_api::vehicle_data::VehicleData;
@@ -474,8 +473,12 @@ async fn check_hidden_process(
         // No previous position to compare with
         return None;
     };
-
-    if sub_option(curr_position.odometer, prev_position.odometer) >= Some(1.0) {
+    if curr_position
+        .odometer
+        .zip(prev_position.odometer)
+        .map(|(a, b)| a - b)
+        >= Some(1.0)
+    {
         // vehicle has moved since the previous data point
         return None;
     }
