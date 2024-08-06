@@ -239,7 +239,6 @@ async fn start_logging_for_state(
                 .flatten();
         }
         StateStatus::Asleep | StateStatus::Offline | StateStatus::Unknown | StateStatus::Parked => {
-            ()
         }
     }
 
@@ -313,7 +312,6 @@ async fn continue_logging(
             }
         }
         StateStatus::Asleep | StateStatus::Offline | StateStatus::Unknown | StateStatus::Parked => {
-            ()
         }
     }
 
@@ -376,7 +374,6 @@ async fn end_logging_for_state(
             }
         }
         StateStatus::Asleep | StateStatus::Offline | StateStatus::Unknown | StateStatus::Parked => {
-            ()
         }
     }
 
