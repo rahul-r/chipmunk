@@ -31,6 +31,11 @@ pub mod logger;
 pub mod openstreetmap;
 pub mod server;
 pub mod srtm;
+mod task_data_polling;
+pub mod task_data_processor;
+pub mod task_data_streaming;
+mod task_database;
+mod task_web_server;
 pub mod tasks;
 pub mod utils;
 
