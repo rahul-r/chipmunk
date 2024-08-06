@@ -31,6 +31,7 @@ use chipmunk::database::tables::drive::Drive;
 use chipmunk::database::tables::Tables;
 use chipmunk::database::DBTable;
 use chipmunk::openstreetmap;
+use chipmunk::task_data_processor::create_tables;
 use common::test_data;
 use tesla_api::vehicle_data::{DriveState, ShiftState, VehicleData};
 
@@ -252,7 +253,7 @@ async fn test_charged_and_driven_offline() {
     
     // Start from driving state
     let driving_start_time = chrono::Utc::now();
-    let t = chipmunk::logger::create_tables(&data_with_shift(driving_start_time, Some(D)), &Tables::default(), car_id).await.unwrap();
+    let t = create_tables(&data_with_shift(driving_start_time, Some(D)), &Tables::default(), car_id).await.unwrap();
     assert_eq!(t.len(), 1);
     let drive_start_tables = &t[0];
     assert!(t[0].address.is_some());
@@ -267,7 +268,7 @@ async fn test_charged_and_driven_offline() {
     assert_eq!(*t[0].state.as_ref().unwrap(), State {car_id, id: 0, state: Driving, start_date: ts_no_nanos(driving_start_time), end_date: None });
 
     let driving_intermediate_time = driving_start_time + chrono::Duration::try_seconds(5).unwrap();
-    let t = chipmunk::logger::create_tables(&data_with_shift(driving_intermediate_time, Some(D)), drive_start_tables, car_id).await.unwrap();
+    let t = create_tables(&data_with_shift(driving_intermediate_time, Some(D)), drive_start_tables, car_id).await.unwrap();
     assert_eq!(t.len(), 1);
     let drive_tables = &t[0];
 
@@ -275,7 +276,7 @@ async fn test_charged_and_driven_offline() {
     let driving_after_delay_time = driving_intermediate_time + chrono::Duration::try_seconds(DELAYED_DATAPOINT_TIME_SEC + 1).unwrap();
     let mut charged_and_driven_data = data_with_shift(driving_after_delay_time, Some(D));
     charged_and_driven_data.charge_state.as_mut().unwrap().battery_level = charged_and_driven_data.charge_state.as_ref().unwrap().battery_level.map(|mut c| {c += 10; c});
-    let t = chipmunk::logger::create_tables(&charged_and_driven_data, drive_tables, car_id).await.unwrap();
+    let t = create_tables(&charged_and_driven_data, drive_tables, car_id).await.unwrap();
     assert_eq!(t.len(), 4); // 4 tables (1. end current drive, 2. charging process, 3. log charges, 4. start new drive)
     // Table 1: End current drive
     assert!(t[0].address.is_some());

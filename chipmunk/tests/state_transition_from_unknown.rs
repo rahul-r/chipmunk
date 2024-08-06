@@ -3,6 +3,7 @@
 
 use chipmunk::{database::tables::{state::{State, StateStatus}, Tables}, DELAYED_DATAPOINT_TIME_SEC};
 use chrono::Duration;
+use chipmunk::task_data_processor::create_tables;
 use tesla_api::vehicle_data::ShiftState;
 
 use crate::common::{test_data::{data_charging, data_with_shift, data_with_state}, utils::ts_no_nanos};
@@ -18,7 +19,7 @@ async fn state_change_from_unknown() {
 
     // Unknown to unknown
     let unknown_start_time = chrono::Utc::now();
-    let t = chipmunk::logger::create_tables(&data_with_state(unknown_start_time, Unknown), &Tables::default(), car_id).await.unwrap();
+    let t = create_tables(&data_with_state(unknown_start_time, Unknown), &Tables::default(), car_id).await.unwrap();
     let unknown_start_tables = &t[0];
     assert_eq!(t.len(), 1);
     assert!(t[0].address.is_none());
@@ -33,7 +34,7 @@ async fn state_change_from_unknown() {
     assert!(t[0].sw_update.is_none());
 
     let unknown_end_time = unknown_start_time + Duration::try_seconds(1).unwrap();
-    let t = chipmunk::logger::create_tables(&data_with_state(unknown_end_time, Unknown), unknown_start_tables, car_id).await.unwrap();
+    let t = create_tables(&data_with_state(unknown_end_time, Unknown), unknown_start_tables, car_id).await.unwrap();
     let unknown_end_tables = &t[0];
     assert_eq!(t.len(), 1);
     assert!(t[0].address.is_none());
@@ -49,7 +50,7 @@ async fn state_change_from_unknown() {
 
     // Unknown to unknown after a delay
     let unknown_end_time_1 = unknown_end_time + Duration::try_seconds(DELAYED_DATAPOINT_TIME_SEC + 1).unwrap();
-    let t = chipmunk::logger::create_tables(&data_with_state(unknown_end_time_1, Unknown), unknown_end_tables, car_id).await.unwrap();
+    let t = create_tables(&data_with_state(unknown_end_time_1, Unknown), unknown_end_tables, car_id).await.unwrap();
     assert_eq!(t.len(), 1);
     assert!(t[0].address.is_none());
     assert!(t[0].car.is_none());
@@ -64,7 +65,7 @@ async fn state_change_from_unknown() {
     
     // Unknown to offline
     let offline_start_time = unknown_end_time + Duration::try_seconds(1).unwrap();
-    let t = chipmunk::logger::create_tables(&data_with_state(offline_start_time, Offline), unknown_end_tables, car_id).await.unwrap();
+    let t = create_tables(&data_with_state(offline_start_time, Offline), unknown_end_tables, car_id).await.unwrap();
     assert_eq!(t.len(), 2);
     assert!(t[0].address.is_none());
     assert!(t[0].car.is_none());
@@ -89,7 +90,7 @@ async fn state_change_from_unknown() {
     
     // Unknown to offline after a delay
     let offline_start_time = unknown_end_time + Duration::try_seconds(DELAYED_DATAPOINT_TIME_SEC + 1).unwrap();
-    let t = chipmunk::logger::create_tables(&data_with_state(offline_start_time, Offline), unknown_end_tables, car_id).await.unwrap();
+    let t = create_tables(&data_with_state(offline_start_time, Offline), unknown_end_tables, car_id).await.unwrap();
     assert_eq!(t.len(), 2);
     assert!(t[0].address.is_none());
     assert!(t[0].car.is_none());
@@ -114,7 +115,7 @@ async fn state_change_from_unknown() {
 
     // Unknown to park
     let parking_start_time = unknown_end_time + Duration::try_seconds(1).unwrap();
-    let t = chipmunk::logger::create_tables(&data_with_shift(parking_start_time, Some(P)), unknown_end_tables, car_id).await.unwrap();
+    let t = create_tables(&data_with_shift(parking_start_time, Some(P)), unknown_end_tables, car_id).await.unwrap();
     assert_eq!(t.len(), 2);
     assert!(t[0].address.is_none());
     assert!(t[0].car.is_none());
@@ -139,7 +140,7 @@ async fn state_change_from_unknown() {
 
     // Unknown to park after a delay
     let parking_start_time = unknown_end_time + Duration::try_seconds(DELAYED_DATAPOINT_TIME_SEC + 1).unwrap();
-    let t = chipmunk::logger::create_tables(&data_with_shift(parking_start_time, Some(P)), unknown_end_tables, car_id).await.unwrap();
+    let t = create_tables(&data_with_shift(parking_start_time, Some(P)), unknown_end_tables, car_id).await.unwrap();
     assert_eq!(t.len(), 2);
     assert!(t[0].address.is_none());
     assert!(t[0].car.is_none());
@@ -164,7 +165,7 @@ async fn state_change_from_unknown() {
 
     // Unknown to drive
     let driving_start_time = unknown_end_time + Duration::try_seconds(1).unwrap();
-    let t = chipmunk::logger::create_tables(&data_with_shift(driving_start_time, Some(D)), unknown_end_tables, car_id).await.unwrap();
+    let t = create_tables(&data_with_shift(driving_start_time, Some(D)), unknown_end_tables, car_id).await.unwrap();
     assert_eq!(t.len(), 2);
     assert!(t[0].address.is_none());
     assert!(t[0].car.is_none());
@@ -189,7 +190,7 @@ async fn state_change_from_unknown() {
 
     // Unknown to drive after a delay
     let driving_start_time = unknown_end_time + Duration::try_seconds(DELAYED_DATAPOINT_TIME_SEC + 1).unwrap();
-    let t = chipmunk::logger::create_tables(&data_with_shift(driving_start_time, Some(D)), unknown_end_tables, car_id).await.unwrap();
+    let t = create_tables(&data_with_shift(driving_start_time, Some(D)), unknown_end_tables, car_id).await.unwrap();
     assert_eq!(t.len(), 2);
     assert!(t[0].address.is_none());
     assert!(t[0].car.is_none());
@@ -214,7 +215,7 @@ async fn state_change_from_unknown() {
 
     // Unknown to asleep
     let sleep_start_time = unknown_end_time + Duration::try_seconds(1).unwrap();
-    let t = chipmunk::logger::create_tables(&data_with_state(sleep_start_time, Asleep), unknown_end_tables, car_id).await.unwrap();
+    let t = create_tables(&data_with_state(sleep_start_time, Asleep), unknown_end_tables, car_id).await.unwrap();
     assert_eq!(t.len(), 2);
     assert!(t[0].address.is_none());
     assert!(t[0].car.is_none());
@@ -239,7 +240,7 @@ async fn state_change_from_unknown() {
 
     // Unknown to asleep after a delay
     let sleep_start_time = unknown_end_time + Duration::try_seconds(DELAYED_DATAPOINT_TIME_SEC + 1).unwrap();
-    let t = chipmunk::logger::create_tables(&data_with_state(sleep_start_time, Asleep), unknown_end_tables, car_id).await.unwrap();
+    let t = create_tables(&data_with_state(sleep_start_time, Asleep), unknown_end_tables, car_id).await.unwrap();
     assert_eq!(t.len(), 2);
     assert!(t[0].address.is_none());
     assert!(t[0].car.is_none());
@@ -264,7 +265,7 @@ async fn state_change_from_unknown() {
 
     // Unknown to charging
     let charging_start_time = unknown_end_time + Duration::try_seconds(1).unwrap();
-    let t = chipmunk::logger::create_tables(&data_charging(charging_start_time, 25), unknown_end_tables, car_id).await.unwrap();
+    let t = create_tables(&data_charging(charging_start_time, 25), unknown_end_tables, car_id).await.unwrap();
     assert_eq!(t.len(), 2);
     assert!(t[0].address.is_none());
     assert!(t[0].car.is_none());
@@ -289,7 +290,7 @@ async fn state_change_from_unknown() {
 
     // Unknown to charging after a delay
     let charging_start_time = unknown_end_time + Duration::try_seconds(DELAYED_DATAPOINT_TIME_SEC + 1).unwrap();
-    let t = chipmunk::logger::create_tables(&data_charging(charging_start_time, 25), unknown_end_tables, car_id).await.unwrap();
+    let t = create_tables(&data_charging(charging_start_time, 25), unknown_end_tables, car_id).await.unwrap();
     assert_eq!(t.len(), 2);
     assert!(t[0].address.is_none());
     assert!(t[0].car.is_none());

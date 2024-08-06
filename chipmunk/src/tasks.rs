@@ -82,13 +82,10 @@ pub async fn run(pool: &sqlx::PgPool, config: &mut Config) -> anyhow::Result<()>
             set_config!(config.refresh_token, "".into());
             loop {
                 tokio::time::sleep(Duration::from_millis(1000)).await;
-                let refresh_token = match get_config!(config.refresh_token) {
-                    Ok(v) => v,
-                    Err(e) => {
-                        log::error!("Error getting config value for `refresh_token`: {e}");
-                        "".into()
-                    }
-                };
+                let refresh_token = get_config!(config.refresh_token).unwrap_or_else(|e| {
+                    log::error!("Error getting config value for `refresh_token`: {e}");
+                    "".into()
+                });
                 if refresh_token.is_empty() {
                     continue;
                 }

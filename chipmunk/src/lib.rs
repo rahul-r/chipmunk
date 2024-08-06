@@ -27,7 +27,6 @@ use std::io::Write;
 pub mod charging;
 pub mod config;
 pub mod database;
-pub mod logger;
 pub mod openstreetmap;
 pub mod server;
 pub mod srtm;

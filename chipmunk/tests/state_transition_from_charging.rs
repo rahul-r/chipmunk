@@ -5,6 +5,7 @@ pub mod common;
 
 use chipmunk::{database::tables::{state::{State, StateStatus}, Tables}, DELAYED_DATAPOINT_TIME_SEC};
 use chrono::Duration;
+use chipmunk::task_data_processor::create_tables;
 use tesla_api::vehicle_data::ShiftState;
 
 use crate::common::{test_data::{data_with_state, data_with_shift, data_charging}, utils::ts_no_nanos};
@@ -19,7 +20,7 @@ async fn state_change_from_charging() {
 
     // Charging to charging
     let charging_start_time = chrono::Utc::now();
-    let t = chipmunk::logger::create_tables(&data_charging(charging_start_time, 25), &Tables::default(), car_id).await.unwrap();
+    let t = create_tables(&data_charging(charging_start_time, 25), &Tables::default(), car_id).await.unwrap();
     assert_eq!(t.len(), 1);
     let charging_start_tables = &t[0];
     assert!(t[0].address.is_some());
@@ -34,7 +35,7 @@ async fn state_change_from_charging() {
     assert!(t[0].sw_update.is_none());
 
     let charging_end_time = charging_start_time + Duration::try_seconds(1).unwrap();
-    let t = chipmunk::logger::create_tables(&data_charging(charging_end_time, 30), charging_start_tables, car_id).await.unwrap();
+    let t = create_tables(&data_charging(charging_end_time, 30), charging_start_tables, car_id).await.unwrap();
     assert_eq!(t.len(), 1);
     let charging_end_tables = &t[0];
     assert!(t[0].address.is_none());
@@ -50,7 +51,7 @@ async fn state_change_from_charging() {
 
     // Charging to charging after a delay
     let charging_end_time_1 = charging_start_time + Duration::try_seconds(DELAYED_DATAPOINT_TIME_SEC + 1).unwrap();
-    let t = chipmunk::logger::create_tables(&data_charging(charging_end_time_1, 35), charging_end_tables, car_id).await.unwrap();
+    let t = create_tables(&data_charging(charging_end_time_1, 35), charging_end_tables, car_id).await.unwrap();
     assert_eq!(t.len(), 1);
     assert!(t[0].address.is_none());
     assert!(t[0].car.is_none());
@@ -65,7 +66,7 @@ async fn state_change_from_charging() {
 
     // Charging to park
     let parking_start_time = charging_end_time + Duration::try_seconds(1).unwrap();
-    let t = chipmunk::logger::create_tables(&data_with_shift(parking_start_time, Some(P)), charging_end_tables, car_id).await.unwrap();
+    let t = create_tables(&data_with_shift(parking_start_time, Some(P)), charging_end_tables, car_id).await.unwrap();
     assert_eq!(t.len(), 2);
     assert!(t[0].address.is_none());
     assert!(t[0].car.is_none());
@@ -91,7 +92,7 @@ async fn state_change_from_charging() {
     // Charging to park after a delay
     let parking_start_time = charging_end_time + Duration::try_seconds(DELAYED_DATAPOINT_TIME_SEC + 1).unwrap();
     // dbg!(&charging_end_tables.state);
-    let t = chipmunk::logger::create_tables(&data_with_shift(parking_start_time, Some(P)), charging_end_tables, car_id).await.unwrap();
+    let t = create_tables(&data_with_shift(parking_start_time, Some(P)), charging_end_tables, car_id).await.unwrap();
     // dbg!(&t[0].state);
     assert_eq!(t.len(), 2);
     assert!(t[0].address.is_none());
@@ -117,7 +118,7 @@ async fn state_change_from_charging() {
 
     // Charging to drive
     let driving_start_time = charging_end_time + Duration::try_seconds(1).unwrap();
-    let t = chipmunk::logger::create_tables(&data_with_shift(driving_start_time, Some(D)), charging_end_tables, car_id).await.unwrap();
+    let t = create_tables(&data_with_shift(driving_start_time, Some(D)), charging_end_tables, car_id).await.unwrap();
     assert_eq!(t.len(), 2);
     assert!(t[0].address.is_none());
     assert!(t[0].car.is_none());
@@ -142,7 +143,7 @@ async fn state_change_from_charging() {
 
     // Charging to drive after a delay
     let driving_start_time = charging_end_time + Duration::try_seconds(DELAYED_DATAPOINT_TIME_SEC + 1).unwrap();
-    let t = chipmunk::logger::create_tables(&data_with_shift(driving_start_time, Some(D)), charging_end_tables, car_id).await.unwrap();
+    let t = create_tables(&data_with_shift(driving_start_time, Some(D)), charging_end_tables, car_id).await.unwrap();
     assert_eq!(t.len(), 2);
     assert!(t[0].address.is_none());
     assert!(t[0].car.is_none());
@@ -167,7 +168,7 @@ async fn state_change_from_charging() {
 
     // Charging to asleep
     let sleep_start_time = charging_end_time + Duration::try_seconds(1).unwrap();
-    let t = chipmunk::logger::create_tables(&data_with_state(sleep_start_time, Asleep), charging_end_tables, car_id).await.unwrap();
+    let t = create_tables(&data_with_state(sleep_start_time, Asleep), charging_end_tables, car_id).await.unwrap();
     assert_eq!(t.len(), 2);
     assert!(t[0].address.is_none());
     assert!(t[0].car.is_none());
@@ -192,7 +193,7 @@ async fn state_change_from_charging() {
 
     // Charging to asleep after a delay
     let sleep_start_time = charging_end_time + Duration::try_seconds(DELAYED_DATAPOINT_TIME_SEC + 1).unwrap();
-    let t = chipmunk::logger::create_tables(&data_with_state(sleep_start_time, Asleep), charging_end_tables, car_id).await.unwrap();
+    let t = create_tables(&data_with_state(sleep_start_time, Asleep), charging_end_tables, car_id).await.unwrap();
     assert_eq!(t.len(), 2);
     assert!(t[0].address.is_none());
     assert!(t[0].car.is_none());
@@ -217,7 +218,7 @@ async fn state_change_from_charging() {
 
     // Charging to offline
     let offline_start_time = charging_end_time + Duration::try_seconds(1).unwrap();
-    let t = chipmunk::logger::create_tables(&data_with_state(offline_start_time, Offline), charging_end_tables, car_id).await.unwrap();
+    let t = create_tables(&data_with_state(offline_start_time, Offline), charging_end_tables, car_id).await.unwrap();
     assert_eq!(t.len(), 2);
     assert!(t[0].address.is_none());
     assert!(t[0].car.is_none());
@@ -242,7 +243,7 @@ async fn state_change_from_charging() {
 
     // Charging to offline after a delay
     let offline_start_time = charging_end_time + Duration::try_seconds(DELAYED_DATAPOINT_TIME_SEC + 1).unwrap();
-    let t = chipmunk::logger::create_tables(&data_with_state(offline_start_time, Offline), charging_end_tables, car_id).await.unwrap();
+    let t = create_tables(&data_with_state(offline_start_time, Offline), charging_end_tables, car_id).await.unwrap();
     assert_eq!(t.len(), 2);
     assert!(t[0].address.is_none());
     assert!(t[0].car.is_none());
