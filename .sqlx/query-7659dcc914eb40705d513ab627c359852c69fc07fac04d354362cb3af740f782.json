@@ -12,8 +12,8 @@
     "parameters": {
       "Left": [
         "Varchar",
-        "Float4",
-        "Float4",
+        "Float8",
+        "Float8",
         "Int2",
         "Timestamptz",
         "Timestamptz",

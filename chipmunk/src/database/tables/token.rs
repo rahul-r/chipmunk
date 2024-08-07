@@ -3,9 +3,7 @@ use chrono::{DateTime, Duration, Utc};
 use sqlx::PgPool;
 use tesla_api::auth::AuthResponse;
 
-use crate::{
-    utils::crypto::{decrypt, encrypt},
-};
+use crate::utils::crypto::{decrypt, encrypt};
 
 #[cfg(test)]
 use crate::database::initialize;

@@ -17,38 +17,80 @@ impl DistanceUnit {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, Default)]
-pub struct Distance {
-    pub miles: f64,
-}
+// #[derive(Serialize, Deserialize, Clone, Debug, Default)]
+// pub struct Distance {
+//     pub miles: f64,
+// }
+//
+// impl Distance {
+//     pub fn from_km(km: f64) -> Self {
+//         Self {
+//             miles: km / 1.609344,
+//         }
+//     }
+//
+//     pub fn from_miles(miles: f64) -> Self {
+//         Self { miles }
+//     }
+//
+//     pub fn as_km(&self) -> f64 {
+//         self.miles * 1.609_344
+//     }
+//
+//     pub fn as_miles(&self) -> f64 {
+//         self.miles
+//     }
+//
+//     pub fn to_string(&self, unit: &DistanceUnit) -> String {
+//         match unit {
+//             DistanceUnit::Mi => format!("{}", self.as_miles().round()),
+//             DistanceUnit::Km => format!("{}", self.as_km().round()),
+//         }
+//     }
+//
+//     pub fn is_zero(&self) -> bool {
+//         self.miles == 0.0
+//     }
+// }
+
+// Struct to store distance
+// Internally this struct stores distance in miles
+type DistanceType = f64;
+#[derive(Debug, Default, PartialEq, PartialOrd, Clone, Serialize, Deserialize)]
+pub struct Distance(DistanceType);
 
 impl Distance {
-    pub fn from_km(km: f64) -> Self {
-        Self {
-            miles: km / 1.609344,
-        }
+    // Create Distance from meters
+    pub fn from_m<T: Into<DistanceType>>(m: T) -> Self {
+        Distance(m.into() / 1_609.344)
     }
 
-    pub fn from_miles(miles: f64) -> Self {
-        Self { miles }
+    /// Create Distance from kilometers
+    pub fn from_km<T: Into<DistanceType>>(km: T) -> Self {
+        Distance(km.into() / 1.609_344)
     }
 
-    pub fn as_km(&self) -> f64 {
-        self.miles * 1.609344
+    /// Create Distance from miles
+    pub fn from_miles<T: Into<DistanceType>>(miles: T) -> Self {
+        Distance(miles.into())
     }
 
-    pub fn as_miles(&self) -> f64 {
-        self.miles
+    /// Get meters
+    pub fn as_m(&self) -> DistanceType {
+        self.0 * 1_609.344
     }
 
-    pub fn to_string(&self, unit: &DistanceUnit) -> String {
-        match unit {
-            DistanceUnit::Mi => format!("{}", self.as_miles().round()),
-            DistanceUnit::Km => format!("{}", self.as_km().round()),
-        }
+    /// Get kilometers
+    pub fn as_km(&self) -> DistanceType {
+        self.0 * 1.609_344
+    }
+
+    /// Get miles
+    pub fn as_miles(&self) -> DistanceType {
+        self.0
     }
 
     pub fn is_zero(&self) -> bool {
-        self.miles == 0.0
+        self.0 == 0.0
     }
 }

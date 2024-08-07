@@ -94,20 +94,26 @@ impl Drive {
             inside_temp_avg: self
                 .inside_temp_avg
                 .zip(position.inside_temp)
-                .map(|(a, b)| (a + b) / 2.0),
+                .map_or(self.inside_temp_avg, |(a, b)| Some((a + b) / 2.0)),
             outside_temp_avg: self
                 .outside_temp_avg
                 .zip(position.outside_temp)
-                .map(|(a, b)| (a + b) / 2.0),
-            speed_max: max_option(self.speed_max, position.speed).map(|v| v.floor()), // the .floor() is to make the values compatible with teslamate
-            power_min: min_option(self.power_min, position.power).map(|v| v.floor()), // the .floor() is to make the values compatible with teslamate
-            power_max: max_option(self.power_max, position.power).map(|v| v.floor()), // the .floor() is to make the values compatible with teslamate
+                .map_or(self.outside_temp_avg, |(a, b)| Some((a + b) / 2.0)),
+            speed_max: max_option(self.speed_max, position.speed)
+                .map_or(self.speed_max, |v| Some(v.floor())), // the .floor() is to make the values compatible with teslamate
+            power_min: min_option(self.power_min, position.power)
+                .map_or(self.power_min, |v| Some(v.floor())), // the .floor() is to make the values compatible with teslamate
+            power_max: max_option(self.power_max, position.power)
+                .map_or(self.power_max, |v| Some(v.floor())), // the .floor() is to make the values compatible with teslamate
             end_ideal_range_km: position.ideal_battery_range_km,
             end_km: position.odometer,
-            distance: position.odometer.zip(self.start_km).map(|(a, b)| a - b),
-            duration_min: position
-                .date
-                .map(|end_date| (end_date - self.start_date).num_minutes() as i16),
+            distance: position
+                .odometer
+                .zip(self.start_km)
+                .map_or(self.distance, |(a, b)| Some(a - b)),
+            duration_min: position.date.map_or(self.duration_min, |end_date| {
+                Some((end_date - self.start_date).num_minutes() as i16)
+            }),
             end_rated_range_km: position.rated_battery_range_km,
             end_position_id: position.id,
             ..self.clone()

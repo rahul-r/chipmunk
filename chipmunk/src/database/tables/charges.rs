@@ -5,10 +5,12 @@ use super::DBTable;
 use anyhow::Context;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use tesla_api::stream::StreamingData;
 use tesla_api::{
     utils::{miles_to_km, timestamp_to_datetime},
     vehicle_data::VehicleData,
 };
+use ui_common::units::Distance;
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, sqlx::FromRow)]
 pub struct Charges {
@@ -67,6 +69,15 @@ impl Charges {
             rated_battery_range_km: miles_to_km(&charge_state.battery_range),
             usable_battery_level: charge_state.usable_battery_level,
         })
+    }
+
+    pub fn from_streaming_data(data: &StreamingData) -> Self {
+        Self {
+            date: data.timestamp,
+            battery_level: data.soc.map(|s| s as i16), // TODO: fix this! change battery_level to f32? or soc to i16?
+            rated_battery_range_km: data.range.map(|r| Distance::from_miles(r).as_km() as f32),
+            ..Default::default()
+        }
     }
 
     /// Get the list of charges associated with a charging process

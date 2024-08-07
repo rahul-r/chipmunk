@@ -3,8 +3,10 @@ use chrono::{DateTime, Utc};
 
 use crate::srtm::get_elevation;
 use sqlx::PgPool;
+use tesla_api::stream::StreamingData;
 use tesla_api::utils::{miles_to_km, mph_to_kmh, timestamp_to_datetime};
 use tesla_api::vehicle_data::VehicleData;
+use ui_common::units::Distance;
 
 use super::DBTable;
 
@@ -16,7 +18,7 @@ pub struct Position {
     pub longitude: Option<f64>,
     pub speed: Option<f32>,
     pub power: Option<f32>,
-    pub odometer: Option<f32>, // TODO: rename to odometer_km?
+    pub odometer: Option<f32>, // TODO: rename to odometer_km? TODO: use f64
     pub ideal_battery_range_km: Option<f32>,
     pub battery_level: Option<i16>,
     pub outside_temp: Option<f32>,
@@ -114,6 +116,26 @@ impl Position {
             tpms_pressure_rl: vehicle_state.tpms_pressure_rl,
             tpms_pressure_rr: vehicle_state.tpms_pressure_rr,
         })
+    }
+
+    pub fn from_streaming_data(data: &StreamingData) -> Self {
+        Self {
+            date: data.timestamp,
+            latitude: data.est_lat,
+            longitude: data.est_lng,
+            power: data.power,
+            speed: data.speed.map(|o| Distance::from_miles(o).as_km() as f32), // TODO: change unit to mph
+            battery_level: data.soc.map(|s| s as i16), // TODO: fix this! change battery_level to f32? or soc to i16?
+            elevation: data.elevation.map(|e| e as i16), // TODO: fix this! change elevation to f32? or data.elevation to i16?
+            odometer: data
+                .odometer
+                .map(|o| Distance::from_miles(o).as_km() as f32), // TODO: change unit to miles
+            est_battery_range_km: data
+                .est_range
+                .map(|r| Distance::from_miles(r).as_km() as f32),
+            rated_battery_range_km: data.range.map(|r| Distance::from_miles(r).as_km() as f32),
+            ..Default::default()
+        }
     }
 
     pub async fn db_update_drive_id(&self, pool: &PgPool, drive_id: i32) -> sqlx::Result<()> {

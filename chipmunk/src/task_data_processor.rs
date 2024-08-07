@@ -32,6 +32,10 @@ pub async fn data_processor_task(
     let mut prev_tables = Tables::db_get_last(pool).await;
 
     loop {
+        if cancellation_token.is_cancelled() {
+            break;
+        }
+
         tokio::task::yield_now().await;
 
         match vehicle_data_rx.try_recv() {
@@ -90,8 +94,42 @@ pub async fn data_processor_task(
                         log::error!("{name}: cannot send data over data_tx: {e}");
                     }
                 }
-                DataTypes::StreamingData(_data) => {
-                    if let Err(e) = processed_data_tx.send(Tables::default()) {
+                DataTypes::StreamingData(data) => {
+                    log::error!("{data:#?}");
+                    let position = Position::from_streaming_data(&data);
+                    let charges = Charges::from_streaming_data(&data);
+
+                    // let drive = DriveState {
+                    //     heading: data.est_heading.map(|h| h as i32),
+                    //     shift_state: data.shift_state.and_then(|s| {
+                    //         ShiftState::from_str(&s)
+                    //             .map_err(|e| log::error!("{e}"))
+                    //             .ok()
+                    //     }),
+                    //     ..Default::default()
+                    // };
+                    let Some(prev_state) = prev_tables.state.clone() else {
+                        continue;
+                    };
+
+                    let tables =
+                        continue_logging(&prev_tables, prev_state, position, Some(charges)).await;
+
+                    prev_tables = match send_to_database_task(
+                        vec![tables],
+                        &database_tx,
+                        &mut database_resp_rx,
+                    )
+                    .await
+                    {
+                        Ok(tables) => tables,
+                        Err(e) => {
+                            log::error!("{name}: Error sending to database task: {e}");
+                            continue;
+                        }
+                    };
+
+                    if let Err(e) = processed_data_tx.send(prev_tables.clone()) {
                         log::error!("{name}: cannot send data over data_tx: {e}");
                     }
                 }
@@ -105,11 +143,29 @@ pub async fn data_processor_task(
                 break;
             }
         }
-        if cancellation_token.is_cancelled() {
-            break;
-        }
     }
     tracing::warn!("exiting {name}");
+}
+
+async fn send_to_database_task(
+    tables: Vec<Tables>,
+    database_tx: &mpsc::Sender<DatabaseDataType>,
+    database_resp_rx: &mut mpsc::Receiver<DatabaseRespType>,
+) -> anyhow::Result<Tables> {
+    // Send the tables to the database task
+    database_tx.send(DatabaseDataType::Tables(tables)).await?;
+
+    // Wait for the response from database task with the updated tables with
+    // database id fields
+    let Some(resp) = database_resp_rx.recv().await else {
+        anyhow::bail!("No response received from database task");
+    };
+
+    let DatabaseRespType::Tables(prev_tables_resp) = resp else {
+        anyhow::bail!("Unexpected response type received from database task");
+    };
+
+    Ok(prev_tables_resp)
 }
 
 async fn get_car_id(
@@ -257,10 +313,7 @@ async fn start_logging_for_state(
     let state = Some(State {
         car_id,
         state: new_state,
-        start_date: current_position.date.unwrap_or_else(|| {
-            log::error!("Timestamp is None, using current time");
-            chrono::Utc::now()
-        }),
+        start_date: current_position.date.unwrap_or_else(chrono::Utc::now),
         ..State::default()
     });
 

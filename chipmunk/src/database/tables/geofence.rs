@@ -8,8 +8,8 @@ use super::DBTable;
 #[derive(Debug)]
 pub struct Geofence {
     pub name: String,
-    pub latitude: f32,
-    pub longitude: f32,
+    pub latitude: f64,
+    pub longitude: f64,
     pub radius: i16,
     pub inserted_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,

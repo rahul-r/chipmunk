@@ -4,6 +4,7 @@ const EARTH_RADIUS_KM: f64 = 6367.5;
 
 // Struct to store distance
 // Internally this struct stores distance in meters
+// TODO: merge this struct with "ui/common/src/units/distance.rs"
 type DistanceType = f64;
 #[derive(Debug, PartialEq, PartialOrd)]
 pub struct Distance(DistanceType);

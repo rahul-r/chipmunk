@@ -97,13 +97,13 @@ impl ChargingProcess {
 
     pub fn update(&self, charges: &Charges) -> Self {
         Self {
-            duration_min: charges
-                .date
-                .map(|end_date| (self.start_date - end_date).num_minutes() as i16),
+            duration_min: charges.date.map_or(self.duration_min, |end_date| {
+                Some((self.start_date - end_date).num_minutes() as i16)
+            }),
             outside_temp_avg: self
                 .outside_temp_avg
                 .zip(charges.outside_temp)
-                .map(|(a, b)| (a + b) / 2.0),
+                .map_or(self.outside_temp_avg, |(a, b)| Some((a + b) / 2.0)),
             cost: calculate_cost(charges),
             end_date: charges.date,
             end_ideal_range_km: charges.ideal_battery_range_km,

@@ -15,8 +15,8 @@ pub struct StreamingData {
     pub soc: Option<f32>,
     pub elevation: Option<f32>,
     pub est_heading: Option<f32>,
-    pub est_lat: Option<f32>,
-    pub est_lng: Option<f32>,
+    pub est_lat: Option<f64>,
+    pub est_lng: Option<f64>,
     pub power: Option<f32>,
     pub shift_state: Option<String>,
     pub range: Option<i32>,
@@ -46,8 +46,8 @@ impl StreamingData {
             soc: parts[3].parse::<f32>().ok(),
             elevation: parts[4].parse::<f32>().ok(),
             est_heading: parts[5].parse::<f32>().ok(),
-            est_lat: parts[6].parse::<f32>().ok(),
-            est_lng: parts[7].parse::<f32>().ok(),
+            est_lat: parts[6].parse::<f64>().ok(),
+            est_lng: parts[7].parse::<f64>().ok(),
             power: parts[8].parse::<f32>().ok(),
             shift_state: if parts[9].is_empty() {
                 None
@@ -210,6 +210,7 @@ pub async fn start(
             MessageType::Start => log::info!("TODO: handle Streaming started"),
             MessageType::Data(data) => {
                 if let Some(d) = data {
+                    log::debug!("{d:?}");
                     if let Err(e) = data_tx.send(d).await {
                         log::error!("Error sending streaming data over mpsc: {e}");
                     };
@@ -231,7 +232,7 @@ pub async fn start(
             MessageType::VehicleError => log::warn!("TODO: handle vehicle error"),
             MessageType::Timeout => log::warn!("TODO: handle Streaming timeout"),
             MessageType::Unknown(msg) => {
-                log::warn!("TODO: handle Unknown message from WebSocket: {msg}")
+                log::warn!("TODO: handle Unknown message from WebSocket: {msg}");
             }
         };
         tokio::time::sleep(std::time::Duration::from_secs(1)).await;

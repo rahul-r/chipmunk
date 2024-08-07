@@ -1,3 +1,4 @@
+use std::str::FromStr;
 use std::{fs::File, path::Path};
 
 use chrono::{DateTime, Utc};
@@ -9,6 +10,20 @@ pub enum ShiftState {
     R,
     N,
     D,
+}
+
+impl FromStr for ShiftState {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_ascii_lowercase().as_str() {
+            "p" => Ok(Self::P),
+            "r" => Ok(Self::R),
+            "n" => Ok(Self::N),
+            "d" => Ok(Self::D),
+            _ => Err(format!("Invalid shift state '{s}'")),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
