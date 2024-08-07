@@ -93,4 +93,11 @@ impl Distance {
     pub fn is_zero(&self) -> bool {
         self.0 == 0.0
     }
+
+    pub fn to_string(&self, unit: &DistanceUnit) -> String {
+        match unit {
+            DistanceUnit::Mi => format!("{}", self.as_miles().round()),
+            DistanceUnit::Km => format!("{}", self.as_km().round()),
+        }
+    }
 }
