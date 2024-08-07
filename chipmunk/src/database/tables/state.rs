@@ -2,8 +2,9 @@ use anyhow::Context;
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use tesla_api::vehicle_data::{ChargingState, ShiftState, VehicleData};
+use ui_common::units::Distance;
 
-use crate::utils::location::{Distance, Location};
+use crate::utils::location::Location;
 
 use super::DBTable;
 
