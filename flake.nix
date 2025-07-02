@@ -84,7 +84,7 @@
           shellHook = ''
             export FLAKE_ROOT="$(git rev-parse --show-toplevel)"
 
-            pg_isready -t1 > /dev/null || chipmunk-stop-postgres
+            pg_isready -t1 > /dev/null || chipmunk-stop-db
             export DATABASE_URL="postgres://$PGUSER:$PGPASSWORD@$PGHOST:$PGPORT/$PGDATABASE"
             export CAR_DATA_DATABASE_URL="postgres://$PGUSER:$PGPASSWORD@$PGHOST:$PGPORT/$PGDATABASE"
             export TEST_DATABASE_URL="postgres://$PGUSER:$PGPASSWORD@$PGHOST:$PGPORT/$PGDATABASE"
