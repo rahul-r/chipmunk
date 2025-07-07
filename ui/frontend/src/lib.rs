@@ -1,8 +1,11 @@
+use leptos::server::codee::string::FromToStringCodec;
 use leptos::*;
+use leptos::prelude::*;
 use leptos_meta::*;
 use leptos_router::*;
+use leptos_router::components::{ParentRoute, Route, Router, Routes};
 use leptos_use::{
-    core::ConnectionReadyState, use_websocket_with_options, UseWebSocketOptions, UseWebsocketReturn,
+    core::ConnectionReadyState, use_websocket_with_options, UseWebSocketOptions, UseWebSocketReturn,
 };
 
 mod components;
@@ -10,16 +13,16 @@ mod pages;
 
 use crate::pages::geofence::Geofence;
 use crate::pages::home::Home;
-use crate::pages::not_found::NotFound;
 use crate::pages::settings::Settings;
 
-use leptos_leaflet::Position;
-use std::rc::Rc;
+use leptos_leaflet::prelude::Position;
+use std::sync::Arc;
 use ui_common::{Status, Topic, WsMessage};
+
 #[derive(Clone)]
 pub struct WebsocketContext {
     pub message: Signal<Option<String>>,
-    send: Rc<dyn Fn(&str)>, // use Rc to make it easily cloneable
+    send: Arc<dyn Fn(&String) + Send + Sync>, // use Rc to make it easily cloneable
     ready_state: Signal<ConnectionReadyState>,
     logging_status: ReadSignal<Status>,
     is_logging: ReadSignal<bool>,
@@ -29,7 +32,7 @@ pub struct WebsocketContext {
 impl WebsocketContext {
     pub fn new(
         message: Signal<Option<String>>,
-        send: Rc<dyn Fn(&str)>,
+        send: Arc<dyn Fn(&String) + Send + Sync>,
         ready_state: Signal<ConnectionReadyState>,
         logging_status: ReadSignal<Status>,
         is_logging: ReadSignal<bool>,
@@ -48,7 +51,7 @@ impl WebsocketContext {
     // create a method to avoid having to use parentheses around the field
     #[inline(always)]
     pub fn send(&self, message: &str) {
-        (self.send)(message)
+        (self.send)(&message.to_string())
     }
 }
 
@@ -82,7 +85,7 @@ pub fn get_host() -> anyhow::Result<String> {
 
 #[component]
 fn Navbar() -> impl IntoView {
-    let (show_menu, set_show_menu) = create_signal(false);
+    let (show_menu, set_show_menu) = signal(false);
     let menu = move || {
         view! {
             <ul class="flex flex-col z-21 sm:p-0 font-medium border border-border rounded-lg bg-bkg-1 sm:space-x-8 rtl:space-x-reverse sm:flex-row sm:mt-0 sm:border-0 sm:bg-bkg-1">
@@ -131,15 +134,15 @@ fn Navbar() -> impl IntoView {
 pub fn App() -> impl IntoView {
     provide_meta_context();
 
-    let (is_logging, set_is_logging) = create_signal(false);
-    let (logging_status, set_logging_status) = create_signal(Status::default());
+    let (is_logging, set_is_logging) = signal(false);
+    let (logging_status, set_logging_status) = signal(Status::default());
 
-    // let (is_dark_mode, set_is_dark_mode) = create_signal(true);
+    // let (is_dark_mode, set_is_dark_mode) = signal(true);
 
     let tesla_factory_coords = Position::new(37.49, -121.94);
-    let (location, set_location) = create_signal(tesla_factory_coords);
+    let (location, set_location) = signal(tesla_factory_coords);
 
-    let on_message_callback = move |msg: String| match WsMessage::from_string(&*msg) {
+    let on_message_callback = move |msg: &str| match WsMessage::from_string(&*msg) {
         Ok(m) => {
             if let Topic::LoggingStatus = m.topic {
                 let status = ui_common::Status::from_value(m.data.unwrap()).unwrap();
@@ -156,12 +159,12 @@ pub fn App() -> impl IntoView {
         ),
     };
 
-    let UseWebsocketReturn {
+    let UseWebSocketReturn {
         ready_state,
         message,
         send,
         ..
-    } = use_websocket_with_options(
+    } = use_websocket_with_options::<String, String, FromToStringCodec, _, _>(
         &format!("{}/websocket", get_host().unwrap()),
         UseWebSocketOptions::default()
             .immediate(true)
@@ -169,12 +172,12 @@ pub fn App() -> impl IntoView {
             // .on_close(on_close_callback.clone())
             // .on_error(on_error_callback.clone())
             // .on_message_bytes(on_message_bytes_callback.clone())
-            .on_message(on_message_callback),
+            .on_message_raw(on_message_callback),
     );
 
     provide_context(WebsocketContext::new(
         message,
-        Rc::new(send.clone()),
+        Arc::new(send.clone()),
         ready_state,
         logging_status,
         is_logging,
@@ -182,8 +185,7 @@ pub fn App() -> impl IntoView {
     ));
 
     view! {
-        <Html lang="en" dir="ltr" class="bg-bkg-2"/>
-
+        <Html/>
         <Title text="Chipmunk for Tesla"/>
 
         <Meta charset="UTF-8"/>
@@ -195,15 +197,16 @@ pub fn App() -> impl IntoView {
         <Meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 
         // <div class:light=move || !is_dark_mode.get() class:dark=move || is_dark_mode.get()>
-        <div>
+        <div class="bg-bkg-2">
             <Navbar/>
             <Router>
                 <main class="pt-[4rem]">
-                    <Routes>
-                        <Route path="/" view=Home/>
-                        <Route path="/settings" view=Settings/>
-                        <Route path="/geofence" view=Geofence/>
-                        <Route path="/*" view=NotFound/>
+                    <Routes fallback=|| "Not found." >
+                        // <ParentRoute path=path!("") view=Home >
+                            <Route path=path!("") view=Home/>
+                            <Route path=path!("settings") view=Settings/>
+                            <Route path=path!("geofence") view=Geofence/>
+                        // </ParentRoute>
                     </Routes>
                 </main>
             </Router>

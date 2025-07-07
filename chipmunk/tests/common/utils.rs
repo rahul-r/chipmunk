@@ -119,7 +119,7 @@ pub async fn create_mock_tesla_server(vehicle_data: Arc<Mutex<VehicleData>>, sen
     let (_srv1, _srv2, _srv3) = futures::join!(srv1, srv2, srv3);
 
     let mock_url = server.url();
-    std::env::set_var("MOCK_TESLA_BASE_URL", mock_url);
+    unsafe { std::env::set_var("MOCK_TESLA_BASE_URL", mock_url); }
     server
 }
 
@@ -179,7 +179,7 @@ pub async fn create_mock_tesla_server_vec(vehicle_data: Arc<Mutex<VecDeque<Vehic
     let (_srv1, _srv2, _srv3) = futures::join!(srv1, srv2, srv3);
 
     let mock_url = server.url();
-    std::env::set_var("MOCK_TESLA_BASE_URL", mock_url);
+    unsafe { std::env::set_var("MOCK_TESLA_BASE_URL", mock_url); }
     server
 }
 
@@ -208,7 +208,7 @@ pub async fn create_mock_osm_server() -> mockito::ServerGuard {
         .create_async()
         .await;
     let mock_url = server.url();
-    std::env::set_var("MOCK_OSM_BASE_URL", mock_url);
+    unsafe { std::env::set_var("MOCK_OSM_BASE_URL", mock_url); }
     server
 }
 
@@ -249,7 +249,7 @@ pub async fn init_test_database(db_name: &str) -> sqlx::Pool<sqlx::Postgres> {
         token_type: "Bearer".to_string(),
     };
     let encryption_key = "secret password acbdefghijklmnop";
-    std::env::set_var("TOKEN_ENCRYPTION_KEY", encryption_key);
+    unsafe { std::env::set_var("TOKEN_ENCRYPTION_KEY", encryption_key); }
     Token::db_insert(&pool, &tokens, encryption_key)
         .await
         .unwrap();

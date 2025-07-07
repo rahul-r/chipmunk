@@ -1,4 +1,3 @@
-#![feature(async_closure)]
 #![cfg_attr(rustfmt, rustfmt_skip)]
 #![allow(clippy::too_many_lines)]
 
@@ -36,7 +35,9 @@ pub async fn test_missing_charging_detection() {
     chipmunk::init_log();
 
     let random_http_port = rand::thread_rng().gen_range(4000..60000);
-    std::env::set_var("HTTP_PORT", random_http_port.to_string());
+    unsafe {
+        std::env::set_var("HTTP_PORT", random_http_port.to_string());
+    }
 
     let _osm_mock = create_mock_osm_server().await;
     let pool = init_test_database("test_missing_charging_detection").await;
@@ -167,7 +168,7 @@ pub async fn test_delayed_data_during_missing_charging_detection() {
     chipmunk::init_log();
 
     let random_http_port = rand::thread_rng().gen_range(4000..60000);
-    std::env::set_var("HTTP_PORT", random_http_port.to_string());
+    unsafe { std::env::set_var("HTTP_PORT", random_http_port.to_string()); }
 
     let _osm_mock = create_mock_osm_server().await;
     let pool = init_test_database("test_delayed_data_during_missing_charging_detection").await;
@@ -252,7 +253,7 @@ pub async fn test_charging_process() {
     chipmunk::init_log();
 
     let random_http_port = rand::thread_rng().gen_range(4000..60000);
-    std::env::set_var("HTTP_PORT", random_http_port.to_string());
+    unsafe { std::env::set_var("HTTP_PORT", random_http_port.to_string()); }
 
     let _osm_mock = create_mock_osm_server().await;
     let pool = init_test_database("test_charging_process").await;
@@ -402,7 +403,7 @@ pub async fn test_continue_previous_charging_session() {
     chipmunk::init_log();
 
     let random_http_port = rand::thread_rng().gen_range(4000..60000);
-    std::env::set_var("HTTP_PORT", random_http_port.to_string());
+    unsafe { std::env::set_var("HTTP_PORT", random_http_port.to_string()); }
 
     let _osm_mock = create_mock_osm_server().await;
     let pool = init_test_database("test_continue_previous_charging_session").await;

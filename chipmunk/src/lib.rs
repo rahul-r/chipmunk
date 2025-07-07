@@ -1,4 +1,3 @@
-#![feature(async_closure)]
 #![feature(stmt_expr_attributes)]
 #![allow(
     clippy::missing_errors_doc,

@@ -1,5 +1,6 @@
 use leptos::*;
-use leptos_leaflet::{MapContainer, Marker, Popup, Position, TileLayer};
+use leptos::prelude::*;
+use leptos_leaflet::prelude::{MapContainer, Marker, Popup, Position, TileLayer, use_leaflet_context};
 use leptos_use::core::ConnectionReadyState;
 
 use ui_common::{Status, Topic, WsMessage};
@@ -25,13 +26,13 @@ fn vehicle_status(status: Status) -> impl IntoView {
                                         if let Some(is_locked) = status.vehicle.is_locked {
                                             if is_locked {
                                                 view! {
-                                                    <svg class="currentColor" viewBox="0 0 8 8" height="25px" width="25px" xmlns="http://www.w3.org/2000/svg" class="size-5">
+                                                    <svg class="currentColor size-5" viewBox="0 0 8 8" height="25px" width="25px" xmlns="http://www.w3.org/2000/svg">
                                                         <path d="M 4,0 C 2.9,0 2,1.0277807 2,2.2839571 V 3.4259357 H 1 V 7.9938499 H 7 V 3.4259357 H 6 V 2.2839571 C 6,1.0277807 5.1,0 4,0 Z m 0,1.1419786 c 0.56,0 1,0.5024705 1,1.1419785 V 3.4259357 H 3 V 2.2839571 C 3,1.6444491 3.44,1.1419786 4,1.1419786 Z" />
                                                     </svg>
                                                 }.into_any()
                                             } else {
                                                 view! {
-                                                    <svg class="fill-yellow-200" viewBox="0 0 8 8" height="25px" width="25px" xmlns="http://www.w3.org/2000/svg" class="size-5">
+                                                    <svg class="fill-yellow-200 size-5" viewBox="0 0 8 8" height="25px" width="25px" xmlns="http://www.w3.org/2000/svg">
                                                         <path d="M3 0c-1.1 0-2 .9-2 2h1c0-.56.44-1 1-1s1 .44 1 1v2h-4v4h6v-4h-1v-2c0-1.1-.9-2-2-2z" />
                                                     </svg>
                                                 }.into_any()
@@ -64,7 +65,14 @@ fn vehicle_status(status: Status) -> impl IntoView {
                         <p class="text-md font-normal text-content-2">Odometer</p>
                         {
                             if status.vehicle.odometer.is_zero() {
-                                view! { <div class="whitespace-pre">" " </div>}
+                                // TODO: Fix this
+                                //view! { <div class="flex"> <div class="whitespace-pre">" " </div> </div>}
+                                view! {
+                                    <div class="flex">
+                                        <p class="text-lg font-normal text-content-1">{status.vehicle.odometer.to_string(&status.logging.unit_of_length)}</p>
+                                        <p class="text-md text-content-2 pl-1">{status.logging.unit_of_length.to_str()}</p>
+                                    </div>
+                                }
                             } else {
                                 view! {
                                     <div class="flex">
@@ -89,12 +97,12 @@ fn vehicle_status(status: Status) -> impl IntoView {
                     <div class="pb-2 text-center">
                         <p class="text-md font-normal text-content-2">Exterior</p>
                         {match status.vehicle.exterior_temperature {
-                            Some(t) => view!{
+                            Some(t) => Some(view!{
                                 <div class="flex">
                                     <p class="text-lg font-normal text-content-1">{t.to_string(&status.logging.unit_of_temperature)}</p>
                                     <p class="text-md text-content-2 pl-1">{status.logging.unit_of_temperature.to_str()}</p>
-                                </div>},
-                            None => view! {<div/>},
+                                </div>}),
+                            None => None,
                         }}
                     </div>
                     <div class="flex flex-col items-center pb-2 text-center">
@@ -229,8 +237,8 @@ pub fn Home() -> impl IntoView {
 
     let connected = move || websocket.ready_state.get() == ConnectionReadyState::Open;
 
-    create_effect(move |_| {
-        let map_context = leptos_leaflet::use_leaflet_context();
+    Effect::new(move |_| {
+        let map_context = use_leaflet_context();
         let Some(map) = map_context.and_then(|cx| cx.map()) else {
             log::warn!("No leaflet map found");
             return;
@@ -239,11 +247,26 @@ pub fn Home() -> impl IntoView {
         map.pan_to(&websocket.location.get().into());
     });
 
+    // let (marker_position, set_marker_position) = create_signal(Position::new(51.49, -0.08));
+
+    // create_effect(move |_| {
+    //     set_interval_with_handle(
+    //         move || {
+    //             set_marker_position.update(|pos| {
+    //                 pos.lat += 0.001;
+    //                 pos.lng += 0.001;
+    //             });
+    //         },
+    //         std::time::Duration::from_millis(200),
+    //     )
+    //     .ok()
+    // });
+
     view! {
         <>
             <MapContainer style="height: 300px" center=Position::new(0.0, 0.0) zoom=15.0 set_view=true class="z-0">
                 <TileLayer url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"/>
-                <Marker position=websocket.location>
+                <Marker position=websocket.location.get()>
                     <Popup>
                         <strong>{"Car"}</strong>
                     </Popup>

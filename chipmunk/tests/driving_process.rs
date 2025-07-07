@@ -1,4 +1,3 @@
-#![feature(async_closure)]
 #![cfg_attr(rustfmt, rustfmt_skip)]
 #![allow(clippy::too_many_lines)]
 
@@ -36,7 +35,7 @@ pub async fn test_driving_and_parking() {
     chipmunk::init_log();
 
     let random_http_port = rand::thread_rng().gen_range(4000..60000);
-    std::env::set_var("HTTP_PORT", random_http_port.to_string());
+    unsafe { std::env::set_var("HTTP_PORT", random_http_port.to_string()); }
 
     let _osm_mock = create_mock_osm_server().await;
     let pool = init_test_database("test_driving_and_parking").await;

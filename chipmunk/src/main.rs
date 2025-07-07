@@ -1,7 +1,3 @@
-#![feature(async_closure)]
-#![feature(let_chains)]
-#![feature(stmt_expr_attributes)]
-
 use chipmunk::{
     config::{load_env_vars, Config},
     database::{self, tables::token::Token},
@@ -40,7 +36,9 @@ macro_rules! print_err_and_exit {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     dotenvy::dotenv().ok();
-    std::env::set_var("RUST_BACKTRACE", "1"); // Enable backtrace
+    unsafe {
+        std::env::set_var("RUST_BACKTRACE", "1"); // Enable backtrace
+    }
     chipmunk::init_log();
 
     let subscriber = tracing_subscriber::FmtSubscriber::new();

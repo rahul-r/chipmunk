@@ -1,5 +1,5 @@
 use frontend::App;
-use leptos::*;
+use leptos::{mount::mount_to_body, view};
 
 fn main() {
     _ = console_log::init_with_level(log::Level::Debug);

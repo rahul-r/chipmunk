@@ -163,13 +163,14 @@ impl Config {
             Err(e) => panic!("{e}"), // TODO: return Result/Err instead of panicking
         };
 
-        let tokens = Token::db_get_last(pool, &env_vars.encryption_key)
-            .await
-            .unwrap_or_else(|e| {
-                log::error!("{e}");
-                AuthResponse::default()
-            });
-
+        // let tokens = Token::db_get_last(pool, &env_vars.encryption_key)
+        //     .await
+        //     .unwrap_or_else(|e| {
+        //         log::error!("{e}");
+        //         AuthResponse::default()
+        //     });
+        let tokens = AuthResponse{ access_token: "".into(), refresh_token: "".into(), id_token: "".into(), expires_in: 0, token_type: "".into() };
+        
         let settings = Settings::db_get_last(pool).await.unwrap_or_else(|e| {
             log::error!("Error loading settings from database: {e}. Using default values");
             Settings::default()

@@ -1,4 +1,5 @@
 use leptos::*;
+use leptos::prelude::*;
 use serde_json::json;
 
 use ui_common::{
@@ -10,7 +11,7 @@ use crate::WebsocketContext;
 
 #[component]
 pub fn Settings() -> impl IntoView {
-    let (refresh_token, set_refresh_token) = create_signal("".to_string());
+    let (refresh_token, set_refresh_token) = signal("".to_string());
 
     let websocket = expect_context::<WebsocketContext>();
 

@@ -125,11 +125,11 @@ pub fn create_drive_from_gpx() -> (Vec<VehicleData>, usize, usize) {
 pub async fn check_vehicle_data() -> anyhow::Result<()> {
     // chipmunk::init_log();
     let random_http_port = rand::thread_rng().gen_range(4000..60000);
-    std::env::set_var("HTTP_PORT", random_http_port.to_string());
+    unsafe { std::env::set_var("HTTP_PORT", random_http_port.to_string()); }
 
     let pool = init_test_database("check_vehicle_data").await;
     let car_data_db_url = init_car_data_database("check_vehicle_data_car_data").await;
-    std::env::set_var("CAR_DATA_DATABASE_URL", &car_data_db_url);
+    unsafe { std::env::set_var("CAR_DATA_DATABASE_URL", &car_data_db_url); }
     let _osm_mock = create_mock_osm_server().await;
 
     // Make the logging period shorter to speed up the test

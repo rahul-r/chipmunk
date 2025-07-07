@@ -13,13 +13,13 @@ anyhow.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 
-leptos = { version = "0.6", features = ["csr", "nightly"] }
-leptos_meta = { version = "0.6", features = ["csr", "nightly"] }
-leptos_router = { version = "0.6", features = ["csr", "nightly"] }
+leptos = { version = "0.8", features = ["csr", "nightly"] }
+leptos_meta = { version = "0.8", features = [] }
+leptos_router = { version = "0.8", features = ["nightly"] }
 console_log = "1"
 console_error_panic_hook = "0.1"
-leptos-use = "0.10.10"
-leptos-leaflet = "0.8.1"
+leptos-use = { version = "0.16.2", features = ["ssr", "use_websocket"] }
+leptos-leaflet = "0.10.0"
 
 # utils
 # strum = { version = "0.25", features = ["derive", "strum_macros"] }
@@ -27,6 +27,6 @@ leptos-leaflet = "0.8.1"
 
 
 [dev-dependencies]
-wasm-bindgen = "0.2"
+wasm-bindgen = "0.2.100"
 wasm-bindgen-test = "0.3"
 web-sys = { version = "0.3", features = ["Document", "Window"] }
