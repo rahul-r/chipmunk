@@ -1,14 +1,13 @@
 use leptos::prelude::*;
+use leptos::{logging, web_sys};
 use leptos::server::codee::string::FromToStringCodec;
-use leptos::*;
 use leptos_meta::*;
-use leptos_router::components::{ParentRoute, Route, Router, Routes};
+use leptos_router::components::{Route, Router, Routes};
 use leptos_router::*;
 use leptos_use::{
     core::ConnectionReadyState, use_websocket_with_options, UseWebSocketOptions, UseWebSocketReturn,
 };
 
-mod components;
 mod pages;
 
 use crate::pages::geofence::Geofence;
