@@ -31,7 +31,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
       - uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly-2024-01-20
+          toolchain: nightly-2025-07-05
           override: true
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@c5ed9ba6b7e1bb8aff90d43acd2f0af4990fa57c
@@ -69,7 +69,7 @@ jobs:
           - ubuntu-latest
           # - macos-latest
           # - windows-latest
-        rust-version: [ nightly-2024-01-20 ]
+        rust-version: [ nightly-2025-07-05 ]
       fail-fast: false
     env:
       RUSTFLAGS: -D warnings

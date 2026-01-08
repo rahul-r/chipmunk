@@ -18,6 +18,83 @@
 /// Data voids are assigned the value -32768.
 mod source;
 
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex, OnceLock};
+use std::time::{Duration, Instant};
+
+const CACHE_TTL: Duration = Duration::from_secs(60 * 60);
+const MAX_CACHE_ENTRIES: usize = 32;
+
+struct CacheEntry {
+    data: Arc<SrtmData>,
+    loaded_at: Instant,
+    last_access: Instant,
+}
+
+struct SrtmCache {
+    entries: HashMap<String, CacheEntry>,
+    ttl: Duration,
+    max_entries: usize,
+}
+
+impl SrtmCache {
+    fn new() -> Self {
+        Self {
+            entries: HashMap::new(),
+            ttl: CACHE_TTL,
+            max_entries: MAX_CACHE_ENTRIES,
+        }
+    }
+
+    fn get(&mut self, name: &str) -> Option<Arc<SrtmData>> {
+        self.prune_expired();
+        if let Some(entry) = self.entries.get_mut(name) {
+            entry.last_access = Instant::now();
+            return Some(Arc::clone(&entry.data));
+        }
+        None
+    }
+
+    fn insert(&mut self, name: String, data: Arc<SrtmData>) {
+        let now = Instant::now();
+        self.entries.insert(
+            name,
+            CacheEntry {
+                data,
+                loaded_at: now,
+                last_access: now,
+            },
+        );
+        self.evict_overflow();
+    }
+
+    fn prune_expired(&mut self) {
+        let now = Instant::now();
+        self.entries
+            .retain(|_, entry| now.duration_since(entry.loaded_at) < self.ttl);
+    }
+
+    fn evict_overflow(&mut self) {
+        while self.entries.len() > self.max_entries {
+            let lru_key = self
+                .entries
+                .iter()
+                .min_by_key(|(_, entry)| entry.last_access)
+                .map(|(key, _)| key.clone());
+            if let Some(key) = lru_key {
+                self.entries.remove(&key);
+            } else {
+                break;
+            }
+        }
+    }
+}
+
+fn cache() -> &'static Mutex<SrtmCache> {
+    static CACHE: OnceLock<Mutex<SrtmCache>> = OnceLock::new();
+    CACHE.get_or_init(|| Mutex::new(SrtmCache::new()))
+}
+
 /// Get elevation for a given latitude and longitude.
 ///
 /// # Arguments
@@ -27,10 +104,12 @@ mod source;
 /// returns: Option<i16>
 /// Some(elevation) if the elevation data is available for the given latitude and longitude
 ///
-// TODO: This function loads the *.hgt from the file system on every call. We should pre-load the
-// data and use the cached data instead.
 pub async fn get_elevation(lat: f64, lon: f64) -> Option<i16> {
     let (name, lat_hgt_base, lon_hgt_base) = hgt_name(lat, lon);
+    if let Some(srtm_data) = cache().lock().ok().and_then(|mut cache| cache.get(&name)) {
+        return srtm_data.get_elevation(lat, lon);
+    }
+
     if !source::file::exists(&name) {
         if let Err(e) = source::esa::fetch(&name).await {
             log::error!("Error fetching elevation: {e}");
@@ -42,6 +121,13 @@ pub async fn get_elevation(lat: f64, lon: f64) -> Option<i16> {
         .and_then(|data| SrtmData::new(lat_hgt_base, lon_hgt_base, data))
         .map_err(|e| log::error!("Error determining elevation: {e}"))
         .ok()
+        .map(Arc::new)
+        .map(|srtm_data| {
+            if let Ok(mut cache) = cache().lock() {
+                cache.insert(name, Arc::clone(&srtm_data));
+            }
+            srtm_data
+        })
         .and_then(|srtm_data| srtm_data.get_elevation(lat, lon))
 }
 

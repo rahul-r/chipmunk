@@ -169,7 +169,7 @@ impl Config {
                 log::error!("{e}");
                 AuthResponse::default()
             });
-        
+
         let settings = Settings::db_get_last(pool).await.unwrap_or_else(|e| {
             log::error!("Error loading settings from database: {e}. Using default values");
             Settings::default()

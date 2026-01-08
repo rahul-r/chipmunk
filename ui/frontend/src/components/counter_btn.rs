@@ -1,5 +1,5 @@
-use leptos::*;
 use leptos::prelude::*;
+use leptos::*;
 
 /// A parameterized incrementing button
 #[component]

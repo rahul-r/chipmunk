@@ -1,6 +1,8 @@
-use leptos::*;
 use leptos::prelude::*;
-use leptos_leaflet::prelude::{MapContainer, Marker, Popup, Position, TileLayer, use_leaflet_context};
+use leptos::*;
+use leptos_leaflet::prelude::{
+    use_leaflet_context, MapContainer, Marker, Popup, Position, TileLayer,
+};
 use leptos_use::core::ConnectionReadyState;
 
 use ui_common::{Status, Topic, WsMessage};
