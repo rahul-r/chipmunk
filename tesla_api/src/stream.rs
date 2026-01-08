@@ -35,7 +35,7 @@ impl StreamingData {
         let parts: Vec<&str> = csv.split(',').collect();
 
         if parts.len() != 13 {
-            log::debug!("{:?}", parts);
+            log::debug!("{parts:?}");
             anyhow::bail!("Expected 13 datafields, received {}", parts.len());
         }
 
@@ -112,7 +112,7 @@ impl WebSocketResponse {
                 Ok(v) => MessageType::Data(Some(v)),
                 Err(e) => {
                     log::error!("{e}");
-                    log::debug!("{:?}", self);
+                    log::debug!("{self:?}");
                     MessageType::Data(None)
                 }
             },
@@ -125,15 +125,15 @@ impl WebSocketResponse {
                 Some(e) if e == "timeout" => MessageType::Timeout,
                 Some(e) => {
                     log::warn!("Unknown error message received from WebSocket `{e}`");
-                    log::debug!("WebSocket message `{:?}`", self);
+                    log::debug!("WebSocket message `{self:?}`");
                     MessageType::Error(StreamError::UnknownError(e.clone()))
                 }
                 None => MessageType::Error(StreamError::UnknownError("Unknown".to_string())),
             },
             unknown => {
                 log::warn!("Unknown WebSocket message type `{unknown}`");
-                log::debug!("WebSocket message `{:?}`", self);
-                MessageType::Unknown(format!("{:?}", self))
+                log::debug!("WebSocket message `{self:?}`");
+                MessageType::Unknown(format!("{self:?}"))
             }
         }
     }

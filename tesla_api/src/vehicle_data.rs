@@ -46,7 +46,7 @@ where
     let s: &str = match Deserialize::deserialize(deserializer) {
         Ok(s) => s,
         Err(e) => {
-            log::warn!("Error deserializing charging state: {}", e);
+            log::warn!("Error deserializing charging state: {e}");
             return Ok(None);
         }
     };
@@ -59,8 +59,7 @@ where
         "Disconnected" => ChargingState::Disconnected,
         unknown => {
             log::warn!(
-                "Unknown charging state `{}`. Consider updating `ChargingState` enum",
-                unknown
+                "Unknown charging state `{unknown}`. Consider updating `ChargingState` enum"
             );
             ChargingState::Unknown(unknown.to_string())
         }

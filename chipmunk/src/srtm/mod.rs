@@ -1,7 +1,7 @@
 /// # SRTM HGT file name format:
 /// SRTM data are distributed in two levels:
 /// - SRTM1 (for the U.S. and its territories and possessions) with data sampled at one arc-second
-///         intervals in latitude and longitude
+///   intervals in latitude and longitude
 /// - SRTM3 (for the world) sampled at three arc-seconds.
 ///
 /// Data are divided into one by one degree latitude and longitude tiles in "geographic" projection
@@ -110,11 +110,9 @@ pub async fn get_elevation(lat: f64, lon: f64) -> Option<i16> {
         return srtm_data.get_elevation(lat, lon);
     }
 
-    if !source::file::exists(&name) {
-        if let Err(e) = source::esa::fetch(&name).await {
-            log::error!("Error fetching elevation: {e}");
-            return None;
-        }
+    if !source::file::exists(&name) && let Err(e) = source::esa::fetch(&name).await {
+        log::error!("Error fetching elevation: {e}");
+        return None;
     }
 
     source::file::load(&name)
@@ -122,11 +120,10 @@ pub async fn get_elevation(lat: f64, lon: f64) -> Option<i16> {
         .map_err(|e| log::error!("Error determining elevation: {e}"))
         .ok()
         .map(Arc::new)
-        .map(|srtm_data| {
+        .inspect(|srtm_data| {
             if let Ok(mut cache) = cache().lock() {
-                cache.insert(name, Arc::clone(&srtm_data));
+                cache.insert(name, Arc::clone(srtm_data));
             }
-            srtm_data
         })
         .and_then(|srtm_data| srtm_data.get_elevation(lat, lon))
 }

@@ -168,6 +168,7 @@ macro_rules! parse_error {
     }};
 }
 
+#[allow(clippy::result_large_err)]
 pub fn get_tesla_client(
     tokens: AuthResponse,
     handle_token_expiry: Option<ErrorHandlerType>,
@@ -220,7 +221,7 @@ async fn get_vehicles_local(tesla: &mut TeslaClient) -> Result<Vec<Vehicles>, Te
         .get(format!("{}/products", get_base_url()))
         .send()
         .await?;
-    log::debug!("Received response: {:?}", res);
+    log::debug!("Received response: {res:?}");
     read_response_json!(res, Vec<Vehicles>, tesla)
 }
 
@@ -257,7 +258,7 @@ async fn get_vehicle_data_local(tesla: &mut TeslaClient, id: u64) -> Result<Stri
         .send()
         .await?;
 
-    log::debug!("Received response: {:?}", res);
+    log::debug!("Received response: {res:?}");
     Ok(read_response_json!(res, serde_json::Value, tesla)?.to_string())
 }
 
