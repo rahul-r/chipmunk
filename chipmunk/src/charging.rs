@@ -48,10 +48,9 @@ fn determine_phases(charges: &[Charges]) -> Option<f32> {
             charge.charger_actual_current,
             charge.charger_voltage,
             charge.charger_power,
-        ) {
-            if current != 0 {
-                total_power += power as f32 * 1000.0 / (current * voltage) as f32;
-            }
+        ) && current != 0
+        {
+            total_power += power as f32 * 1000.0 / (current * voltage) as f32;
         }
 
         total_phases += charge.charger_phases.unwrap_or(0) as i32;

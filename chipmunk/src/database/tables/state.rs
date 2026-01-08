@@ -125,7 +125,6 @@ impl State {
     /// Check if the state has changed from the previous state
     /// Returns (None, None) if the state has not changed
     /// Returns (Some(previous_state), Some(current_state)) if the state has changed
-
     pub fn transition(
         &self,
         previous_state: &Option<State>,

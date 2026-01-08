@@ -181,8 +181,8 @@ impl TeslaServer {
         let routes = index.or(static_dir).or(public_dir).or(websocket);
 
         let address = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), http_port);
-        log::info!("Listening on http://{}", address);
-        log::info!("Serving files from {:?}", http_root_dir);
+        log::info!("Listening on http://{address}");
+        log::info!("Serving files from {http_root_dir:?}");
         let signal = async {
             exit_signal_rx.await.ok();
         };
@@ -324,7 +324,7 @@ impl TeslaServer {
                 client_ws_tx
                     .send(message)
                     .unwrap_or_else(|e| {
-                        log::error!("websocket send error: {}", e);
+                        log::error!("websocket send error: {e}");
                     })
                     .await;
             }
@@ -337,7 +337,7 @@ impl TeslaServer {
             let msg = match result {
                 Ok(msg) => msg,
                 Err(e) => {
-                    log::error!("websocket error(uid={}): {}", client_id, e);
+                    log::error!("websocket error(uid={client_id}): {e}");
                     break;
                 }
             };
@@ -346,7 +346,7 @@ impl TeslaServer {
                 TeslaServer::handle_messages(&client_tx, msg, tx.clone(), config.clone()).await
             {
                 // log::error!("{} {}", e, e.backtrace());
-                log::error!("{}", e);
+                log::error!("{e}");
             }
         }
 
@@ -391,7 +391,7 @@ impl TeslaServer {
                 Some(cr) => (cr.0.to_string(), cr.1),
                 None => ("".to_string(), ""),
             };
-            log::info!("WebSocket closing - code `{}`, reason `{}`", code, reason);
+            log::info!("WebSocket closing - code `{code}`, reason `{reason}`");
             return Ok(());
         }
 

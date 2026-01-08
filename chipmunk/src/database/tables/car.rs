@@ -86,15 +86,14 @@ impl Car {
 
         if cars.len() > 1 {
             log::error!(
-                "More than one car found with id `{}`, using the last car from the list of cars",
-                id
+                "More than one car found with id `{id}`, using the last car from the list of cars"
             );
         }
 
         if let Some(car) = cars.last() {
             Ok(car.clone())
         } else {
-            log::error!("No car found with id `{}`", id);
+            log::error!("No car found with id `{id}`");
             Err(sqlx::Error::RowNotFound)
         }
     }
@@ -172,7 +171,7 @@ impl Car {
                 "Error updating efficiency. Expected to update 1 row, but updated {} rows",
                 res.rows_affected()
             );
-            log::error!("{}", msg);
+            log::error!("{msg}");
             Err(sqlx::Error::Protocol(msg))
         } else {
             Ok(())

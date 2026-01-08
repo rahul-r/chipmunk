@@ -100,8 +100,7 @@ impl DBTable for VehicleData {
             Ok(val) => val,
             Err(e) => {
                 return Err(sqlx::Error::Protocol(format!(
-                    "Error converting vehicle data to JSON: {}",
-                    e
+                    "Error converting vehicle data to JSON: {e}"
                 )))
             }
         };

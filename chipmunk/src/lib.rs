@@ -42,10 +42,10 @@ pub const DELAYED_DATAPOINT_TIME_SEC: i64 = 10 * 60;
 fn get_file_name(path_str: Option<&str>) -> String {
     if let Some(path_str_val) = path_str {
         let path = std::path::Path::new(path_str_val);
-        if let Some(file_name) = path.file_name() {
-            if let Some(s) = file_name.to_str() {
-                return s.to_string();
-            }
+        if let Some(file_name) = path.file_name()
+            && let Some(s) = file_name.to_str()
+        {
+            return s.to_string();
         }
     }
 

@@ -111,21 +111,19 @@ impl Tables {
                 s.db_insert(pool)
                     .await
                     .map(|id| s.id = id as i32)
-                    .map_err(|e| log::error!("{:?}", e))
+                    .map_err(|e| log::error!("{e:?}"))
                     .ok();
             } else {
                 s.db_update(pool)
                     .await
-                    .map_err(|e| log::error!("{:?}", e))
+                    .map_err(|e| log::error!("{e:?}"))
                     .ok();
             }
         }
 
         // Insert position and update the ID field
-        if let Some(ref mut p) = tables.position {
-            if p.id.is_none() || p.id == Some(0) {
-                p.db_insert(pool).await.map(|id| p.id = Some(id as i32))?; // Update id field of current_position with the id returned from the database
-            }
+        if let Some(ref mut p) = tables.position && (p.id.is_none() || p.id == Some(0)) {
+            p.db_insert(pool).await.map(|id| p.id = Some(id as i32))?; // Update id field of current_position with the id returned from the database
         }
 
         // Insert address and update the ID field
@@ -173,10 +171,10 @@ impl Tables {
 
                 if res.is_ok() {
                     // Update drive_id of the position entry
-                    if let Some(ref p) = tables.position {
-                        if let Err(e) = p.db_update_drive_id(pool, drive.id).await {
-                            log::error!("Error updating position with drive_id: {e}");
-                        }
+                    if let Some(ref p) = tables.position
+                        && let Err(e) = p.db_update_drive_id(pool, drive.id).await
+                    {
+                        log::error!("Error updating position with drive_id: {e}");
                     }
                 }
             } else {
@@ -188,17 +186,17 @@ impl Tables {
             }
         }
 
-        if let Some(ref mut charging_process) = tables.charging_process {
-            if charging_process.id == 0 {
-                charging_process.position_id =
-                    tables.position.as_ref().and_then(|p| p.id).unwrap_or(0);
-                charging_process.address_id = address_id;
+        if let Some(ref mut charging_process) = tables.charging_process
+            && charging_process.id == 0
+        {
+            charging_process.position_id =
+                tables.position.as_ref().and_then(|p| p.id).unwrap_or(0);
+            charging_process.address_id = address_id;
 
-                charging_process
-                    .db_insert(pool)
-                    .await
-                    .map(|id| charging_process.id = id as i32)?;
-            }
+            charging_process
+                .db_insert(pool)
+                .await
+                .map(|id| charging_process.id = id as i32)?;
         }
 
         // Insert charges and update the charging process
