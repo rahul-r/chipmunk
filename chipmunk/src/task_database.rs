@@ -42,12 +42,11 @@ pub async fn database_task(
         match data_rx.try_recv() {
             Ok(data) => match data {
                 DatabaseDataType::RawData(d) => {
-                    if let Some(ref car_data_pool) = car_data_db_pool {
-                        if let Err(e) =
+                    if let Some(ref car_data_pool) = car_data_db_pool
+                        && let Err(e) =
                             database::tables::vehicle_data::db_insert_json(&d, car_data_pool).await
-                        {
-                            log::error!("Error logging to `{car_data_database_url:?}`: {e}");
-                        };
+                    {
+                        log::error!("Error logging to `{car_data_database_url:?}`: {e}");
                     }
                     if let Err(e) = database::tables::vehicle_data::db_insert_json(&d, pool).await {
                         log::error!("{e}");
@@ -58,11 +57,11 @@ pub async fn database_task(
                     for t in table_list {
                         match t.db_insert(pool).await {
                             Ok(updated_tables) => last_tables = updated_tables,
-                            Err(e) => log::error!("Error inserting tables into database: {:?}", e),
+                            Err(e) => log::error!("Error inserting tables into database: {e:?}"),
                         }
                     }
                     if let Err(e) = data_resp_tx
-                        .send(DatabaseRespType::Tables(last_tables))
+                        .send(DatabaseRespType::Tables(Box::new(last_tables)))
                         .await
                     {
                         log::error!("Error sending response from database task: {e}");

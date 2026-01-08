@@ -82,7 +82,7 @@ pub async fn data_processor_task(
                     // database id fields
                     if let Some(resp) = database_resp_rx.recv().await {
                         if let DatabaseRespType::Tables(prev_tables_resp) = resp {
-                            prev_tables = prev_tables_resp;
+                            prev_tables = *prev_tables_resp;
                         } else {
                             log::error!("Unexpected response type received from database task");
                         }
@@ -165,7 +165,7 @@ async fn send_to_database_task(
         anyhow::bail!("Unexpected response type received from database task");
     };
 
-    Ok(prev_tables_resp)
+    Ok(*prev_tables_resp)
 }
 
 async fn get_car_id(
@@ -183,8 +183,7 @@ async fn get_car_id(
         *id
     } else {
         log::info!(
-            "Vehicle with VIN {} not found in the database, inserting a new entry into database",
-            vin
+            "Vehicle with VIN {vin} not found in the database, inserting a new entry into database"
         );
         let car_settings_id = match CarSettings::default().db_insert(pool).await {
             Ok(id) => id,
