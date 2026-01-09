@@ -52,7 +52,7 @@ pub enum TeslaError {
     #[error("Url parse error `{0}`")]
     ParseError(url::ParseError),
     #[error("WebSocket error `{0}`")]
-    WebSocketError(tungstenite::Error),
+    WebSocketError(Box<tungstenite::Error>),
     #[error("Access token expired, {0}")]
     TokenExpired(String),
     #[error("Error decoding json, {0}")]
@@ -71,7 +71,7 @@ impl From<url::ParseError> for TeslaError {
 
 impl From<tungstenite::Error> for TeslaError {
     fn from(e: tungstenite::Error) -> TeslaError {
-        TeslaError::WebSocketError(e)
+        TeslaError::WebSocketError(Box::new(e))
     }
 }
 
@@ -220,7 +220,7 @@ async fn get_vehicles_local(tesla: &mut TeslaClient) -> Result<Vec<Vehicles>, Te
         .get(format!("{}/products", get_base_url()))
         .send()
         .await?;
-    log::debug!("Received response: {:?}", res);
+    log::debug!("Received response: {res:?}");
     read_response_json!(res, Vec<Vehicles>, tesla)
 }
 
@@ -257,7 +257,7 @@ async fn get_vehicle_data_local(tesla: &mut TeslaClient, id: u64) -> Result<Stri
         .send()
         .await?;
 
-    log::debug!("Received response: {:?}", res);
+    log::debug!("Received response: {res:?}");
     Ok(read_response_json!(res, serde_json::Value, tesla)?.to_string())
 }
 

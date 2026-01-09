@@ -32,7 +32,7 @@ pub enum DatabaseDataType {
 
 pub enum DatabaseRespType {
     _RawData(String),
-    Tables(Tables),
+    Tables(Box<Tables>),
 }
 
 fn handle_token_expiry(_pool: &sqlx::PgPool) {

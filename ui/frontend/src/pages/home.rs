@@ -1,5 +1,4 @@
 use leptos::prelude::*;
-use leptos::*;
 use leptos_leaflet::prelude::{
     use_leaflet_context, MapContainer, Marker, Popup, Position, TileLayer,
 };

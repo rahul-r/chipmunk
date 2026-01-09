@@ -4,7 +4,7 @@ use rand::Rng;
 pub fn encrypt(data: &str, key: &str) -> anyhow::Result<(Vec<u8>, Vec<u8>)> {
     // aes_256_cbc require 32 byte key and
     // aes_128_cbc require 16 byte key
-    match key.as_bytes().len() {
+    match key.len() {
         len if len < 32 => anyhow::bail!("Invalid key length {len}; expected 32. AES256 require a 32 byte (256 bit) key"),
         len if len > 32 => log::warn!("Key size is larger than 32 bytes. Using the first 32 bytes for encryption and discarding the rest"),
         _ => (), // all good
@@ -27,7 +27,7 @@ pub fn encrypt(data: &str, key: &str) -> anyhow::Result<(Vec<u8>, Vec<u8>)> {
 pub fn decrypt(data: &[u8], key: &str, iv: &[u8]) -> anyhow::Result<String> {
     // aes_256_cbc require 32 byte key and
     // aes_128_cbc require 16 byte key
-    match key.as_bytes().len() {
+    match key.len() {
         len if len < 32 => anyhow::bail!("Invalid key length {len}; expected 32. AES256 require a 32 byte (256 bit) key"),
         len if len > 32 => log::warn!("Key size is larger than 32 bytes. Using the first 32 bytes for encryption and discarding the rest"),
         _ => (), // all good
